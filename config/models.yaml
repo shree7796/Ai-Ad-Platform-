@@ -1,0 +1,63 @@
+# AI Model Configuration
+# Add/remove models via this file — no code changes needed
+
+video_models:
+  - name: mock
+    display_name: "Mock Generator"
+    enabled: true
+    tier: basic       # basic | pro | premium
+    adapter: "mock"
+    config:
+      delay_seconds: 3
+      output_duration: 12
+
+  - name: pika
+    display_name: "Pika Labs"
+    enabled: false     # Enable when API key is available
+    tier: basic
+    adapter: "pika"
+    config:
+      api_url: "${PIKA_API_URL}"
+      api_key: "${PIKA_API_KEY}"
+      default_duration: 12
+      default_resolution: "1080p"
+      max_retries: 3
+      timeout_seconds: 300
+
+  - name: runway
+    display_name: "Runway Gen-3"
+    enabled: false     # Enable when API key is available
+    tier: premium
+    adapter: "runway"
+    config:
+      api_url: "${RUNWAY_API_URL}"
+      api_key: "${RUNWAY_API_KEY}"
+      default_duration: 15
+      default_resolution: "1080p"
+      max_retries: 3
+      timeout_seconds: 600
+
+# LLM for prompt enhancement
+llm_models:
+  - name: openai
+    display_name: "OpenAI GPT-4o"
+    enabled: true
+    adapter: "openai"
+    config:
+      model: "${LLM_MODEL}"
+      api_key: "${OPENAI_API_KEY}"
+      max_tokens: 500
+      temperature: 0.7
+
+  - name: mock_llm
+    display_name: "Mock LLM"
+    enabled: true
+    adapter: "mock_llm"
+    config:
+      delay_seconds: 1
+
+# Model selection strategy
+strategy:
+  default_video_model: "mock"    # Change to "pika" when ready
+  default_llm_model: "openai"    # Change to "mock_llm" for testing without API key
+  fallback_enabled: true

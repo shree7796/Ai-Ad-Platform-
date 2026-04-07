@@ -1,0 +1,63 @@
+# Subscription Plan Configuration
+
+plans:
+  free:
+    display_name: "Free"
+    price_monthly: 0
+    features:
+      max_generations_per_day: 3
+      max_generations_per_month: 30
+      max_upload_size_mb: 10
+      available_tiers:
+        - basic
+      max_video_duration: 10
+      watermark: true
+      priority: low
+
+  basic:
+    display_name: "Basic"
+    price_monthly: 9.99
+    features:
+      max_generations_per_day: 20
+      max_generations_per_month: 300
+      max_upload_size_mb: 50
+      available_tiers:
+        - basic
+      max_video_duration: 12
+      watermark: false
+      priority: normal
+
+  pro:
+    display_name: "Pro"
+    price_monthly: 29.99
+    features:
+      max_generations_per_day: 100
+      max_generations_per_month: 1500
+      max_upload_size_mb: 200
+      available_tiers:
+        - basic
+        - pro
+      max_video_duration: 15
+      watermark: false
+      priority: high
+
+  premium:
+    display_name: "Premium"
+    price_monthly: 79.99
+    features:
+      max_generations_per_day: 500
+      max_generations_per_month: 5000
+      max_upload_size_mb: 500
+      available_tiers:
+        - basic
+        - pro
+        - premium
+      max_video_duration: 15
+      watermark: false
+      priority: highest
+
+# Cost per generation by tier
+generation_costs:
+  basic: 0.10
+  pro: 0.30
+  premium: 0.80
