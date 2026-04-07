@@ -1,0 +1,43 @@
+# Dependency directories
+node_modules/
+__pycache__/
+*.pyc
+.pyo
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Next.js
+.next/
+out/
+
+# Docker volumes
+postgres_data/
+redis_data/
+minio_data/
+
+# Build artifacts
+*.egg
+*.whl
+
+# Logs
+*.log
+
+# Coverage
+htmlcov/
+.coverage
