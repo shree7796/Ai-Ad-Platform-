@@ -14,24 +14,28 @@ const products = [
     desc: 'Describe your vision, and AI brings it to life.',
     icon: <Video className="w-5 h-5" />,
     type: 'text_to_video',
+    bgImage: '/assets/text_to_video_preview.png'
   },
   {
     title: 'Image → Video',
     desc: 'Easily animate any product image into a cinematic ad.',
     icon: <Film className="w-5 h-5" />,
     type: 'image_to_video',
+    bgImage: '/assets/image_to_video_preview.png'
   },
   {
     title: 'Text → Image',
     desc: 'Generate gorgeous, photorealistic ad concepts.',
     icon: <ImageIcon className="w-5 h-5" />,
     type: 'text_to_image',
+    bgImage: '/assets/text_to_image_preview.png'
   },
   {
     title: 'Image → Image',
     desc: 'Transform your existing assets with AI stylization.',
     icon: <Layers className="w-5 h-5" />,
     type: 'image_to_image',
+    bgImage: '/assets/image_to_image_preview.png'
   },
 ];
 
@@ -197,15 +201,33 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
+                className="group"
               >
-                <Link href={isAuth ? `/editor?task_type=${p.type}` : '/login'} className="flex flex-col h-full bg-surface-900/40 border border-white/5 rounded-2xl p-6 group transition-all hover:border-brand-500/30 hover:bg-surface-800/60 hover:-translate-y-1">
-                  <div className="w-10 h-10 rounded-lg bg-surface-800 flex items-center justify-center mb-6 text-brand-500 group-hover:bg-brand-500/10 transition-colors">
-                    {p.icon}
+                <Link 
+                  href={isAuth ? `/editor?task_type=${p.type}` : '/login'} 
+                  className="relative flex flex-col h-64 bg-surface-900 border border-white/5 rounded-2xl p-6 overflow-hidden transition-all hover:border-brand-500/30 hover:shadow-2xl hover:shadow-brand-500/5 group/card"
+                >
+                  {/* Cinematic Background Layer */}
+                  <div className="absolute inset-0 z-0">
+                    <img 
+                      src={p.bgImage} 
+                      alt="" 
+                      className="w-full h-full object-cover opacity-20 grayscale group-hover/card:opacity-40 group-hover/card:grayscale-0 group-hover/card:scale-110 transition-all duration-700 ease-out" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-surface-950 via-surface-950/80 to-surface-950/20" />
                   </div>
-                  <h3 className="text-xl font-medium tracking-tight mb-2">{p.title}</h3>
-                  <p className="text-white/40 text-sm leading-relaxed flex-1">{p.desc}</p>
-                  <div className="mt-6 flex items-center gap-2 text-brand-500 text-xs font-mono font-medium opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all uppercase tracking-wider">
-                    Launch <ArrowRight className="w-3.5 h-3.5" />
+
+                  {/* Content Layer */}
+                  <div className="relative z-10 flex flex-col h-full">
+                    <div className="w-10 h-10 rounded-lg bg-surface-800/80 backdrop-blur-md border border-white/5 flex items-center justify-center mb-6 text-brand-500 group-hover/card:bg-brand-500/20 group-hover/card:border-brand-500/20 transition-all">
+                      {p.icon}
+                    </div>
+                    <h3 className="text-xl font-medium tracking-tight mb-2 group-hover/card:text-white transition-colors">{p.title}</h3>
+                    <p className="text-white/40 text-sm leading-relaxed flex-1 group-hover/card:text-white/60 transition-colors">{p.desc}</p>
+                    
+                    <div className="mt-6 flex items-center gap-2 text-brand-500 text-xs font-mono font-medium opacity-0 -translate-x-2 group-hover/card:opacity-100 group-hover/card:translate-x-0 transition-all uppercase tracking-widest">
+                      Launch Studio <ArrowRight className="w-3.5 h-3.5" />
+                    </div>
                   </div>
                 </Link>
               </motion.div>

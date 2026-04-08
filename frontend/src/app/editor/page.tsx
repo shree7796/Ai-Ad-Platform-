@@ -283,18 +283,19 @@ export default function StudioEditorPage() {
   const taskConfigs: Record<string, any> = {
     text_to_video: {
       title: 'Text to Video',
-      desc: 'Describe your vision, and AI will generate a stunning cinematic video instantly.',
-      action: 'Start Text-to-Video Engine',
+      desc: 'Describe your vision, and AI brings it to life with stunning cinematic detail and motion.',
+      action: 'Start Video Engine',
+      bgImage: '/assets/text_to_video_preview.png',
       whatYouCanDo: [
-        'Produce high-quality b-roll sequences', 
-        'Animate complex descriptions visually',
-        'Generate AI-driven music videos',
-        'Create cinematic trailers from text',
-        'Visualize storyboarding concepts quickly',
-        'Render fantasy and sci-fi environments',
-        'Generate short social media video ads',
-        'Create educational animation explainers',
-        'Visualize product demo scenarios'
+        'Cinematic product reveal commercials', 
+        'Nature and landscape conceptual clips',
+        'Sci-fi and futuristic city fly-throughs',
+        'Abstract artistic motion graphics',
+        'Vibrant neon cyberpunk style visuals',
+        'Fluid liquid and smoke simulations',
+        'Dynamic car and vehicle sequences',
+        'Character-driven scene animations',
+        'High-energy social media hooks'
       ],
       icon: <Film className="w-8 h-8 text-brand-500 mb-6" />
     },
@@ -302,6 +303,7 @@ export default function StudioEditorPage() {
       title: 'Image to Video',
       desc: 'Bring static photos to life with dynamic motion, pans, and cinematic AI movement.',
       action: 'Animate Existing Image',
+      bgImage: '/assets/image_to_video_preview.png',
       whatYouCanDo: [
         'Add fluid motion to product photography', 
         'Turn design concepts into moving scenes',
@@ -319,6 +321,7 @@ export default function StudioEditorPage() {
       title: 'Text to Image',
       desc: 'Generate gorgeous, photorealistic ad concepts and product assets from scratch.',
       action: 'Start Text-to-Image Engine',
+      bgImage: '/assets/text_to_image_preview.png',
       whatYouCanDo: [
         'Create conceptual product hero shots', 
         'Mock up endless lighting variations',
@@ -336,6 +339,7 @@ export default function StudioEditorPage() {
       title: 'Image to Image',
       desc: 'Transform your existing assets with powerful AI stylization and visual enhancements.',
       action: 'Restyle Visual Asset',
+      bgImage: '/assets/image_to_image_preview.png',
       whatYouCanDo: [
         'Change art styles (e.g. Sketch to 3D)', 
         'Relight and upscale existing photography',
@@ -406,20 +410,34 @@ export default function StudioEditorPage() {
                 </div>
 
                 {/* Primary Action Card */}
-                <div className="glass-card hover:border-brand-500/30 transition-colors p-8 md:p-12 relative flex flex-col items-center justify-center text-center max-w-2xl mx-auto group">
-                  <div className="absolute inset-0 bg-brand-500/5 blur-[100px] rounded-[3rem] opacity-0 group-hover:opacity-100 transition-opacity" />
-                  {activeConfig.icon}
-                  <h2 className="text-2xl font-display font-medium mb-2">Ready to create?</h2>
-                  <p className="text-white/40 text-sm mb-10 font-mono tracking-wide">
-                    // Start configuring your generation parameters.
-                  </p>
+                <div className="glass-card hover:border-brand-500/30 transition-all duration-500 p-8 md:p-12 relative flex flex-col items-center justify-center text-center max-w-2xl mx-auto group/intro overflow-hidden">
                   
-                  <button 
-                    onClick={() => setStep(isTextOnly ? 'prompt' : 'upload')}
-                    className="btn-glow px-10 py-5 flex items-center justify-center gap-3 w-full max-w-xs text-surface-950 font-bold rounded-xl"
-                  >
-                    {activeConfig.action} <ArrowLeft className="w-4 h-4 rotate-180" />
-                  </button>
+                  {/* Cinematic Background Layer */}
+                  <div className="absolute inset-0 z-0">
+                    <img 
+                      src={activeConfig.bgImage} 
+                      alt="" 
+                      className="w-full h-full object-cover opacity-20 grayscale group-hover/intro:opacity-40 group-hover/intro:grayscale-0 group-hover/intro:scale-110 transition-all duration-1000 ease-out" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-surface-950 via-surface-950/80 to-transparent" />
+                  </div>
+
+                  <div className="relative z-10 flex flex-col items-center">
+                    <div className={`p-4 rounded-2xl bg-surface-800/80 backdrop-blur-xl border border-white/5 mb-6 text-brand-500 group-hover/intro:bg-brand-500 group-hover/intro:text-white transition-all duration-500`}>
+                      {activeConfig.icon}
+                    </div>
+                    <h2 className="text-3xl font-display font-medium mb-3">Ready to create?</h2>
+                    <p className="text-white/40 text-sm mb-10 font-mono tracking-widest uppercase">
+                      // Launching {activeConfig.title} Engine
+                    </p>
+                    
+                    <button 
+                      onClick={() => setStep(isTextOnly ? 'prompt' : 'upload')}
+                      className="btn-glow px-12 py-5 flex items-center justify-center gap-3 w-full max-w-xs text-surface-950 font-bold rounded-xl shadow-[0_0_30px_rgba(163,255,18,0.2)]"
+                    >
+                      {activeConfig.action} <ArrowLeft className="w-4 h-4 rotate-180" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* What You Can Do Section */}
