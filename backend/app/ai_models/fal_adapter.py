@@ -139,13 +139,85 @@ def _fire_scene_composition_hint() -> str:
         "No single isolated fire blob under the center. Pure atmospheric environment plate."
     )
 
-
 def _anti_wheel_hallucination_hint() -> str:
     return (
         "CRITICAL: no wheels, tires, rims, hubs, brake discs, or floating mechanical parts. "
         "No fire or glow concentrated in one spot under the middle of the frame."
     )
 
+
+def _wants_composite_plate(prompt: str, kwargs: Dict[str, Any]) -> bool:
+    """
+    Composite (rembg + background plate) is opt-in. Default is true img2img so the
+    pixel grid is actually transformed — otherwise a generic studio plate + same
+    cutout looks identical to the user's upload.
+    """
+    if kwargs.get("force_direct"):
+        return False
+    if kwargs.get("force_composite") or kwargs.get("use_composite"):
+        return True
+    low = prompt.lower()
+    phrases = (
+        "replace background",
+        "remove background",
+        "isolated on white",
+        "pure white background",
+        "on white background",
+        "catalog shot",
+        "marketplace listing",
+        "ecommerce product on white",
+        "cut out and place",
+    )
+    if any(p in low for p in phrases):
+        return True
+    if re.search(r"\b(flipkart|amazon)\b", low):
+        return True
+    return False
+
+
+def _wants_preserve_exact_product(prompt: str) -> bool:
+    """
+    Detect diecast / toy / scale-model prompts so we can add a style lock in direct img2img.
+    (Forcing rembg+plate for these looked visibly “pasted” — direct + lock reads more real.)
+    """
+    low = prompt.lower()
+    markers = (
+        "diecast",
+        "scale model",
+        "model car",
+        "toy car",
+        "miniature",
+        "alloy model",
+        "collectible car",
+        "hot wheels",
+        "matchbox",
+    )
+    if any(m in low for m in markers):
+        return True
+    if re.search(r"\b1\s*[/:]\s*(18|24|32|43|64)\b", low):
+        return True
+    return False
+
+
+def _diecast_style_lock(prompt: str) -> str:
+    """Extra instructions for direct img2img so the model keeps toy scale, not a full-size car."""
+    if not _wants_preserve_exact_product(prompt):
+        return ""
+    return (
+        "CRITICAL SUBJECT: keep the same small-scale diecast or collectible toy model — not a life-size real vehicle. "
+        "Preserve miniature proportions, thick tire sidewalls with readable lettering, toy gloss, and model panel detail. "
+        "Light the toy with the same fire, smoke, and ambient colors as the scene so it feels shot in-camera."
+    )
+
+
+def _feather_rgba_edges(img: Image.Image, radius: float = 1.15) -> Image.Image:
+    """Soften alpha edges slightly so composites don't read as a hard sticker cutout."""
+    arr = np.array(img.convert("RGBA"), dtype=np.float32)
+    a = arr[:, :, 3]
+    pil_a = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), "L")
+    blurred = np.asarray(pil_a.filter(ImageFilter.GaussianBlur(radius=radius)), dtype=np.float32)
+    arr[:, :, 3] = np.clip(blurred, 0, 255)
+    return Image.fromarray(arr.astype(np.uint8), "RGBA")
 
 
 # --- Image Processing Helpers ---
@@ -555,6 +627,48 @@ class FalAdapter(BaseAIProvider):
                 return url
         return url
 
+    async def _refine_candidate(self, image_data: bytes, prompt: str, **kwargs) -> Optional[bytes]:
+        """
+        Stage 3: Refinement Pass.
+        Bakes the product into the environment using low-strength img2img.
+        """
+        try:
+            # Upload the candidate image to Fal for processing
+            public_url = await asyncio.to_thread(fal_client.upload, image_data, "image/jpeg")
+            
+            refine_strength = float(kwargs.get("refine_strength", 0.15))
+            
+            # The refinement prompt focuses on realism and grounding
+            refine_prompt = (
+                f"High-quality product advertisement. {prompt}. "
+                "Improve realism, lighting consistency, natural reflections, and grounding. "
+                "Ensure the product is naturally placed in the scene. "
+                "Preserve exact shape, structure, and details. Do not distort or redesign."
+            )
+            
+            handler = await asyncio.to_thread(
+                fal_client.submit,
+                "fal-ai/flux/schnell/image-to-image",
+                arguments={
+                    "image_url": public_url,
+                    "prompt": refine_prompt,
+                    "strength": refine_strength,
+                    "num_inference_steps": 4,
+                    "guidance_scale": 3.5,
+                    "enable_safety_checker": False,
+                }
+            )
+            result = await asyncio.to_thread(handler.get)
+            
+            if result and "images" in result:
+                refined_url = result["images"][0]["url"]
+                async with self._get_client() as client:
+                    return (await client.get(refined_url)).content
+            return None
+        except Exception as e:
+            logger.warning(f"[{self.name}] Refinement pass failed: {e}")
+            return None
+
     async def text_to_image(self, prompt: str, **kwargs) -> GenerationResult:
         """
         Generates an image from a text prompt using Fal.ai (Flux Schnell).
@@ -585,80 +699,164 @@ class FalAdapter(BaseAIProvider):
 
     async def image_to_image(self, image_url: str, prompt: str, **kwargs) -> GenerationResult:
         """
-        AI Product Studio Pipeline: Rembg -> Background Gen -> Manual composite.
-        Guarantees background removal and high-fidelity product preservation.
+        Hybrid pipeline (Fal.ai):
+        1. Route: composite only for explicit catalog / background-swap style prompts;
+           default is flux dev img2img (more realistic fire integration). Diecast/toy prompts
+           add a style lock in direct mode instead of forcing a cutout composite.
+        2. Generate once
+        3. Optional refinement for composite only if enable_refine
+        4. Watermarking (prefers raw user_prompt for watermark extraction)
         """
+        logger.info(f"[{self.name}] Starting Hybrid Pipeline for prompt: {prompt[:100]}...")
         try:
             current_image_url = await self._ensure_public_url(image_url)
-            return await self._img2img_composite(current_image_url, prompt, **kwargs)
+
+            # Route on RAW user text only. Enhanced prompts often say "on white background"
+            # (describing the upload) and falsely trigger composite → looks unchanged.
+            routing_prompt = (kwargs.get("user_prompt") or prompt or "").strip() or prompt
+            if kwargs.get("force_direct"):
+                use_composite = False
+            else:
+                use_composite = _wants_composite_plate(routing_prompt, kwargs)
+            use_direct = not use_composite
+            mode_name = "DIRECT (flux dev img2img)" if use_direct else "COMPOSITE (rembg + plate)"
+            logger.info(f"[{self.name}] Stage 1: {mode_name}")
+
+            logger.info(f"[{self.name}] Stage 2: Generating...")
+            if use_direct:
+                candidate_bytes = await self._img2img_direct(current_image_url, prompt, **kwargs)
+            else:
+                candidate_bytes = await self._img2img_composite(current_image_url, prompt, **kwargs)
+
+            if not candidate_bytes:
+                return GenerationResult(
+                    success=False,
+                    error_message="Failed to generate candidate",
+                    model_name=self.name,
+                )
+
+            if use_composite and kwargs.get("enable_refine", False):
+                logger.info(f"[{self.name}] Stage 3: Refinement pass...")
+                refined = await self._refine_candidate(candidate_bytes, prompt, **kwargs)
+                chosen_data = refined if refined else candidate_bytes
+            else:
+                logger.info(f"[{self.name}] Stage 3: Skipping refinement.")
+                chosen_data = candidate_bytes
+
+            final_image = Image.open(io.BytesIO(chosen_data)).convert("RGB")
+
+            wm_source = (kwargs.get("user_prompt") or prompt) or ""
+            _, wm_text, wm_metallic = _build_full_background_prompt(wm_source)
+            wm = kwargs.get("watermark_text", wm_text)
+            if wm:
+                logger.info(f"[{self.name}] Stage 4: Applying watermark '{wm}'")
+                if kwargs.get("watermark_metallic", wm_metallic):
+                    _draw_watermark_metallic(
+                        final_image, str(wm), warm_glow=_has_fire_or_burning(wm_source)
+                    )
+                else:
+                    _draw_watermark_road_surface(final_image, str(wm))
+            
+            # Save final output
+            out = io.BytesIO()
+            final_image.save(out, format="JPEG", quality=95)
+            logger.info(f"[{self.name}] Hybrid Pipeline complete.")
+            
+            return GenerationResult(success=True, media_data=out.getvalue(), model_name=self.name)
+
         except Exception as e:
-            logger.error(f"[{self.name}] image_to_image failed: {str(e)}")
+            logger.error(f"[{self.name}] Hybrid Pipeline failed: {str(e)}")
             logger.error(traceback.format_exc())
             return GenerationResult(success=False, error_message=str(e), model_name=self.name)
 
-    async def _img2img_direct(self, image_url: str, prompt: str, **kwargs) -> GenerationResult:
+    async def _img2img_direct(self, image_url: str, prompt: str, **kwargs) -> Optional[bytes]:
         """
-        True image-to-image: pass the product photo directly to Fal flux/dev.
-        Fire/smoke/neon is generated AROUND the actual product.
+        True image-to-image: transforms the uploaded pixels (flux dev).
+        Uses user_prompt when set — enhanced prompts often insist on zero change.
+        Fal defaults (see fal.ai schema): strength=0.95, steps=40, guidance=3.5.
         """
-        logger.info(f"[{self.name}] PATH A: Direct img2img for action/fire scene.")
-        _, wm_text, wm_metallic = _build_full_background_prompt(prompt)
-
-        # Use a high strength so the scene is dramatic but product identity preserved
-        # Strength 0.45 ensures product identity and ground position are held firm
-        strength = float(kwargs.get("img2img_strength", 0.45))
-
         try:
+            creative = (kwargs.get("user_prompt") or prompt or "").strip()
+            if not creative:
+                creative = prompt
+
+            lock = _diecast_style_lock(creative)
+            core = f"{creative}. {lock}" if lock else f"{creative}."
+            strength = float(kwargs.get("img2img_strength", 0.95))
             handler = await asyncio.to_thread(
                 fal_client.submit,
                 "fal-ai/flux/dev/image-to-image",
                 arguments={
-                    "image_url":          image_url,
-                    "prompt":             (
-                        f"{prompt}. "
-                        "Cinematic product photography, photorealistic, ultra detailed, 8K. "
-                        "The product is sitting firmly and realistically on the ground. "
-                        "Keep the product shape, design, and identity exactly preserved. "
-                        "Generate realistic fire, smoke, and environmental effects around it."
+                    "image_url": image_url,
+                    "prompt": (
+                        f"{core} "
+                        "Cinematic product photography, photorealistic, ultra detailed. "
+                        "Apply the full scene, lighting, and effects described. "
+                        "Keep the product recognizable; do not swap it for a different model."
                     ),
-                    "strength":           strength,
-                    "num_inference_steps": int(kwargs.get("img2img_steps", 28)),
-                    "guidance_scale":     float(kwargs.get("guidance_scale", 7.5)),
+                    "strength": strength,
+                    "num_inference_steps": int(kwargs.get("img2img_steps", 40)),
+                    "guidance_scale": float(kwargs.get("guidance_scale", 3.5)),
                     "enable_safety_checker": False,
-                }
+                },
             )
             result = await asyncio.to_thread(handler.get)
             if not result or "images" not in result:
-                logger.warning(f"[{self.name}] Direct img2img returned no images, falling back to composite.")
-                return await self._img2img_composite(image_url, prompt, **kwargs)
+                return None
 
             img_url = result["images"][0]["url"]
-            # Download and add watermark if requested
             async with self._get_client() as client:
-                img_bytes = (await client.get(img_url)).content
-            final_image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-
-            wm = kwargs.get("watermark_text", wm_text)
-            if wm:
-                if kwargs.get("watermark_metallic", wm_metallic):
-                    _draw_watermark_metallic(final_image, str(wm), warm_glow=True)
-                else:
-                    _draw_watermark_road_surface(final_image, str(wm))
-
-            out = io.BytesIO()
-            final_image.save(out, format="JPEG", quality=95)
-            return GenerationResult(success=True, media_data=out.getvalue(), model_name=self.name)
+                return (await client.get(img_url)).content
 
         except Exception as e:
-            logger.error(f"[{self.name}] Direct img2img failed: {e}, falling back to composite.")
-            return await self._img2img_composite(image_url, prompt, **kwargs)
+            logger.warning(f"[{self.name}] Direct img2img sub-pass failed: {e}")
+            return None
 
-    async def _img2img_composite(self, image_url: str, prompt: str, **kwargs) -> GenerationResult:
+    async def _blend_composite_with_flux(
+        self, image_jpeg: bytes, routing_prompt: str, **kwargs
+    ) -> Optional[bytes]:
         """
-        Composite pipeline: Rembg -> Background Gen -> Manual composite.
-        Used for standard/studio scenes.
+        One flux-dev pass on the flattened composite to kill the 'sticker' look:
+        unified lighting, haze, and ground contact (high init strength).
         """
-        logger.info(f"[{self.name}] PATH B: Composite pipeline for standard scene.")
+        if not kwargs.get("composite_flux_blend", True):
+            return None
+        try:
+            public_url = await asyncio.to_thread(fal_client.upload, image_jpeg, "image/jpeg")
+            blend_prompt = (
+                f"{routing_prompt[:600]}. "
+                "One seamless photoreal photograph — not a collage or layered cutout. "
+                "Match fire and sky light on the product with natural color bounce, soft shadows at ground contact, "
+                "atmospheric haze, shallow depth of field. Remove halos and hard compositing edges. "
+                "Keep the subject identity, pose, scale, and proportions exactly as shown."
+            )
+            strength = float(kwargs.get("composite_blend_strength", 0.92))
+            handler = await asyncio.to_thread(
+                fal_client.submit,
+                "fal-ai/flux/dev/image-to-image",
+                arguments={
+                    "image_url": public_url,
+                    "prompt": blend_prompt,
+                    "strength": strength,
+                    "num_inference_steps": int(kwargs.get("composite_blend_steps", 28)),
+                    "guidance_scale": float(kwargs.get("composite_blend_guidance", 3.5)),
+                    "enable_safety_checker": False,
+                },
+            )
+            result = await asyncio.to_thread(handler.get)
+            if not result or "images" not in result:
+                return None
+            out_url = result["images"][0]["url"]
+            async with self._get_client() as client:
+                return (await client.get(out_url)).content
+        except Exception as e:
+            logger.warning(f"[{self.name}] Composite flux blend failed: {e}")
+            return None
+
+    async def _img2img_composite(self, image_url: str, prompt: str, **kwargs) -> Optional[bytes]:
+        """
+        Stage 2 (Composite): Rembg -> Background Gen -> Manual composite.
+        """
         try:
             # 1. Remove Background
             rembg_handler = await asyncio.to_thread(
@@ -666,24 +864,32 @@ class FalAdapter(BaseAIProvider):
             )
             rembg_result = await asyncio.to_thread(rembg_handler.get)
             if not rembg_result or "image" not in rembg_result:
-                return GenerationResult(False, error_message="Background removal failed", model_name=self.name)
+                return None
 
             transparent_url = rembg_result["image"]["url"]
             async with self._get_client() as client:
                 fg_bytes = (await client.get(transparent_url)).content
             foreground = Image.open(io.BytesIO(fg_bytes)).convert("RGBA")
+            if kwargs.get("feather_fg_edges", True):
+                foreground = _feather_rgba_edges(foreground, radius=float(kwargs.get("feather_radius", 1.15)))
+
+            is_fire_scene = _has_fire_or_burning(prompt) or _is_action_fx_scene(prompt)
+            if is_fire_scene and kwargs.get("ambient_spill_enabled") is None:
+                kwargs["ambient_spill_enabled"] = True
 
             # 2. Generate Background Environment
-            bg_prompt, wm_text, wm_metallic = _build_full_background_prompt(prompt)
-            # Use 8 steps for fire/action scenes even in composite path for better quality
-            bg_steps = 8 if (_has_fire_or_burning(prompt) or _is_action_fx_scene(prompt)) else 4
-            
+            bg_prompt, _, _ = _build_full_background_prompt(prompt)
+            # More steps + larger canvas for action/fire plates (less mushy when resized to fg)
+            bg_steps = 12 if is_fire_scene else 4
+            bg_w = int(kwargs.get("bg_width", 768 if is_fire_scene else 512))
+            bg_h = int(kwargs.get("bg_height", 768 if is_fire_scene else 512))
+
             bg_handler = await asyncio.to_thread(
                 fal_client.submit,
                 "fal-ai/flux/schnell",
                 arguments={
                     "prompt": bg_prompt,
-                    "image_size": {"width": 1024, "height": 1024},
+                    "image_size": {"width": bg_w, "height": bg_h},
                     "num_inference_steps": int(kwargs.get("bg_steps", bg_steps)),
                     "guidance_scale": 3.5,
                     "enable_safety_checker": False,
@@ -691,7 +897,7 @@ class FalAdapter(BaseAIProvider):
             )
             bg_result = await asyncio.to_thread(bg_handler.get)
             if not bg_result or "images" not in bg_result:
-                return GenerationResult(False, error_message="Background generation failed", model_name=self.name)
+                return None
 
             bg_url = bg_result["images"][0]["url"]
             async with self._get_client() as client:
@@ -707,21 +913,23 @@ class FalAdapter(BaseAIProvider):
             if opaque.any() and kwargs.get("exposure_match", True):
                 bg_lum = (0.299 * bg_arr[..., 0] + 0.587 * bg_arr[..., 1] + 0.114 * bg_arr[..., 2]).mean()
                 fg_lum = (0.299 * fg_arr[..., 0] + 0.587 * fg_arr[..., 1] + 0.114 * fg_arr[..., 2])[opaque].mean()
-                ratio = np.clip(bg_lum / (fg_lum + 1e-5), 0.95, 1.05)
+                lo, hi = (0.82, 1.18) if is_fire_scene else (0.95, 1.05)
+                ratio = np.clip(bg_lum / (fg_lum + 1e-5), lo, hi)
                 fg_arr[..., :3] = np.clip(fg_arr[..., :3] * ratio, 0, 255)
 
             if opaque.any() and kwargs.get("ambient_spill_enabled", False):
                 strip = bg_arr[int(background.height * 0.7):, :, :3].reshape(-1, 3)
                 if strip.size:
                     ambient = strip.mean(axis=0)
-                    spill = float(kwargs.get("ambient_spill", 0.07))
+                    spill = float(kwargs.get("ambient_spill", 0.12 if is_fire_scene else 0.07))
                     fg_arr[..., :3] = np.where(opaque[..., None], fg_arr[..., :3] * (1 - spill) + ambient * spill, fg_arr[..., :3])
                     fg_arr[..., :3] = np.clip(fg_arr[..., :3], 0, 255)
 
             foreground = Image.fromarray(fg_arr.astype(np.uint8), "RGBA")
 
-            if _has_fire_or_burning(prompt) and kwargs.get("fire_uplight", False):
-                foreground = _apply_fire_uplight_to_foreground(foreground, float(kwargs.get("fire_uplight_strength", 0.18)))
+            if _has_fire_or_burning(prompt) and kwargs.get("fire_uplight", True):
+                fus = float(kwargs.get("fire_uplight_strength", 0.28 if is_fire_scene else 0.18))
+                foreground = _apply_fire_uplight_to_foreground(foreground, fus)
 
             # 4. Grounding (Stance)
             if _resolve_fg_auto_ground(prompt, kwargs):
@@ -774,21 +982,16 @@ class FalAdapter(BaseAIProvider):
                 background.paste(env_glow, (0, 0), env_glow)
 
             final_image = Image.alpha_composite(background, foreground).convert("RGB")
-            wm = kwargs.get("watermark_text", wm_text)
-            if wm:
-                if kwargs.get("watermark_metallic", wm_metallic):
-                    _draw_watermark_metallic(final_image, str(wm), warm_glow=_has_fire_or_burning(prompt))
-                else:
-                    _draw_watermark_road_surface(final_image, str(wm))
-
             img_byte_arr = io.BytesIO()
             final_image.save(img_byte_arr, format="JPEG", quality=95)
-            return GenerationResult(success=True, media_data=img_byte_arr.getvalue(), model_name=self.name)
+            raw_bytes = img_byte_arr.getvalue()
+            blend_hint = (kwargs.get("user_prompt") or prompt or "").strip() or prompt
+            blended = await self._blend_composite_with_flux(raw_bytes, blend_hint, **kwargs)
+            return blended if blended else raw_bytes
 
         except Exception as e:
-            logger.error(f"[{self.name}] _img2img_composite failed: {str(e)}")
-            logger.error(traceback.format_exc())
-            return GenerationResult(success=False, error_message=str(e), model_name=self.name)
+            logger.warning(f"[{self.name}] Composite pipeline sub-pass failed: {e}")
+            return None
     async def text_to_video(self, prompt: str, duration_seconds: int = 5, **kwargs) -> GenerationResult:
         """
         Generates video from text using Luma Dream Machine on Fal.ai.

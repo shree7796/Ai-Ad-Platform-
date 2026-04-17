@@ -81,7 +81,7 @@ export default function HomePage() {
         prompt: payload.prompt,
         task_type,
         duration_seconds: payload.duration ? parseInt(payload.duration) : 10,
-        enhance_prompt: true,
+        enhance_prompt: 'enhance' in payload ? payload.enhance : true,
       });
 
       const { scene_id } = genRes.data;

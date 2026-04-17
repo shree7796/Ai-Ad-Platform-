@@ -2,7 +2,7 @@
 
 import uuid
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class GenerationRequest(BaseModel):
@@ -18,6 +18,8 @@ class GenerationRequest(BaseModel):
 
 class GenerationStatusResponse(BaseModel):
     """Response for generation job status polling."""
+    model_config = ConfigDict(protected_namespaces=())
+
     job_id: str
     scene_id: uuid.UUID
     project_id: uuid.UUID

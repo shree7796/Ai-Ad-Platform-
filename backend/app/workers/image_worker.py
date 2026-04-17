@@ -67,6 +67,7 @@ def generate_image(
     async def async_pipeline():
         try:
             # Step 1: Enhance prompt
+            raw_user_prompt = prompt
             enhanced_prompt = prompt
             if enhance_prompt:
                 logger.info(f"[Worker] Enhancing prompt: {prompt[:50]}...")
@@ -74,6 +75,9 @@ def generate_image(
                 engine = PromptEngine()
                 enhanced_prompt = await engine.enhance(prompt)
                 logger.debug(f"[Worker] Enhanced prompt: {enhanced_prompt}")
+
+            # Fal img2img: enhanced text often says "preserve exactly" which fights edits.
+            kwargs["user_prompt"] = raw_user_prompt
 
             # Step 2: Route and Generate Media
             from app.services.router import ModelRouter
@@ -87,9 +91,11 @@ def generate_image(
                 
                 logger.info(f"[Worker] Using adapter: {adapter.name} for task: {task_type}")
                 
-                # Auto-enable background removal for marketplace styles
+                # Marketplace hint: use RAW prompt so LLM prose like "white background"
+                # describing the photo does not trigger this.
                 if not kwargs.get("remove_background"):
-                    if any(x in enhanced_prompt.lower() for x in ["flipkart", "amazon", "white background"]):
+                    low_raw = raw_user_prompt.lower()
+                    if any(x in low_raw for x in ["flipkart", "amazon", "white background"]):
                         logger.info("[Worker] Auto-enabling background removal for marketplace style")
                         kwargs["remove_background"] = True
 
