@@ -78,6 +78,9 @@ async def trigger_generation(
         enhance_prompt=payload.enhance_prompt,
         task_type=payload.task_type,
         requested_provider=payload.requested_provider,
+        preserve_subject=payload.preserve_subject,
+        cinematic_redraw=payload.cinematic_redraw,
+        hero_cinematic_reframe=payload.hero_cinematic_reframe,
     )
 
     # Store celery task ID

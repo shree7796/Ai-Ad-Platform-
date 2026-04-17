@@ -28,6 +28,9 @@ class OrchestrationService:
         enhance_prompt: bool = True,
         task_type: str = "image_to_video",
         requested_provider: Optional[str] = None,
+        preserve_subject: bool = True,
+        cinematic_redraw: bool = False,
+        hero_cinematic_reframe: bool = False,
     ) -> str:
         """
         Dispatch a generation job to the appropriate worker queue.
@@ -55,6 +58,9 @@ class OrchestrationService:
                 "enhance_prompt": enhance_prompt,
                 "task_type": task_type,
                 "requested_provider": requested_provider,
+                "preserve_subject": preserve_subject,
+                "cinematic_redraw": cinematic_redraw,
+                "hero_cinematic_reframe": hero_cinematic_reframe,
             },
             queue=queue,
         )

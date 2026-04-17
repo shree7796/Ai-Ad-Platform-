@@ -75,6 +75,11 @@ export const generationAPI = {
     enhance_prompt?: boolean;
     task_type?: string;
     requested_provider?: string;
+    /** image_to_image: keep upload (default true). Set false with cinematic_redraw for full AI hero car. */
+    preserve_subject?: boolean;
+    cinematic_redraw?: boolean;
+    /** image_to_image: allow flux to reframe camera for fire/poster look while locking your model */
+    hero_cinematic_reframe?: boolean;
   }) => api.post('/generate/', data),
 
   status: (sceneId: string) =>

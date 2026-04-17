@@ -14,6 +14,11 @@ class GenerationRequest(BaseModel):
     enhance_prompt: bool = True
     task_type: str = Field(default="image_to_video")
     requested_provider: Optional[str] = None
+    # image_to_image: keep subject pixels (composite) vs full flux redraw (may change vehicle)
+    preserve_subject: bool = True
+    cinematic_redraw: bool = False
+    # image_to_image: flux-dev direct path; may reframe camera like a fire/poster hero shot while locking identity
+    hero_cinematic_reframe: bool = False
 
 
 class GenerationStatusResponse(BaseModel):

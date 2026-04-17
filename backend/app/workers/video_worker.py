@@ -47,6 +47,8 @@ def generate_video(
     enhance_prompt: bool = True,
     task_type: str = "image_to_video",
     requested_provider: str = None,
+    preserve_subject: bool = True,
+    cinematic_redraw: bool = False,
     **kwargs
 ):
     """

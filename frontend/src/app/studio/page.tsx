@@ -82,6 +82,11 @@ export default function HomePage() {
         task_type,
         duration_seconds: payload.duration ? parseInt(payload.duration) : 10,
         enhance_prompt: 'enhance' in payload ? payload.enhance : true,
+        // image_to_image: preserve_subject true + hero_cinematic_reframe uses flux hero reframe (see toggle).
+        preserve_subject: task_type === 'image_to_image' ? true : undefined,
+        cinematic_redraw: false,
+        hero_cinematic_reframe:
+          task_type === 'image_to_image' && 'heroCinematic' in payload ? !!payload.heroCinematic : undefined,
       });
 
       const { scene_id } = genRes.data;

@@ -47,6 +47,9 @@ def generate_image(
     enhance_prompt: bool = True,
     task_type: str = "text_to_image",
     requested_provider: str = None,
+    preserve_subject: bool = True,
+    cinematic_redraw: bool = False,
+    hero_cinematic_reframe: bool = False,
     **kwargs
 ):
     """
@@ -78,6 +81,16 @@ def generate_image(
 
             # Fal img2img: enhanced text often says "preserve exactly" which fights edits.
             kwargs["user_prompt"] = raw_user_prompt
+            if task_type == "image_to_image":
+                kwargs["cinematic_redraw"] = cinematic_redraw
+                kwargs["preserve_subject"] = False if cinematic_redraw else preserve_subject
+                kwargs["hero_cinematic_reframe"] = bool(
+                    hero_cinematic_reframe and not cinematic_redraw
+                )
+                logger.info(
+                    f"[Worker] image_to_image routing flags: preserve_subject={kwargs['preserve_subject']} "
+                    f"cinematic_redraw={cinematic_redraw} hero_cinematic_reframe={kwargs['hero_cinematic_reframe']}"
+                )
 
             # Step 2: Route and Generate Media
             from app.services.router import ModelRouter

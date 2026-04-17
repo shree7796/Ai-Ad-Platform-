@@ -7,7 +7,14 @@ import { Upload, Wand2, X, ArrowLeftRight } from 'lucide-react';
 const STYLE_OPTIONS = ['None', 'Watercolor', 'Oil Painting', 'Sketch', 'Pixel Art', 'Impressionist', 'Minimalist'];
 
 interface Props {
-    onGenerate: (data: { image: File; prompt: string; enhance: boolean; bgRemove: boolean; style: string }) => void;
+    onGenerate: (data: {
+        image: File;
+        prompt: string;
+        enhance: boolean;
+        bgRemove: boolean;
+        style: string;
+        heroCinematic: boolean;
+    }) => void;
     loading: boolean;
 }
 
@@ -36,6 +43,7 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
     const [enhance, setEnhance] = useState(false);
     const [bgRemove, setBgRemove] = useState(false);
     const [style, setStyle] = useState('None');
+    const [heroCinematic, setHeroCinematic] = useState(true);
     const [comparePos, setComparePos] = useState(50);
 
     const onDrop = useCallback((files: File[]) => {
@@ -133,6 +141,16 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
                     <div className="divider" style={{ margin: '0' }} />
                     <Toggle label="Remove Background" value={bgRemove} onChange={setBgRemove} />
                     <div className="divider" style={{ margin: '0' }} />
+                    <Toggle
+                        label="Cinematic hero camera"
+                        value={heroCinematic}
+                        onChange={setHeroCinematic}
+                    />
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-4px 0 0 0', lineHeight: 1.45 }}>
+                        Lets the AI adjust viewpoint (low front, head-on, ¾) for fire-poster shots like the references,
+                        while keeping your model. Turn off to paste your cutout on a generated plate only.
+                    </p>
+                    <div className="divider" style={{ margin: '0' }} />
                     <div style={{ padding: '12px 0' }}>
                         <label className="text-label" style={{ display: 'block', marginBottom: 8 }}>Style Transfer</label>
                         <select className="studio-select" value={style} onChange={e => setStyle(e.target.value)}>
@@ -158,7 +176,7 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
 
             <button
                 className="btn-primary"
-                onClick={() => image && onGenerate({ image, prompt, enhance, bgRemove, style })}
+                onClick={() => image && onGenerate({ image, prompt, enhance, bgRemove, style, heroCinematic })}
                 disabled={loading || !image}
             >
                 <Wand2 size={16} />

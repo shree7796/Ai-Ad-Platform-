@@ -18,6 +18,17 @@ from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+# FLUX.1 [schnell] is trained for very few steps; higher values can fail validation or error on fal.
+_SCHNELL_MAX_INFERENCE_STEPS = 4
+
+# Appended to fire/action background plates (subject is composited later — plate must be environment-only).
+_PREMIUM_FIRE_PLATE_SUFFIX = (
+    "Hollywood-grade explosion VFX plate: razor-sharp volumetric fireballs, dense turbulent smoke, embers, "
+    "heat shimmer, dramatic rim and bounce light on asphalt, IMAX contrast, HDR, 8K micro-detail, "
+    "physically plausible practical-effects look — empty center for compositing; absolutely no products, "
+    "people, packaging, props, vehicles, or main subjects in frame."
+)
+
 # --- Regex Patterns for Prompt Parsing ---
 _WM_PATTERNS = [
     re.compile(r'add\s+(?:metallic\s+)?["\u201c]([^"\u201d]+)["\u201d]\s+watermark', re.I),
@@ -131,17 +142,19 @@ def _fire_scene_composition_hint() -> str:
         "Fire columns rising on BOTH the left side AND right side of the frame simultaneously — "
         "tall orange-yellow flames at left edge, tall flames at right edge, framing the center. "
         "Thick volumetric smoke billowing upward from behind and both sides. "
-        "Hot orange glow reflecting on the dark asphalt ground. "
+        "Hot orange glow reflecting on dark WET asphalt with subtle mirror reflections and scattered pebbles. "
+        "Shallow depth of field: background flames and smoke soft and creamy (bokeh), ground plane sharp near camera. "
         "Center of frame: dark asphalt/ground surface only, absolutely NO fire or flames in the center ground. "
-        "Center must be clear open road space for compositing. "
+        "Center must be clear open floor space for compositing the subject. "
         "Camera angle: slightly low, eye-level to the ground. "
-        "No car, vehicle, person, tire, wheel, or mechanical part anywhere in the scene. "
+        "No products, people, packaging, props, vehicles, duplicate object silhouettes, or floating parts. "
         "No single isolated fire blob under the center. Pure atmospheric environment plate."
     )
 
-def _anti_wheel_hallucination_hint() -> str:
+
+def _anti_phantom_subject_hint() -> str:
     return (
-        "CRITICAL: no wheels, tires, rims, hubs, brake discs, or floating mechanical parts. "
+        "CRITICAL: no ghost or duplicate product shapes, floating parts, or extra objects. "
         "No fire or glow concentrated in one spot under the middle of the frame."
     )
 
@@ -177,8 +190,8 @@ def _wants_composite_plate(prompt: str, kwargs: Dict[str, Any]) -> bool:
 
 def _wants_preserve_exact_product(prompt: str) -> bool:
     """
-    Detect diecast / toy / scale-model prompts so we can add a style lock in direct img2img.
-    (Forcing rembg+plate for these looked visibly “pasted” — direct + lock reads more real.)
+    Toys / miniatures / small collectibles: direct img2img often reskins the subject.
+    Triggers an extra prompt lock on the direct path (composite still handles all products via preserve_subject).
     """
     low = prompt.lower()
     markers = (
@@ -191,6 +204,12 @@ def _wants_preserve_exact_product(prompt: str) -> bool:
         "collectible car",
         "hot wheels",
         "matchbox",
+        "figurine",
+        "action figure",
+        "funko",
+        "statuette",
+        "pvc figure",
+        "blind box",
     )
     if any(m in low for m in markers):
         return True
@@ -199,14 +218,73 @@ def _wants_preserve_exact_product(prompt: str) -> bool:
     return False
 
 
-def _diecast_style_lock(prompt: str) -> str:
-    """Extra instructions for direct img2img so the model keeps toy scale, not a full-size car."""
+def _wants_cinematic_redraw(prompt: str) -> bool:
+    """User explicitly wants a full subject/scene redraw (hero shot, different product, concept look)."""
+    low = prompt.lower()
+    phrases = (
+        "cinematic redraw",
+        "full cgi redesign",
+        "completely different car",
+        "different vehicle",
+        "not the same car",
+        "redesign the car",
+        "concept car",
+        "change the car",
+        "swap the car",
+        "different model car",
+        "ignore the upload car",
+        "completely different product",
+        "different product",
+        "replace the product",
+        "swap the product",
+        "redesign the product",
+        "ignore the upload",
+        "new hero product",
+    )
+    return any(p in low for p in phrases)
+
+
+def _coerce_bool_opt(value: Any, default: bool) -> bool:
+    """Celery/JSON sometimes yields strings."""
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return bool(value)
+
+
+_DIRECT_SUBJECT_IDENTITY_GUARD = (
+    "Keep the exact same product or object as the source image: identical silhouette, proportions, materials, "
+    "surface colors, printed text, logos, and geometry — do not substitute a different item, SKU, or generic hero render."
+)
+
+_TEXT_INTEGRITY_GUARD = (
+    "Do not add, replace, erase, or hallucinate any text, license plate, sticker, decal, or badge. "
+    "Keep existing lettering exactly as in the source; if it was unreadable, leave it soft or blurred — never invent characters or gibberish."
+)
+
+
+def _hero_cinematic_environment_clause(user_prompt: str) -> str:
+    """Extra prompt for hero reframe: match fire-poster refs vs general hero framing."""
+    if _has_fire_or_burning(user_prompt) or _is_action_fx_scene(user_prompt):
+        return (
+            "Premium fire-poster / movie-ad look: intense volumetric flames and smoke, dark gritty or wet asphalt "
+            "with pebbles and crisp reflections, orange rim light and warm bounce on bodywork, glowing headlights if they "
+            "appear in the source, shallow depth of field bokeh on the background, high contrast. "
+        )
+    return (
+        "Premium automotive hero framing: cohesive dramatic lighting, believable ground plane and reflections, "
+        "shallow depth of field, high-end magazine or showroom-ad quality. "
+    )
+
+
+def _miniature_subject_style_lock(prompt: str) -> str:
+    """Extra lock for toys/miniatures on the direct img2img path."""
     if not _wants_preserve_exact_product(prompt):
         return ""
     return (
-        "CRITICAL SUBJECT: keep the same small-scale diecast or collectible toy model — not a life-size real vehicle. "
-        "Preserve miniature proportions, thick tire sidewalls with readable lettering, toy gloss, and model panel detail. "
-        "Light the toy with the same fire, smoke, and ambient colors as the scene so it feels shot in-camera."
+        "CRITICAL: this is a small-scale toy, replica, or collectible — not a full-size real object. "
+        "Preserve miniature proportions, molded detail, and replica surface finish; only add scene lighting and effects."
     )
 
 
@@ -217,6 +295,128 @@ def _feather_rgba_edges(img: Image.Image, radius: float = 1.15) -> Image.Image:
     pil_a = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), "L")
     blurred = np.asarray(pil_a.filter(ImageFilter.GaussianBlur(radius=radius)), dtype=np.float32)
     arr[:, :, 3] = np.clip(blurred, 0, 255)
+    return Image.fromarray(arr.astype(np.uint8), "RGBA")
+
+
+def _defringe_rgba_edges(
+    img: Image.Image,
+    pull: float = 0.74,
+    bottom_extra: float = 1.32,
+) -> Image.Image:
+    """
+    Pull semi-transparent edge RGB toward luminance to kill colored halos from rembg
+    (orange/red fringes under splitters, wheels, and ground contact).
+    """
+    arr = np.array(img.convert("RGBA"), dtype=np.float32)
+    a = arr[:, :, 3] / 255.0
+    rgb = arr[:, :, :3]
+    lum = 0.299 * rgb[:, :, 0] + 0.587 * rgb[:, :, 1] + 0.114 * rgb[:, :, 2]
+    lum3 = np.stack([lum, lum, lum], axis=-1)
+    w = np.clip(1.0 - a, 0, 1) ** 0.82
+    mid = (a > 0.04) & (a < 0.985)
+    w = np.where(mid, np.maximum(w, 0.24 * pull), w)
+    w = np.clip(w * pull, 0, 1)
+    row_hit = np.any(a > 0.08, axis=1)
+    if row_hit.any():
+        ys = np.where(row_hit)[0]
+        y0, y1 = int(ys[0]), int(ys[-1])
+        span = max(y1 - y0, 1)
+        y_idx = np.arange(arr.shape[0], dtype=np.float32)[:, np.newaxis]
+        lower = (y_idx >= float(y0) + span * 0.60).astype(np.float32)
+        w = np.clip(w * (1.0 + (bottom_extra - 1.0) * lower), 0, 1)
+    out_rgb = rgb * (1.0 - w[..., None]) + lum3 * w[..., None]
+    arr[:, :, :3] = np.clip(out_rgb, 0, 255)
+    return Image.fromarray(arr.astype(np.uint8), "RGBA")
+
+
+def _polish_preserved_composite(
+    img_rgb: Image.Image,
+    fg_rgba: Image.Image,
+    fire_scene: bool,
+    warm_bounce_strength: float = 0.07,
+) -> Image.Image:
+    """
+    Non-generative finish: scene color onto the subject silhouette + mild sharpen.
+    Does not redraw geometry — same subject pixels as the rembg cutout.
+    """
+    rgb = img_rgb.convert("RGB")
+    fg_a = np.array(fg_rgba.split()[-1], dtype=np.float32)
+    h, w = fg_a.shape
+    mask = fg_a > 12.0
+    if not np.any(mask):
+        return rgb
+
+    arr = np.array(rgb, dtype=np.float32)
+    row_fg_frac = mask.mean(axis=1)
+    candidates = np.where((row_fg_frac < 0.05) & (np.arange(h) > h * 0.48))[0]
+    if fire_scene and candidates.size > 0:
+        y_strip = int(candidates.min())
+        strip = arr[y_strip:, :, :].reshape(-1, 3)
+        if strip.size > 0:
+            warm = strip.mean(axis=0)
+            ys = np.where(mask)[0]
+            y0c, y1c = int(ys.min()), int(ys.max())
+            band_y0 = int(y0c + (y1c - y0c) * 0.50)
+            yy = np.arange(h, dtype=np.float32)[:, np.newaxis]
+            lower_body = mask & (yy >= band_y0)
+            bump = np.zeros_like(arr)
+            bump[lower_body] = warm * warm_bounce_strength
+            arr = np.clip(arr + bump, 0.0, 255.0)
+
+    out = Image.fromarray(arr.astype(np.uint8), "RGB")
+    try:
+        out = out.filter(ImageFilter.UnsharpMask(radius=1.0, percent=42, threshold=2))
+    except Exception:
+        out = ImageEnhance.Sharpness(out).enhance(1.11)
+
+    # Lateral fire tint on upper subject (e.g. hood, bottle shoulder, top of packaging) from frame edges
+    if fire_scene:
+        side_w = max(2, w // 22)
+        post = np.array(out, dtype=np.float32)
+        left = post[:, :side_w, :].reshape(-1, 3)
+        right = post[:, -side_w:, :].reshape(-1, 3)
+        if left.size and right.size:
+            warm_side = (left.mean(axis=0) + right.mean(axis=0)) * 0.5
+            ys_c = np.where(mask)[0]
+            y0c, y1c = int(ys_c.min()), int(ys_c.max())
+            yy = np.arange(h, dtype=np.float32)[:, np.newaxis]
+            upper = mask & (yy <= int(y0c + (y1c - y0c) * 0.62))
+            bump = np.zeros_like(post)
+            bump[upper] = warm_side * float(np.clip(warm_bounce_strength * 0.65, 0.03, 0.09))
+            post = np.clip(post + bump, 0.0, 255.0)
+            out = Image.fromarray(post.astype(np.uint8), "RGB")
+
+    return out
+
+
+def _enhance_preserved_cutout(fg_rgba: Image.Image, is_fire: bool) -> Image.Image:
+    """
+    Same silhouette and pixels: premium gloss, fire-touched highlights, subtle specular glow on bright top-front areas.
+    """
+    arr = np.array(fg_rgba.convert("RGBA"), dtype=np.float32)
+    a = arr[:, :, 3]
+    m = a > 12.0
+    if not np.any(m):
+        return fg_rgba
+    h, w = a.shape
+    rgb = arr[:, :, :3].copy()
+    lum = 0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]
+    hl = np.clip((lum - 95.0) / 160.0, 0.0, 1.0) ** 1.55
+    gain = 1.0 + 0.15 * hl
+    rgb = rgb * gain[..., None]
+    if is_fire:
+        rgb[..., 0] = np.clip(rgb[..., 0] + hl * 24.0, 0, 255)
+        rgb[..., 1] = np.clip(rgb[..., 1] + hl * 11.0, 0, 255)
+    ys, xs = np.where(m)
+    y0, y1 = int(ys.min()), int(ys.max())
+    top_cut = int(y0 + (y1 - y0) * 0.44)
+    yy = np.arange(h, dtype=np.float32)[:, np.newaxis]
+    lum2 = 0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]
+    bright = m & (yy <= top_cut) & (lum2 > 118.0)
+    rgb[..., 0] = np.where(bright, np.clip(rgb[..., 0] + 28.0, 0, 255), rgb[..., 0])
+    rgb[..., 1] = np.where(bright, np.clip(rgb[..., 1] + 16.0, 0, 255), rgb[..., 1])
+    rgb[..., 2] = np.where(bright, np.clip(rgb[..., 2] + 4.0, 0, 255), rgb[..., 2])
+    arr[:, :, :3] = np.where(m[..., None], np.clip(rgb, 0, 255), arr[:, :, :3])
     return Image.fromarray(arr.astype(np.uint8), "RGBA")
 
 
@@ -335,7 +535,7 @@ def _apply_fire_uplight_to_foreground(
 
 
 def _translate_rgba_down(fg: Image.Image, dy: int) -> Image.Image:
-    """Shift opaque pixels down by dy; top clears to transparent. Helps wheels meet the road."""
+    """Shift opaque pixels down by dy; top clears to transparent. Helps subject base meet the ground plane."""
     if dy <= 0:
         return fg
     arr = np.array(fg.convert("RGBA"), dtype=np.uint8)
@@ -354,8 +554,8 @@ def _align_foreground_center_stance_to_fraction(
     center_frac: float = 0.46,
 ) -> Image.Image:
     """
-    Like bottom align but uses lowest row in the central band (wheel track), not the front lip.
-    Reduces 'rear wheel floating' when the splitter is the global low point.
+    Like bottom align but uses lowest row in the central band (footprint), not a protruding front edge.
+    Reduces one corner floating when the lowest point is off-center on the subject.
     """
     y_fraction = float(np.clip(y_fraction, 0.55, 0.98))
     a = np.array(fg.split()[-1])
@@ -383,7 +583,7 @@ def _neutralize_background_under_subject(
 ) -> Image.Image:
     """
     Replace the generated plate under/near the product with a smooth, desaturated patch.
-    Stops Flux from leaving phantom wheels, tires, or localized fire blobs behind the composite.
+    Stops Flux from leaving phantom shapes or localized fire blobs behind the composite.
     """
     fg_a = np.array(foreground.split()[-1])
     h, w = fg_a.shape
@@ -469,22 +669,22 @@ def _build_full_background_prompt(user_prompt: str) -> Tuple[str, Optional[str],
         )
 
     fire_extra = f" {_fire_scene_composition_hint()}" if _has_fire_or_burning(user_prompt) else ""
-    anti_wheel = _anti_wheel_hallucination_hint() if (action_fx or _has_fire_or_burning(user_prompt)) else ""
+    anti_phantom = _anti_phantom_subject_hint() if (action_fx or _has_fire_or_burning(user_prompt)) else ""
 
     if action_fx:
         guard = (
             "Photorealistic full-bleed atmospheric plate. "
-            "Strict: no car, vehicle, motorcycle, toy, diecast, wheels, chassis, product, or people. "
+            "Strict: no products, items, packaging, props, people, vehicles, toys, or main subjects. "
             "No logos, brand names, or readable watermark text in the scene. "
             "Show only environment: lighting, flames, smoke, sparks, haze, ground, and mood as described."
         )
     else:
         guard = (
             "Photorealistic scene plate only. "
-            "Do not draw any car, vehicle, toy, diecast model, product, packaging, people, or text. "
-            "Leave a clear ground plane in the lower/middle area for compositing one small object."
+            "Do not draw any product, item, packaging, toy, prop, person, or text. "
+            "Leave a clear ground plane in the lower/middle area for compositing one subject."
         )
-    full = f"{scene.rstrip('.')}. {scale_hint}{fire_extra} {anti_wheel} {guard}".strip()
+    full = f"{scene.rstrip('.')}. {scale_hint}{fire_extra} {anti_phantom} {guard}".strip()
     return full, watermark, metallic_wm
 
 
@@ -675,10 +875,14 @@ class FalAdapter(BaseAIProvider):
         """
         logger.info(f"[{self.name}] Starting text_to_image. Prompt: {prompt[:100]}...")
         try:
+            _steps = max(
+                1,
+                min(int(kwargs.get("steps", 4)), _SCHNELL_MAX_INFERENCE_STEPS),
+            )
             arguments = {
                 "prompt": prompt,
                 "image_size": kwargs.get("image_size", "square"),
-                "num_inference_steps": int(kwargs.get("steps", 4)),
+                "num_inference_steps": _steps,
                 "enable_safety_checker": False,
                 "guidance_scale": float(kwargs.get("guidance_scale", 3.5))
             }
@@ -699,10 +903,10 @@ class FalAdapter(BaseAIProvider):
 
     async def image_to_image(self, image_url: str, prompt: str, **kwargs) -> GenerationResult:
         """
-        Hybrid pipeline (Fal.ai):
-        1. Route: composite only for explicit catalog / background-swap style prompts;
-           default is flux dev img2img (more realistic fire integration). Diecast/toy prompts
-           add a style lock in direct mode instead of forcing a cutout composite.
+        Hybrid pipeline (Fal.ai) for any product/subject:
+        1. Route: preserve_subject + hero_cinematic_reframe → DIRECT flux-dev (camera may move like a fire poster;
+           identity locked). Else preserve_subject → composite + optional blend. cinematic_redraw → full direct reskin.
+           force_direct or prompt phrases can also force direct.
         2. Generate once
         3. Optional refinement for composite only if enable_refine
         4. Watermarking (prefers raw user_prompt for watermark extraction)
@@ -714,13 +918,63 @@ class FalAdapter(BaseAIProvider):
             # Route on RAW user text only. Enhanced prompts often say "on white background"
             # (describing the upload) and falsely trigger composite → looks unchanged.
             routing_prompt = (kwargs.get("user_prompt") or prompt or "").strip() or prompt
-            if kwargs.get("force_direct"):
+            preserve_pixels = _wants_preserve_exact_product(routing_prompt)
+            preserve_subject = _coerce_bool_opt(kwargs.get("preserve_subject"), True)
+            cinematic = _coerce_bool_opt(kwargs.get("cinematic_redraw"), False) or _wants_cinematic_redraw(
+                routing_prompt
+            )
+            hero_reframe = _coerce_bool_opt(kwargs.get("hero_cinematic_reframe"), False) and not cinematic
+
+            if kwargs.get("force_direct") or cinematic or hero_reframe:
                 use_composite = False
             else:
-                use_composite = _wants_composite_plate(routing_prompt, kwargs)
+                use_composite = (
+                    _wants_composite_plate(routing_prompt, kwargs)
+                    or preserve_pixels
+                    or preserve_subject
+                )
             use_direct = not use_composite
-            mode_name = "DIRECT (flux dev img2img)" if use_direct else "COMPOSITE (rembg + plate)"
-            logger.info(f"[{self.name}] Stage 1: {mode_name}")
+            if hero_reframe:
+                mode_name = "DIRECT hero reframe (flux dev)"
+            elif use_direct:
+                mode_name = "DIRECT (flux dev img2img)"
+            else:
+                mode_name = "COMPOSITE (rembg + plate)"
+            logger.info(
+                f"[{self.name}] Stage 1: {mode_name} "
+                f"(preserve_subject={preserve_subject}, preserve_pixels={preserve_pixels}, "
+                f"cinematic={cinematic}, hero_reframe={hero_reframe})"
+            )
+
+            if use_composite and (preserve_pixels or preserve_subject):
+                kwargs["tight_subject_blend"] = True
+                # Fire/action: one moderate flux-dev pass merges lighting and kills the "sticker" look (like a hero ad),
+                # without full cinematic_redraw (which replaces the whole car). Toys need lower strength.
+                dramatic = _has_fire_or_burning(routing_prompt) or _is_action_fx_scene(routing_prompt)
+                if kwargs.get("composite_flux_blend") is None:
+                    kwargs["composite_flux_blend"] = bool(dramatic)
+                if kwargs.get("composite_blend_strength") is None:
+                    kwargs["composite_blend_strength"] = (
+                        0.58 if preserve_pixels else 0.72
+                    ) if dramatic else 0.88
+                if kwargs.get("composite_blend_steps") is None:
+                    kwargs["composite_blend_steps"] = 20 if dramatic else 24
+                if kwargs.get("composite_blend_guidance") is None and dramatic:
+                    kwargs["composite_blend_guidance"] = 3.2
+                if _has_fire_or_burning(routing_prompt) and kwargs.get("fire_uplight") is None:
+                    kwargs["fire_uplight"] = True
+                if dramatic and kwargs.get("fire_uplight_strength") is None:
+                    kwargs["fire_uplight_strength"] = 0.30 if preserve_pixels else 0.38
+                if dramatic and kwargs.get("warm_bounce_strength") is None:
+                    kwargs["warm_bounce_strength"] = 0.11
+                if dramatic and kwargs.get("feather_radius") is None:
+                    kwargs["feather_radius"] = 1.38
+                if dramatic:
+                    logger.info(
+                        f"[{self.name}] Dramatic scene: composite_flux_blend="
+                        f"{kwargs.get('composite_flux_blend')} strength="
+                        f"{kwargs.get('composite_blend_strength')}"
+                    )
 
             logger.info(f"[{self.name}] Stage 2: Generating...")
             if use_direct:
@@ -780,22 +1034,44 @@ class FalAdapter(BaseAIProvider):
             if not creative:
                 creative = prompt
 
-            lock = _diecast_style_lock(creative)
-            core = f"{creative}. {lock}" if lock else f"{creative}."
-            strength = float(kwargs.get("img2img_strength", 0.95))
+            mini_lock = _miniature_subject_style_lock(creative)
+            core = f"{creative}. {_DIRECT_SUBJECT_IDENTITY_GUARD} {_TEXT_INTEGRITY_GUARD}"
+            if mini_lock:
+                core = f"{core} {mini_lock}"
+
+            hero = _coerce_bool_opt(kwargs.get("hero_cinematic_reframe"), False)
+            if hero:
+                env_clause = _hero_cinematic_environment_clause(creative)
+                d_strength = 0.84 if _wants_preserve_exact_product(creative) else 0.88
+                strength = float(kwargs.get("img2img_strength", d_strength))
+                steps = int(kwargs.get("img2img_steps", 44))
+                full_prompt = (
+                    f"{core} "
+                    f"{env_clause}"
+                    "Photorealistic, ultra detailed. You may move the camera to a dramatic hero angle "
+                    "(low front, straight-on, or strong three-quarter) like a blockbuster car poster — "
+                    "but keep this exact same vehicle: body kit, wheels, spoiler, paint, badges, and scale. "
+                    "Apply the full scene, lighting, and effects from the prompt. "
+                    "Do not replace the subject with a different car, color, or generic render."
+                )
+            else:
+                strength = float(kwargs.get("img2img_strength", 0.95))
+                steps = int(kwargs.get("img2img_steps", 40))
+                full_prompt = (
+                    f"{core} "
+                    "Cinematic product photography, photorealistic, ultra detailed. "
+                    "Apply the full scene, lighting, and effects described. "
+                    "Keep the same subject as the source; do not replace it with a different product or object."
+                )
+
             handler = await asyncio.to_thread(
                 fal_client.submit,
                 "fal-ai/flux/dev/image-to-image",
                 arguments={
                     "image_url": image_url,
-                    "prompt": (
-                        f"{core} "
-                        "Cinematic product photography, photorealistic, ultra detailed. "
-                        "Apply the full scene, lighting, and effects described. "
-                        "Keep the product recognizable; do not swap it for a different model."
-                    ),
+                    "prompt": full_prompt,
                     "strength": strength,
-                    "num_inference_steps": int(kwargs.get("img2img_steps", 40)),
+                    "num_inference_steps": steps,
                     "guidance_scale": float(kwargs.get("guidance_scale", 3.5)),
                     "enable_safety_checker": False,
                 },
@@ -817,19 +1093,49 @@ class FalAdapter(BaseAIProvider):
     ) -> Optional[bytes]:
         """
         One flux-dev pass on the flattened composite to kill the 'sticker' look:
-        unified lighting, haze, and ground contact (high init strength).
+        unified lighting, haze, wet-ground contact (moderate strength so the upload subject is not reskinned).
         """
         if not kwargs.get("composite_flux_blend", True):
             return None
         try:
             public_url = await asyncio.to_thread(fal_client.upload, image_jpeg, "image/jpeg")
-            blend_prompt = (
-                f"{routing_prompt[:600]}. "
-                "One seamless photoreal photograph — not a collage or layered cutout. "
-                "Match fire and sky light on the product with natural color bounce, soft shadows at ground contact, "
-                "atmospheric haze, shallow depth of field. Remove halos and hard compositing edges. "
-                "Keep the subject identity, pose, scale, and proportions exactly as shown."
+            tight = bool(kwargs.get("tight_subject_blend"))
+            subject_clause = (
+                "Do not change the subject's shape, materials, labels, logos, colors, gloss, or structural details. "
+                "Only adjust global lighting, atmospheric haze, shadows, and edge integration. "
+                if tight
+                else "Keep the subject identity, pose, scale, and proportions exactly as shown."
             )
+            mini_lock = _miniature_subject_style_lock(routing_prompt)
+            dramatic_bg = _has_fire_or_burning(routing_prompt) or _is_action_fx_scene(routing_prompt)
+            if dramatic_bg:
+                hero_integrate = (
+                    "Cinematic automotive-ad finish: warm orange firelight raking across the subject, "
+                    "coherent specular highlights matching the flames, wet dark asphalt with soft reflections, "
+                    "background fire and smoke out of focus (bokeh). "
+                )
+                light_line = (
+                    "Match fire and ambient light on the product with natural color bounce, soft shadows at ground contact, "
+                    "atmospheric haze, shallow depth of field. Remove orange/red fringing and hard compositing edges. "
+                )
+            else:
+                hero_integrate = (
+                    "Photoreal integration: match the environment key and fill light already in the plate, "
+                    "coherent reflections on glossy surfaces, believable showroom or garage depth of field. "
+                )
+                light_line = (
+                    "Match ambient light on the product with natural color bounce, tight contact shadows at tire patches, "
+                    "shallow depth of field. Remove colored fringes and halos at ground contact. "
+                )
+            blend_prompt = (
+                f"{routing_prompt[:480]}. "
+                f"{hero_integrate}"
+                "One seamless photoreal photograph — not a collage or layered cutout. "
+                f"{light_line}"
+                f"{subject_clause} {_TEXT_INTEGRITY_GUARD}"
+            )
+            if mini_lock:
+                blend_prompt = f"{blend_prompt} {mini_lock}"
             strength = float(kwargs.get("composite_blend_strength", 0.92))
             handler = await asyncio.to_thread(
                 fal_client.submit,
@@ -864,39 +1170,72 @@ class FalAdapter(BaseAIProvider):
             )
             rembg_result = await asyncio.to_thread(rembg_handler.get)
             if not rembg_result or "image" not in rembg_result:
+                logger.warning(
+                    f"[{self.name}] rembg missing image in response: {rembg_result!r:.1200}"
+                )
                 return None
 
             transparent_url = rembg_result["image"]["url"]
             async with self._get_client() as client:
                 fg_bytes = (await client.get(transparent_url)).content
             foreground = Image.open(io.BytesIO(fg_bytes)).convert("RGBA")
+            is_fire_scene = _has_fire_or_burning(prompt) or _is_action_fx_scene(prompt)
             if kwargs.get("feather_fg_edges", True):
                 foreground = _feather_rgba_edges(foreground, radius=float(kwargs.get("feather_radius", 1.15)))
+            if kwargs.get("defringe_fg_edges", True):
+                foreground = _defringe_rgba_edges(
+                    foreground,
+                    pull=float(kwargs.get("defringe_pull", 0.76 if is_fire_scene else 0.70)),
+                    bottom_extra=float(kwargs.get("defringe_bottom_extra", 1.38 if is_fire_scene else 1.28)),
+                )
 
-            is_fire_scene = _has_fire_or_burning(prompt) or _is_action_fx_scene(prompt)
             if is_fire_scene and kwargs.get("ambient_spill_enabled") is None:
                 kwargs["ambient_spill_enabled"] = True
 
             # 2. Generate Background Environment
             bg_prompt, _, _ = _build_full_background_prompt(prompt)
-            # More steps + larger canvas for action/fire plates (less mushy when resized to fg)
-            bg_steps = 12 if is_fire_scene else 4
-            bg_w = int(kwargs.get("bg_width", 768 if is_fire_scene else 512))
-            bg_h = int(kwargs.get("bg_height", 768 if is_fire_scene else 512))
+            if kwargs.get("premium_cinematic_plate", True) and is_fire_scene:
+                bg_prompt = f"{bg_prompt.rstrip()} {_PREMIUM_FIRE_PLATE_SUFFIX}"
+            # Quality for fire plates: larger preset (square_hd); Schnell stays at ≤4 steps.
+            _raw_bg_steps = int(kwargs.get("bg_steps", 4))
+            bg_steps = max(1, min(_raw_bg_steps, _SCHNELL_MAX_INFERENCE_STEPS))
+            if _raw_bg_steps > _SCHNELL_MAX_INFERENCE_STEPS:
+                logger.info(
+                    f"[{self.name}] capping bg_steps {_raw_bg_steps} → {bg_steps} for fal-ai/flux/schnell"
+                )
+            if kwargs.get("bg_width") is not None or kwargs.get("bg_height") is not None:
+                bg_image_size = {
+                    "width": int(kwargs.get("bg_width", 1024 if is_fire_scene else 512)),
+                    "height": int(kwargs.get("bg_height", 1024 if is_fire_scene else 512)),
+                }
+            elif is_fire_scene:
+                bg_image_size = kwargs.get("bg_image_size", "square_hd")
+            else:
+                bg_image_size = {
+                    "width": int(kwargs.get("bg_width", 512)),
+                    "height": int(kwargs.get("bg_height", 512)),
+                }
 
             bg_handler = await asyncio.to_thread(
                 fal_client.submit,
                 "fal-ai/flux/schnell",
                 arguments={
-                    "prompt": bg_prompt,
-                    "image_size": {"width": bg_w, "height": bg_h},
-                    "num_inference_steps": int(kwargs.get("bg_steps", bg_steps)),
+                    "prompt": bg_prompt[:8000],
+                    "image_size": bg_image_size,
+                    "num_inference_steps": bg_steps,
                     "guidance_scale": 3.5,
                     "enable_safety_checker": False,
                 }
             )
             bg_result = await asyncio.to_thread(bg_handler.get)
-            if not bg_result or "images" not in bg_result:
+            if (
+                not bg_result
+                or "images" not in bg_result
+                or not bg_result["images"]
+            ):
+                logger.warning(
+                    f"[{self.name}] flux schnell (composite bg) missing images: {bg_result!r:.1200}"
+                )
                 return None
 
             bg_url = bg_result["images"][0]["url"]
@@ -931,6 +1270,9 @@ class FalAdapter(BaseAIProvider):
                 fus = float(kwargs.get("fire_uplight_strength", 0.28 if is_fire_scene else 0.18))
                 foreground = _apply_fire_uplight_to_foreground(foreground, fus)
 
+            if kwargs.get("enhance_preserved_cutout", True):
+                foreground = _enhance_preserved_cutout(foreground, is_fire_scene)
+
             # 4. Grounding (Stance)
             if _resolve_fg_auto_ground(prompt, kwargs):
                 target_y = float(kwargs.get("fg_ground_target", 0.90))
@@ -940,19 +1282,39 @@ class FalAdapter(BaseAIProvider):
             if kwargs.get("draw_shadow", True):
                 alpha = np.array(foreground.split()[-1], dtype=np.float32)
                 shadow_mask = np.zeros_like(alpha)
-                max_drop = max(8, int(background.height * 0.08))
+                max_drop = max(10, int(background.height * 0.09))
                 for x in range(alpha.shape[1]):
                     col = alpha[:, x]
                     nz = np.where(col > 12)[0]
                     if nz.size > 0:
-                        y_contact = nz[-1]
-                        for dy in range(1, max_drop):
+                        y_contact = int(nz[-1])
+                        # Tight contact occlusion (first rows) + softer falloff
+                        for dy in range(1, max_drop + 1):
                             y_shadow = y_contact + dy
-                            if y_shadow < alpha.shape[0]:
-                                strength = (1.0 - (dy / max_drop)) ** 1.5
-                                shadow_mask[y_shadow, x] = max(shadow_mask[y_shadow, x], 180 * strength)
-                shadow_image = Image.fromarray(shadow_mask.astype(np.uint8), "L").filter(ImageFilter.GaussianBlur(radius=max(2, background.width // 200)))
-                shadow_layer = Image.merge("RGBA", (Image.new("L", background.size, 0), Image.new("L", background.size, 0), Image.new("L", background.size, 0), shadow_image))
+                            if y_shadow >= alpha.shape[0]:
+                                break
+                            t = dy / float(max_drop)
+                            falloff = (1.0 - t) ** 2.05
+                            if dy <= 2:
+                                val = min(255, int(245 * falloff + 35))
+                            elif dy <= 5:
+                                val = min(255, int(210 * falloff + 25))
+                            else:
+                                val = int(175 * falloff)
+                            shadow_mask[y_shadow, x] = max(shadow_mask[y_shadow, x], val)
+                blur_r = max(2, background.width // 200)
+                shadow_image = Image.fromarray(shadow_mask.astype(np.uint8), "L").filter(
+                    ImageFilter.GaussianBlur(radius=blur_r)
+                )
+                shadow_layer = Image.merge(
+                    "RGBA",
+                    (
+                        Image.new("L", background.size, 0),
+                        Image.new("L", background.size, 0),
+                        Image.new("L", background.size, 0),
+                        shadow_image,
+                    ),
+                )
 
             background.paste(shadow_layer, (0, 0), shadow_layer)
 
@@ -960,16 +1322,18 @@ class FalAdapter(BaseAIProvider):
                 alpha_arr = np.array(foreground.split()[-1], dtype=np.float32)
                 nz_rows = np.where(alpha_arr.max(axis=1) > 12)[0]
                 if nz_rows.size > 0:
-                    car_bottom_y = int(nz_rows[-1])
-                    refl_height = max(12, (car_bottom_y - int(nz_rows[0])) // 6)
-                    refl_src = foreground.crop((0, car_bottom_y - refl_height, foreground.width, car_bottom_y))
+                    subject_bottom_y = int(nz_rows[-1])
+                    refl_height = max(12, (subject_bottom_y - int(nz_rows[0])) // 6)
+                    refl_src = foreground.crop(
+                        (0, subject_bottom_y - refl_height, foreground.width, subject_bottom_y)
+                    )
                     refl_strip = refl_src.transpose(Image.FLIP_TOP_BOTTOM)
                     refl_arr = np.array(refl_strip, dtype=np.float32)
                     fade = np.linspace(0.35, 0.0, refl_height).reshape(refl_height, 1)
                     refl_arr[..., 3] = np.clip(refl_arr[..., 3] * fade, 0, 255)
                     refl_img = Image.fromarray(refl_arr.astype(np.uint8), "RGBA")
-                    if car_bottom_y + refl_height <= background.height:
-                        background.paste(refl_img, (0, car_bottom_y), refl_img)
+                    if subject_bottom_y + refl_height <= background.height:
+                        background.paste(refl_img, (0, subject_bottom_y), refl_img)
 
             if kwargs.get("env_edge_glow", True):
                 is_fire = _has_fire_or_burning(prompt)
@@ -982,6 +1346,13 @@ class FalAdapter(BaseAIProvider):
                 background.paste(env_glow, (0, 0), env_glow)
 
             final_image = Image.alpha_composite(background, foreground).convert("RGB")
+            if kwargs.get("polish_preserved_composite", True):
+                final_image = _polish_preserved_composite(
+                    final_image,
+                    foreground,
+                    is_fire_scene,
+                    warm_bounce_strength=float(kwargs.get("warm_bounce_strength", 0.07)),
+                )
             img_byte_arr = io.BytesIO()
             final_image.save(img_byte_arr, format="JPEG", quality=95)
             raw_bytes = img_byte_arr.getvalue()
@@ -990,7 +1361,7 @@ class FalAdapter(BaseAIProvider):
             return blended if blended else raw_bytes
 
         except Exception as e:
-            logger.warning(f"[{self.name}] Composite pipeline sub-pass failed: {e}")
+            logger.exception(f"[{self.name}] Composite pipeline sub-pass failed: {e}")
             return None
     async def text_to_video(self, prompt: str, duration_seconds: int = 5, **kwargs) -> GenerationResult:
         """
