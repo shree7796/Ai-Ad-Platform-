@@ -1,20 +1,81 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import type { User } from '@/lib/auth';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+// Use NEXT_PUBLIC_API_URL: `/api/v1` (same-origin + Next rewrite) when running frontend in Docker, or full URL for host-only dev.
+const API_BASE = process.env.NEXT_PUBLIC_API_URL?.trim() || 'http://127.0.0.1:8000/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
-// Attach JWT token to requests
+/** Use real API `detail` when present; surface network errors instead of a generic auth message. */
+export function formatApiError(err: unknown, fallback: string): string {
+  const ax = err as {
+    message?: string;
+    response?: { data?: { detail?: unknown } };
+  };
+  const detail = ax.response?.data?.detail;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail) && detail.length > 0) {
+    const parts = detail
+      .map((item: unknown) => {
+        if (typeof item === 'string') return item;
+        if (
+          item &&
+          typeof item === 'object' &&
+          'msg' in item &&
+          typeof (item as { msg: unknown }).msg === 'string'
+        ) {
+          return (item as { msg: string }).msg;
+        }
+        return null;
+      })
+      .filter((s): s is string => Boolean(s));
+    if (parts.length > 0) return parts.join(' ');
+  }
+  if (
+    detail &&
+    typeof detail === 'object' &&
+    'msg' in detail &&
+    typeof (detail as { msg: unknown }).msg === 'string'
+  ) {
+    return (detail as { msg: string }).msg;
+  }
+  if (detail != null && typeof detail !== 'string') {
+    try {
+      const s = JSON.stringify(detail);
+      if (s && s !== '{}') return s.length > 280 ? `${s.slice(0, 280)}…` : s;
+    } catch {
+      /* ignore */
+    }
+  }
+  const status = (err as { response?: { status?: number } }).response?.status;
+  if (status && status >= 400) {
+    return `Request failed (${status}). Check the browser Network tab for /projects or /generate.`;
+  }
+  if (!ax.response && ax.message) {
+    return `Cannot reach API (${ax.message}). With Docker, use NEXT_PUBLIC_API_URL=/api/v1 (browser → port 3000 only), ensure API_PROXY_TARGET=http://api:8000 on the frontend service, recreate the frontend, then hard-refresh.`;
+  }
+  return fallback;
+}
+
+// Attach JWT token; never force application/json on FormData (breaks multipart + causes 422 on /projects).
 api.interceptors.request.use((config) => {
   const token = Cookies.get('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  } else if (
+    config.data != null &&
+    typeof config.data === 'object' &&
+    !(config.data instanceof URLSearchParams) &&
+    !(config.data instanceof Blob) &&
+    config.headers['Content-Type'] === undefined
+  ) {
+    config.headers['Content-Type'] = 'application/json';
   }
   return config;
 });
@@ -56,9 +117,9 @@ export const projectsAPI = {
     api.get(`/projects/${id}`),
 
   create: (formData: FormData) =>
-    api.post('/projects/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }),
+    // Path relative to baseURL so axios does not merge to /api/v1/projects (no slash) → 307 + broken multipart.
+    // Let axios set multipart boundary; a bare Content-Type breaks uploads.
+    api.post('projects/', formData),
 
   delete: (id: string) =>
     api.delete(`/projects/${id}`),
@@ -80,7 +141,7 @@ export const generationAPI = {
     cinematic_redraw?: boolean;
     /** image_to_image: allow flux to reframe camera for fire/poster look while locking your model */
     hero_cinematic_reframe?: boolean;
-  }) => api.post('/generate/', data),
+  }) => api.post('generate/', data),
 
   status: (sceneId: string) =>
     api.get(`/generate/${sceneId}/status`),
@@ -90,6 +151,110 @@ export const generationAPI = {
 
 export const modelsAPI = {
   list: () => api.get('/models/'),
+};
+
+// ── Usage / quota (from usage_logs) ──
+
+export interface UsageSummary {
+  plan_key: string;
+  plan_display_name: string;
+  /** Image cap + video unit cap (informational). */
+  monthly_quota: number;
+  monthly_image_quota: number;
+  /** Video quota in billing units (not raw job count). */
+  monthly_video_quota: number;
+  video_billing_unit_seconds: number;
+  used_this_month: number;
+  period_start: string;
+  period_end: string;
+  image_generations_this_month: number;
+  video_generations_this_month: number;
+  video_units_used_this_month: number;
+  subscription_active: boolean;
+}
+
+export interface UsageActivityItem {
+  id: string;
+  created_at: string;
+  task_type: string | null;
+  tier: string | null;
+  cost: string;
+  model_used: string | null;
+}
+
+export interface UsageActivityPage {
+  items: UsageActivityItem[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export const usageAPI = {
+  summary: () => api.get<UsageSummary>('/usage/summary'),
+  activity: (opts: { page?: number; perPage?: number; q?: string } = {}) => {
+    const page = opts.page ?? 1;
+    const perPage = opts.perPage ?? 10;
+    const params = new URLSearchParams({
+      page: String(page),
+      per_page: String(perPage),
+    });
+    if (opts.q?.trim()) params.set('q', opts.q.trim());
+    return api.get<UsageActivityPage>(`/usage/activity?${params.toString()}`);
+  },
+};
+
+export interface CheckoutSessionResponse {
+  url: string;
+}
+
+export const billingAPI = {
+  createCheckout: (data: { plan_key: 'basic' | 'pro' | 'premium' }) =>
+    api.post<CheckoutSessionResponse>('/billing/checkout-session', data),
+  syncCheckoutSession: (data: { session_id: string }) =>
+    api.post<{ ok: boolean }>('/billing/sync-checkout-session', data),
+};
+
+// ── Admin ──
+
+export interface AdminOverview {
+  total_users: number;
+  active_users: number;
+  admin_users: number;
+  paid_plan_users: number;
+}
+
+export interface AdminUserRow {
+  id: string;
+  email: string;
+  username: string;
+  full_name: string | null;
+  plan: string;
+  is_admin: boolean;
+  is_active: boolean;
+  stripe_customer_id: string | null;
+  created_at: string;
+  subscription_active: boolean | null;
+  subscription_plan: string | null;
+}
+
+export interface AdminUserListResponse {
+  items: AdminUserRow[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export const adminAPI = {
+  overview: () => api.get<AdminOverview>('/admin/overview'),
+  users: (page = 1, perPage = 20, search?: string) => {
+    const q = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+    if (search?.trim()) q.set('search', search.trim());
+    return api.get<AdminUserListResponse>(`/admin/users?${q.toString()}`);
+  },
+  updateUser: (
+    id: string,
+    body: { plan?: string; is_active?: boolean; is_admin?: boolean }
+  ) => api.patch<User>(`/admin/users/${id}`, body),
 };
 
 export default api;

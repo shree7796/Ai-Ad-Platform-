@@ -81,9 +81,12 @@ export default function OutputPanel({ type, src, loading, onRegenerate }: Props)
 
     const handleDownload = () => {
         if (!src) return;
+        const filename = type === 'video' ? 'klypse-output.mp4' : 'klypse-output.png';
+        // Use the server-side proxy so cross-origin MinIO URLs trigger a proper file download.
+        const proxyUrl = `/api/media-download?url=${encodeURIComponent(src)}&filename=${encodeURIComponent(filename)}`;
         const a = document.createElement('a');
-        a.href = src;
-        a.download = type === 'video' ? 'lumina-output.mp4' : 'lumina-output.png';
+        a.href = proxyUrl;
+        a.download = filename;
         a.click();
     };
 

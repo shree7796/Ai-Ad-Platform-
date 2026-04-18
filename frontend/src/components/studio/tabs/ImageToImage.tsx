@@ -82,7 +82,7 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
                                 Drop image here
                             </div>
                             <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-                                or click to browse — PNG, JPG, WEBP
+                                or click to browse (PNG, JPG, WEBP)
                             </div>
                         </div>
                     </div>

@@ -15,22 +15,22 @@ import {
     LOCAL_CLIP_ABSTRACT,
     LOCAL_CLIP_FLOWER,
     LOCAL_CLIP_FOREST,
-    LOCAL_HERO_CLIP,
-    LOCAL_KIDS_TOY_CLIP,
     LOCAL_PROMO_CLIP,
+    LOCAL_KIDS_TOY_CLIP,
 } from '@/lib/landingVideoSources';
-import { generationAPI, projectsAPI } from '@/lib/api';
+import { generationAPI, projectsAPI, formatApiError } from '@/lib/api';
+import { BRAND_NAME } from '@/lib/brand';
 
 type AppState = 'idle' | 'input-active' | 'loading' | 'generated' | 'error';
 
 /** Five distinct locals; kids/toy clip appears only once (single thumb). */
 const SAMPLE_VARIATIONS = [
-    { id: '1', thumbnail: studioThumbDataUri(0), source: LOCAL_HERO_CLIP },
-    { id: '2', thumbnail: studioThumbDataUri(1), source: LOCAL_PROMO_CLIP },
-    { id: '3', thumbnail: studioThumbDataUri(2), source: LOCAL_CLIP_FLOWER },
-    { id: '4', thumbnail: studioThumbDataUri(3), source: LOCAL_CLIP_ABSTRACT },
-    { id: '5', thumbnail: studioThumbDataUri(4), source: LOCAL_CLIP_FOREST },
-    { id: '6', thumbnail: studioThumbDataUri(5), source: LOCAL_KIDS_TOY_CLIP },
+    { id: '1', thumbnail: studioThumbDataUri(0), source: LOCAL_PROMO_CLIP },
+    { id: '2', thumbnail: studioThumbDataUri(1), source: LOCAL_CLIP_FLOWER },
+    { id: '3', thumbnail: studioThumbDataUri(2), source: LOCAL_CLIP_ABSTRACT },
+    { id: '4', thumbnail: studioThumbDataUri(3), source: LOCAL_CLIP_FOREST },
+    { id: '5', thumbnail: studioThumbDataUri(4), source: LOCAL_KIDS_TOY_CLIP },
+    { id: '6', thumbnail: studioThumbDataUri(5), source: LOCAL_CLIP_FLOWER },
 ];
 
 export default function VStudioPage() {
@@ -106,10 +106,10 @@ export default function VStudioPage() {
             // 3. Status Polling
             pollStatus(scene_id);
 
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error('Generation Error:', e);
             setState('error');
-            setErrorMsg(e.response?.data?.detail || 'Failed to start generation.');
+            setErrorMsg(formatApiError(e, 'Failed to start generation.'));
         }
     }, []);
 
@@ -206,7 +206,7 @@ export default function VStudioPage() {
                     <div className="w-5 h-5 bg-black rounded-sm rotate-45" />
                 </div>
                 <div className="flex flex-col">
-                    <span className="text-white font-display font-bold text-sm tracking-widest uppercase">Lumina</span>
+                    <span className="text-white font-display font-bold text-sm tracking-widest uppercase">{BRAND_NAME}</span>
                     <span className="text-white/20 text-[10px] tracking-tighter uppercase font-medium">Production Studio</span>
                 </div>
             </motion.div>

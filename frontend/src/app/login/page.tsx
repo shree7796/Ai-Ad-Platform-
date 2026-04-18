@@ -184,7 +184,10 @@ export default function LoginPage() {
         </form>
 
         <div style={{ textAlign: 'center', marginTop: 32, fontSize: 14, color: 'var(--text-secondary)' }}>
-          Don't have an account? <Link href="#" style={{ color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}>Create an account</Link>
+          Don't have an account?{' '}
+          <Link href="/register" style={{ color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}>
+            Create an account
+          </Link>
         </div>
       </motion.div>
     </div>

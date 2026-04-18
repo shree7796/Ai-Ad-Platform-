@@ -10,10 +10,8 @@ import TextToImage from '@/components/studio/tabs/TextToImage';
 import ImageToImage from '@/components/studio/tabs/ImageToImage';
 import ImageToVideo from '@/components/studio/tabs/ImageToVideo';
 import TextToVideo from '@/components/studio/tabs/TextToVideo';
-
-const SAMPLE_IMAGE = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=900&auto=format';
-
-import { projectsAPI, generationAPI } from '@/lib/api';
+import { projectsAPI, generationAPI, formatApiError } from '@/lib/api';
+import { BRAND_NAME } from '@/lib/brand';
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<StudioTab>('text-to-image');
@@ -22,15 +20,29 @@ export default function HomePage() {
   const [outputType, setOutputType] = useState<OutputType>('none');
   const [lastPayload, setLastPayload] = useState<any>(null);
 
-  const pollStatus = async (sceneId: string, type: OutputType) => {
+  /** Poll until completed/failed. Without a max, loading never stops if the Celery worker is down or the task hangs. */
+  const pollStatus = (sceneId: string, type: OutputType) => {
+    let attempts = 0;
+    const maxAttempts = 180; // 2s × 180 = 6 minutes
     const interval = setInterval(async () => {
+      attempts += 1;
+      if (attempts > maxAttempts) {
+        clearInterval(interval);
+        setLoading(false);
+        toast.error(
+          'Generation timed out (job never finished). Start the Celery worker (e.g. docker compose up -d worker), ' +
+            'confirm Redis and FAL_KEY in .env, then try again.',
+          { duration: 8000 }
+        );
+        return;
+      }
       try {
         const res = await generationAPI.status(sceneId);
         const { status, output_video_url, error_message } = res.data;
 
         if (status === 'completed') {
           clearInterval(interval);
-          setOutputSrc(output_video_url);
+          setOutputSrc(output_video_url ?? null);
           setLoading(false);
           toast.success(type === 'video' ? 'Video generated!' : 'Image generated!');
         } else if (status === 'failed') {
@@ -41,7 +53,7 @@ export default function HomePage() {
       } catch (err) {
         clearInterval(interval);
         setLoading(false);
-        toast.error('Error checking status.');
+        toast.error(formatApiError(err, 'Error checking status.'));
       }
     }, 2000);
   };
@@ -76,11 +88,19 @@ export default function HomePage() {
 
       // 2. Trigger Generation
       const task_type = activeTab.replace(/-/g, '_');
+      const durationRaw = payload?.duration;
+      const durationParsed =
+        durationRaw != null && String(durationRaw).trim() !== ''
+          ? parseInt(String(durationRaw).replace(/\D/g, '') || '0', 10)
+          : 0;
+      const duration_seconds =
+        Number.isFinite(durationParsed) && durationParsed > 0 ? Math.min(120, durationParsed) : 10;
+
       const genRes = await generationAPI.trigger({
         project_id,
         prompt: payload.prompt,
         task_type,
-        duration_seconds: payload.duration ? parseInt(payload.duration) : 10,
+        duration_seconds,
         enhance_prompt: 'enhance' in payload ? payload.enhance : true,
         // image_to_image: preserve_subject true + hero_cinematic_reframe uses flux hero reframe (see toggle).
         preserve_subject: task_type === 'image_to_image' ? true : undefined,
@@ -94,10 +114,9 @@ export default function HomePage() {
       // 3. Start Polling
       pollStatus(scene_id, type);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Generation Error:', err);
-      const msg = err.response?.data?.detail || 'Generation failed to start.';
-      toast.error(msg);
+      toast.error(formatApiError(err, 'Generation failed to start.'));
       setLoading(false);
     }
   };
@@ -116,7 +135,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="studio-layout">
+    <div className="studio-layout studio-layout--with-preview">
       <Sidebar />
 
       {/* Main workspace */}
@@ -127,14 +146,35 @@ export default function HomePage() {
           transition={{ duration: 0.5, ease: 'easeOut' }}
           style={{ marginBottom: 28 }}
         >
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 10,
+              padding: '4px 12px',
+              borderRadius: 999,
+              border: '1px solid var(--border)',
+              background: 'var(--bg-card)',
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+            }}
+          >
+            <span style={{ color: 'var(--accent)' }}>{BRAND_NAME}</span>
+            <span style={{ opacity: 0.45 }}>·</span>
+            <span>Studio</span>
+          </div>
           <h1 style={{
-            fontSize: 24, fontWeight: 800, color: 'var(--text-primary)',
+            fontSize: 26, fontWeight: 800, color: 'var(--text-primary)',
             fontFamily: 'var(--font-display, Montserrat), sans-serif',
-            letterSpacing: '-0.03em', marginBottom: 4,
+            letterSpacing: '-0.03em', marginBottom: 8, lineHeight: 1.15,
           }}>
             {tabMeta[activeTab].title}
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>
+          <p style={{ fontSize: 15, color: 'var(--text-secondary)', margin: 0, fontWeight: 500, maxWidth: 520, lineHeight: 1.55 }}>
             {tabMeta[activeTab].subtitle}
           </p>
         </motion.div>
@@ -181,12 +221,14 @@ export default function HomePage() {
 
       {/* Right Output Panel */}
       <aside className="studio-output">
-        <OutputPanel
-          type={loading ? (isVideoTab ? 'video' : 'image') : outputType}
-          src={outputSrc}
-          loading={loading}
-          onRegenerate={handleRegenerate}
-        />
+        <div className="studio-output-panel">
+          <OutputPanel
+            type={loading ? (isVideoTab ? 'video' : 'image') : outputType}
+            src={outputSrc}
+            loading={loading}
+            onRegenerate={handleRegenerate}
+          />
+        </div>
       </aside>
     </div>
   );

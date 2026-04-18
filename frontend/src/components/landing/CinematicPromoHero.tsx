@@ -67,7 +67,7 @@ export default function CinematicPromoHero() {
                 transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
             />
 
-            <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-[1200px] flex-col justify-center px-6 pb-20 pt-24 md:px-10 md:pt-28">
+            <div className="relative z-10 mx-auto flex min-h-[min(100svh,920px)] max-w-[1200px] flex-col justify-center px-6 pb-20 pt-10 md:px-10 md:pt-12">
                 <div className="relative mx-auto aspect-video w-full max-w-[1080px] overflow-hidden rounded-[28px] border border-white/80 bg-white/55 shadow-[0_32px_120px_-16px_rgba(15,23,42,0.12),0_0_0_1px_rgba(255,255,255,0.9)_inset] backdrop-blur-xl">
                     <SceneProgress scene={scene} />
 

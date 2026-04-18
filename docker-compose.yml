@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # ── PostgreSQL ──────────────────────────────────────
   postgres:
@@ -9,8 +7,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-adgen}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-adgen_secret}
       POSTGRES_DB: ${POSTGRES_DB:-adgen_db}
-    ports:
-      - "5432:5432"
+    # ports:
+    #   - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -114,6 +112,9 @@ services:
       --loglevel=info
       --concurrency=4
       --queues=image_generation,video_generation,post_processing
+    environment:
+      # Flush Python/app logs immediately (otherwise Docker can show nothing until buffer fills).
+      PYTHONUNBUFFERED: "1"
     volumes:
       - ./backend:/app
       - ./config:/app/config
@@ -141,9 +142,13 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-      - /app/.next
+      # Do not mount anonymous /app/.next — it caches stale pages so UI edits look "missing". .next lives on the host under ./frontend/.next.
     environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+      # Browser calls same-origin /api/v1/... ; Next rewrites to the api service (see frontend/next.config.js).
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api/v1}
+      - API_PROXY_TARGET=${API_PROXY_TARGET:-http://api:8000}
+      # Next /api/media-download fetches MinIO; localhost:9000 in URLs must map to the minio service from inside this container.
+      - STORAGE_INTERNAL_FETCH_URL=${STORAGE_INTERNAL_FETCH_URL:-http://minio:9000}
     depends_on:
       - api
     networks:

@@ -5,7 +5,34 @@
 @tailwind utilities;
 
 :root {
-  /* Core Foundation — Softer Professional Dark Theme */
+  /* Default: light “AI studio” shell (marketing, auth, dashboard) */
+  --bg-main: #f4f6fb;
+  --bg-sidebar: #ffffff;
+  --bg-card: #ffffff;
+  --bg-subtle: #eef1f8;
+  --bg-muted: #e2e8f0;
+  --bg-accent-soft: rgba(99, 102, 241, 0.12);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --accent: #6366f1;
+  --accent-glow: rgba(99, 102, 241, 0.35);
+  --border: rgba(15, 23, 42, 0.09);
+  --border-light: rgba(15, 23, 42, 0.05);
+  --progress-track: rgba(15, 23, 42, 0.08);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 4px 6px -1px rgb(15 23 42 / 0.06);
+  --shadow-md: 0 10px 15px -3px rgb(15 23 42 / 0.08);
+  --shadow-lg: 0 20px 25px -5px rgb(15 23 42 / 0.1);
+
+  --font-display: 'Montserrat', sans-serif;
+  --font-sans: 'Inter', sans-serif;
+}
+
+/* Optional dark workspace (e.g. legacy or embeds). Studio + admin use default :root light tokens. */
+.theme-studio-dark {
   --bg-main: #030303;
   --bg-sidebar: #0a0a0a;
   --bg-card: #0f0f0f;
@@ -19,16 +46,10 @@
   --accent-glow: rgba(99, 102, 241, 0.4);
   --border: rgba(255, 255, 255, 0.06);
   --border-light: rgba(255, 255, 255, 0.03);
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --progress-track: rgba(255, 255, 255, 0.06);
   --shadow-sm: 0 4px 6px -1px rgb(0 0 0 / 0.1);
   --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1);
-
-  /* Typography */
-  --font-display: 'Montserrat', sans-serif;
-  --font-sans: 'Inter', sans-serif;
 }
 
 * {
@@ -46,10 +67,15 @@ body {
 /* ─── Studio Layout ────────────────────────────────────────── */
 .studio-layout {
   display: grid;
-  grid-template-columns: 260px 1fr 400px;
+  grid-template-columns: 260px 1fr;
   height: 100vh;
   overflow: hidden;
   background-color: var(--bg-main);
+}
+
+/* Main studio route: sidebar + workspace + output column */
+.studio-layout--with-preview {
+  grid-template-columns: 260px 1fr 400px;
 }
 
 .studio-sidebar {
@@ -67,6 +93,12 @@ body {
   padding: 40px 60px;
   background-color: var(--bg-main);
   scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.studio-main::-webkit-scrollbar {
+  display: none;
 }
 
 .studio-output {
@@ -74,6 +106,12 @@ body {
   background: var(--bg-sidebar);
   padding: 32px;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.studio-output::-webkit-scrollbar {
+  display: none;
 }
 
 /* ─── Cards & Containers ──────────────────────────────────── */
@@ -231,6 +269,36 @@ body {
   color: white !important;
   border-color: var(--accent) !important;
   box-shadow: 0 4px 15px var(--accent-glow);
+}
+
+/* Studio form labels + loading skeletons (light theme aware) */
+.text-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-muted) 0%,
+    var(--bg-subtle) 50%,
+    var(--bg-muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.15s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* ─── Landing Page Styles ─────────────────────────────────── */

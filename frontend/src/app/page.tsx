@@ -58,6 +58,33 @@ export default function LandingPage() {
                     <LandingNav theme="light" />
                 </motion.div>
 
+                {/* AI studio positioning — light shell, clear CTAs */}
+                <section className="relative z-20 mx-auto max-w-3xl px-6 pt-24 text-center md:max-w-4xl md:pt-28">
+                    <span className="inline-flex items-center rounded-full border border-indigo-200/80 bg-white/90 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-600 shadow-sm backdrop-blur">
+                        AI Creative Studio
+                    </span>
+                    <h1 className="mt-5 text-balance text-3xl font-black tracking-tight text-neutral-900 md:text-5xl md:leading-[1.08]">
+                        Studio-grade images &amp; video from one workspace
+                    </h1>
+                    <p className="mx-auto mt-4 max-w-2xl text-pretty text-base leading-relaxed text-neutral-600 md:text-lg">
+                        Prompt, iterate, and ship campaign-ready creatives — built for teams who want Luma-style polish without the complexity.
+                    </p>
+                    <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                        <Link
+                            href="/studio"
+                            className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-6 py-3 text-sm font-bold text-white no-underline shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-500"
+                        >
+                            Open Studio
+                        </Link>
+                        <Link
+                            href="/register"
+                            className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-6 py-3 text-sm font-bold text-neutral-900 no-underline shadow-sm transition hover:border-neutral-400"
+                        >
+                            Start free
+                        </Link>
+                    </div>
+                </section>
+
                 <div className="flex flex-col">
                     <CinematicPromoHero />
                     <LightPromoVideoStrip />

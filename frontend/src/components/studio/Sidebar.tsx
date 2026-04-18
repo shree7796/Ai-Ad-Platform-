@@ -1,12 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Sparkles,
-    Clock,
     CreditCard,
     Settings,
     ChevronRight,
@@ -14,8 +13,12 @@ import {
     User,
     LogOut,
     History,
+    Shield,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useUsageSummary } from '@/hooks/useUsageSummary';
+import Cookies from 'js-cookie';
+import { getUser } from '@/lib/auth';
 
 const menuItems = [
     { id: 'generate', label: 'Generate', icon: Sparkles, path: '/studio' },
@@ -28,15 +31,34 @@ export default function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const { data: usage, loading: usageLoading, error: usageError } = useUsageSummary();
+    const sessionUser = getUser();
+    const showAdminLink = sessionUser?.is_admin === true;
+
+    const imgUsed = usage?.image_generations_this_month ?? 0;
+    const imgCap = usage?.monthly_image_quota ?? (usageError && !usageLoading ? 8 : 0);
+    const vidUsed = usage?.video_units_used_this_month ?? usage?.video_generations_this_month ?? 0;
+    const vidCap = usage?.monthly_video_quota ?? (usageError && !usageLoading ? 2 : 0);
+    const imgPct = useMemo(() => {
+        if (!usage || imgCap <= 0) return imgUsed > 0 ? 100 : 0;
+        return Math.min(100, (imgUsed / imgCap) * 100);
+    }, [usage, imgUsed, imgCap]);
+    const vidPct = useMemo(() => {
+        if (!usage || vidCap <= 0) return vidUsed > 0 ? 100 : 0;
+        return Math.min(100, (vidUsed / vidCap) * 100);
+    }, [usage, vidUsed, vidCap]);
+    const planLabel = usage?.plan_display_name || 'Free';
 
     const handleSignOut = () => {
         setIsLoggingOut(true);
         const t = toast.loading('Signing out...');
+        Cookies.remove('token');
+        Cookies.remove('user');
         setTimeout(() => {
             toast.dismiss(t);
             toast.success('Signed out successfully');
             router.push('/login');
-        }, 1200);
+        }, 800);
     };
 
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -136,6 +158,47 @@ export default function Sidebar() {
                         </motion.div>
                     );
                 })}
+
+                {showAdminLink && (
+                    <>
+                        <div style={{ marginTop: 16, marginBottom: 4, padding: '0 8px 8px' }}>
+                            <span className="text-label">Administration</span>
+                        </div>
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.35, type: 'spring', stiffness: 200, damping: 20 }}
+                        >
+                            <Link href="/admin" style={{ textDecoration: 'none', display: 'block', marginBottom: 2 }}>
+                                <motion.div
+                                    className={`nav-item ${pathname === '/admin' || pathname?.startsWith('/admin/') ? 'active' : ''}`}
+                                    whileHover={{ x: 6 }}
+                                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                                    style={{ position: 'relative' }}
+                                >
+                                    <Shield size={16} strokeWidth={pathname?.startsWith('/admin') ? 2.5 : 2} />
+                                    <span>Admin console</span>
+                                    {(pathname === '/admin' || pathname?.startsWith('/admin/')) && (
+                                        <motion.div
+                                            layoutId="active-pill"
+                                            style={{
+                                                position: 'absolute',
+                                                left: 0, right: 0, top: 0, bottom: 0,
+                                                background: 'var(--bg-accent-soft)',
+                                                borderRadius: 12,
+                                                zIndex: -1,
+                                            }}
+                                            transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                                        />
+                                    )}
+                                    {(pathname === '/admin' || pathname?.startsWith('/admin/')) && (
+                                        <ChevronRight size={14} style={{ marginLeft: 'auto', opacity: 0.5 }} />
+                                    )}
+                                </motion.div>
+                            </Link>
+                        </motion.div>
+                    </>
+                )}
             </nav>
 
             <div className="divider" style={{ margin: '0 16px' }} />
@@ -156,7 +219,7 @@ export default function Sidebar() {
                     }}
                 >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>CREDITS</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>MONTHLY USE</span>
                         <motion.span
                             animate={{
                                 boxShadow: ['0 0 0px var(--accent-glow)', '0 0 10px var(--accent-glow)', '0 0 0px var(--accent-glow)']
@@ -167,23 +230,40 @@ export default function Sidebar() {
                                 background: 'var(--bg-accent-soft)', padding: '2px 10px', borderRadius: 99,
                                 textTransform: 'uppercase'
                             }}
-                        >Pro</motion.span>
+                        >{planLabel}</motion.span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 8 }}>
-                        <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>240</span>
-                        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}> / 500</span>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 6 }}>
+                        Images <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{usage ? `${imgUsed}/${imgCap}` : '—'}</span>
                     </div>
-                    <div style={{ height: 6, background: 'rgba(255,255,255,0.03)', borderRadius: 99, overflow: 'hidden' }}>
+                    <div style={{ height: 5, background: 'var(--progress-track)', borderRadius: 99, overflow: 'hidden', marginBottom: 8 }}>
                         <motion.div
                             initial={{ width: 0 }}
-                            animate={{ width: '48%' }}
-                            transition={{ duration: 1, ease: 'easeOut' }}
+                            animate={{ width: `${imgPct}%` }}
+                            transition={{ duration: 0.85, ease: 'easeOut' }}
                             style={{
                                 height: '100%',
                                 background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
                                 borderRadius: 99,
                             }}
                         />
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 6 }}>
+                        Video units <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{usage ? `${vidUsed}/${vidCap}` : '—'}</span>
+                    </div>
+                    <div style={{ height: 5, background: 'var(--progress-track)', borderRadius: 99, overflow: 'hidden' }}>
+                        <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${vidPct}%` }}
+                            transition={{ duration: 0.85, ease: 'easeOut' }}
+                            style={{
+                                height: '100%',
+                                background: 'linear-gradient(90deg, #0ea5e9, #6366f1)',
+                                borderRadius: 99,
+                            }}
+                        />
+                    </div>
+                    <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 500, marginTop: 6 }}>
+                        Resets monthly (UTC)
                     </div>
                 </motion.div>
             </div>

@@ -56,9 +56,10 @@ export default function TabSwitcher({ active, onChange }: Props) {
                                 style={{
                                     position: 'absolute',
                                     inset: 0,
-                                    background: 'rgba(255, 255, 255, 0.04)',
+                                    background: 'var(--bg-card)',
                                     borderRadius: 10,
-                                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                                    border: '1px solid var(--border)',
+                                    boxShadow: 'var(--shadow-sm)',
                                     zIndex: -1,
                                 }}
                                 transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
