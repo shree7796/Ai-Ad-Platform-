@@ -6,8 +6,6 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 
 
-# ── Request Schemas ──
-
 class UserRegister(BaseModel):
     email: EmailStr
     username: str = Field(..., min_length=3, max_length=100)
@@ -16,11 +14,9 @@ class UserRegister(BaseModel):
 
 
 class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
+    email: str = Field(..., min_length=1, max_length=255)
+    password: str = Field(..., min_length=1, max_length=128)
 
-
-# ── Response Schemas ──
 
 class UserResponse(BaseModel):
     id: uuid.UUID
@@ -28,6 +24,7 @@ class UserResponse(BaseModel):
     username: str
     full_name: Optional[str] = None
     plan: str
+    is_admin: bool = False
     is_active: bool
     created_at: datetime
 

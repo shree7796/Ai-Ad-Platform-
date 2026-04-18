@@ -1,23 +1,80 @@
 """
 Billing API Routes — Plan info, Stripe checkout, webhook.
+Endpoint contract must match frontend/src/lib/api.ts billingAPI.
 """
 
+from __future__ import annotations
+
+import logging
+import uuid as _uuid
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
-from typing import Optional
-import logging
 
-from app.db.session import get_db
-from app.models.user import User
-from app.models.subscription import Subscription
 from app.api.deps import get_current_user
-from app.config import get_settings, get_plans_config
+from app.config import get_plans_config, get_settings
+from app.db.session import get_db
+from app.models.subscription import Subscription
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/billing", tags=["Billing"])
-settings = get_settings()
+
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+def _stripe():
+    """Import stripe; raise 501 if not installed."""
+    try:
+        import stripe  # type: ignore
+        return stripe
+    except ImportError:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="stripe package not installed. Add 'stripe' to requirements.txt and rebuild.",
+        )
+
+
+def _price_map(settings):
+    return {
+        "basic": settings.stripe_price_basic,
+        "pro": settings.stripe_price_pro,
+        "premium": settings.stripe_price_premium,
+    }
+
+
+async def _apply_plan(db: AsyncSession, user_id: str, plan: str, stripe_customer_id: str | None = None):
+    """Update user + subscription row for a paid/downgraded plan."""
+    result = await db.execute(select(User).where(User.id == _uuid.UUID(user_id)))
+    user = result.scalar_one_or_none()
+    if not user:
+        return
+    user.plan = plan
+    if stripe_customer_id:
+        user.stripe_customer_id = stripe_customer_id
+
+    sub_r = await db.execute(select(Subscription).where(Subscription.user_id == user.id))
+    sub = sub_r.scalar_one_or_none()
+    if sub:
+        sub.plan = plan
+        sub.is_active = plan != "free"
+    await db.commit()
+    logger.info(f"[billing] user {user_id} → plan '{plan}'")
+
+
+# ── schemas ───────────────────────────────────────────────────────────────────
+
+class PlanFeatures(BaseModel):
+    max_generations_per_month: Optional[int] = None
+    max_generations_per_day: Optional[int] = None
+    max_upload_size_mb: Optional[int] = None
+    available_tiers: list[str] = []
+    max_video_duration: Optional[int] = None
+    watermark: bool = False
+    priority: str = "normal"
 
 
 class PlanInfo(BaseModel):
@@ -27,20 +84,35 @@ class PlanInfo(BaseModel):
     features: dict
 
 
-class CurrentPlanResponse(BaseModel):
+class BillingStatusResponse(BaseModel):
     current_plan: str
     subscription_active: bool
+    stripe_customer_id: Optional[str] = None
     plans: list[PlanInfo]
 
 
-@router.get("/plans", response_model=CurrentPlanResponse)
-async def get_plans(
+class CheckoutSessionRequest(BaseModel):
+    plan_key: str   # basic | pro | premium
+
+
+class CheckoutSessionResponse(BaseModel):
+    url: str
+
+
+class SyncCheckoutRequest(BaseModel):
+    session_id: str
+
+
+# ── routes ────────────────────────────────────────────────────────────────────
+
+@router.get("/status", response_model=BillingStatusResponse)
+async def billing_status(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return available plans and the user's current plan."""
-    plans_config = get_plans_config() or {}
-    raw_plans = plans_config.get("plans", {})
+    """Return current plan + all available plans (for the Billing UI)."""
+    plans_cfg = get_plans_config() or {}
+    raw_plans = plans_cfg.get("plans", {})
 
     plan_list = [
         PlanInfo(
@@ -52,126 +124,133 @@ async def get_plans(
         for key, val in raw_plans.items()
     ]
 
-    sub_result = await db.execute(
-        select(Subscription).where(Subscription.user_id == current_user.id)
-    )
-    subscription = sub_result.scalar_one_or_none()
+    sub_r = await db.execute(select(Subscription).where(Subscription.user_id == current_user.id))
+    sub = sub_r.scalar_one_or_none()
 
-    return CurrentPlanResponse(
+    return BillingStatusResponse(
         current_plan=current_user.plan or "free",
-        subscription_active=bool(subscription and subscription.is_active),
+        subscription_active=bool(sub and sub.is_active),
+        stripe_customer_id=getattr(current_user, "stripe_customer_id", None),
         plans=plan_list,
     )
 
 
-class CheckoutRequest(BaseModel):
-    plan: str  # basic | pro | premium
-    success_url: Optional[str] = None
-    cancel_url: Optional[str] = None
-
-
-class CheckoutResponse(BaseModel):
-    checkout_url: str
-
-
-@router.post("/checkout", response_model=CheckoutResponse)
-async def create_checkout(
-    payload: CheckoutRequest,
+@router.post("/checkout-session", response_model=CheckoutSessionResponse)
+async def create_checkout_session(
+    payload: CheckoutSessionRequest,
     current_user: User = Depends(get_current_user),
 ):
-    """Create a Stripe checkout session for a plan upgrade."""
-    try:
-        import stripe  # type: ignore
-    except ImportError:
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Stripe is not installed. Add 'stripe' to requirements.txt.",
-        )
+    """Create a Stripe Checkout Session and return the hosted URL."""
+    stripe = _stripe()
+    settings = get_settings()
 
-    price_map = {
-        "basic": settings.stripe_price_basic if hasattr(settings, "stripe_price_basic") else None,
-        "pro": settings.stripe_price_pro if hasattr(settings, "stripe_price_pro") else None,
-        "premium": settings.stripe_price_premium if hasattr(settings, "stripe_price_premium") else None,
-    }
-    price_id = price_map.get(payload.plan)
+    price_id = _price_map(settings).get(payload.plan_key)
     if not price_id:
-        raise HTTPException(status_code=400, detail=f"Unknown plan: {payload.plan}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"No Stripe price configured for plan '{payload.plan_key}'. "
+                   f"Set STRIPE_PRICE_{payload.plan_key.upper()} in .env.",
+        )
+    if not settings.stripe_secret_key:
+        raise HTTPException(status_code=501, detail="STRIPE_SECRET_KEY not configured.")
 
-    stripe.api_key = settings.stripe_secret_key if hasattr(settings, "stripe_secret_key") else ""
-    if not stripe.api_key:
-        raise HTTPException(status_code=501, detail="Stripe secret key not configured.")
+    stripe.api_key = settings.stripe_secret_key
+    pub = settings.public_app_url.rstrip("/")
 
-    public_url = getattr(settings, "public_app_url", "http://localhost:3000")
     session = stripe.checkout.Session.create(
         mode="subscription",
         line_items=[{"price": price_id, "quantity": 1}],
         customer_email=current_user.email,
-        metadata={"user_id": str(current_user.id), "plan": payload.plan},
-        success_url=payload.success_url or f"{public_url}/studio?upgrade=success",
-        cancel_url=payload.cancel_url or f"{public_url}/studio?upgrade=cancel",
+        client_reference_id=str(current_user.id),
+        metadata={"user_id": str(current_user.id), "plan": payload.plan_key},
+        subscription_data={"metadata": {"user_id": str(current_user.id), "plan": payload.plan_key}},
+        success_url=f"{pub}/studio/billing?session_id={{CHECKOUT_SESSION_ID}}&upgrade=success",
+        cancel_url=f"{pub}/studio/billing?upgrade=cancel",
     )
-    return CheckoutResponse(checkout_url=session.url)
+    return CheckoutSessionResponse(url=session.url)
+
+
+@router.post("/sync-checkout-session")
+async def sync_checkout_session(
+    payload: SyncCheckoutRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Called by the frontend after Stripe redirects back with ?session_id=...
+    Verifies the session server-side and upgrades the user's plan immediately
+    (backup path in case the webhook arrives late).
+    """
+    stripe = _stripe()
+    settings = get_settings()
+    if not settings.stripe_secret_key:
+        raise HTTPException(status_code=501, detail="STRIPE_SECRET_KEY not configured.")
+
+    stripe.api_key = settings.stripe_secret_key
+    try:
+        session = stripe.checkout.Session.retrieve(payload.session_id, expand=["subscription"])
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not retrieve checkout session: {e}")
+
+    if session.get("payment_status") not in ("paid", "no_payment_required"):
+        raise HTTPException(status_code=402, detail="Payment not completed.")
+
+    uid = (session.get("metadata") or {}).get("user_id") or session.get("client_reference_id")
+    plan = (session.get("metadata") or {}).get("plan")
+    customer_id = session.get("customer")
+
+    if not uid or not plan:
+        raise HTTPException(status_code=400, detail="Session metadata missing user_id/plan.")
+    if str(current_user.id) != uid:
+        raise HTTPException(status_code=403, detail="Session does not belong to this user.")
+
+    await _apply_plan(db, uid, plan, customer_id)
+    return {"ok": True, "plan": plan}
 
 
 @router.post("/webhook")
 async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
-    """Handle Stripe webhook events (subscription updates)."""
-    try:
-        import stripe  # type: ignore
-    except ImportError:
-        raise HTTPException(status_code=501, detail="Stripe not installed.")
+    """Stripe webhook — handles subscription lifecycle events."""
+    stripe = _stripe()
+    settings = get_settings()
 
     payload_bytes = await request.body()
-    sig_header = request.headers.get("stripe-signature", "")
-    webhook_secret = getattr(settings, "stripe_webhook_secret", "")
+    sig = request.headers.get("stripe-signature", "")
+    secret = settings.stripe_webhook_secret or ""
 
     try:
-        event = stripe.Webhook.construct_event(payload_bytes, sig_header, webhook_secret)
+        event = stripe.Webhook.construct_event(payload_bytes, sig, secret)
+    except stripe.error.SignatureVerificationError as e:
+        logger.warning(f"[billing/webhook] Bad signature: {e}")
+        raise HTTPException(status_code=400, detail="Invalid webhook signature.")
     except Exception as e:
-        logger.warning(f"[billing] Webhook verification failed: {e}")
-        raise HTTPException(status_code=400, detail="Webhook verification failed")
+        logger.warning(f"[billing/webhook] Parse error: {e}")
+        raise HTTPException(status_code=400, detail="Webhook parse error.")
 
-    event_type = event["type"]
-    logger.info(f"[billing] Stripe event: {event_type}")
+    etype = event["type"]
+    obj = event["data"]["object"]
+    logger.info(f"[billing/webhook] {etype}")
 
-    if event_type in ("checkout.session.completed", "customer.subscription.updated"):
-        data = event["data"]["object"]
-        user_id = (data.get("metadata") or {}).get("user_id")
-        plan = (data.get("metadata") or {}).get("plan")
+    meta = obj.get("metadata") or {}
+    uid = meta.get("user_id") or obj.get("client_reference_id")
+    plan = meta.get("plan")
+    customer_id = obj.get("customer")
 
-        if user_id and plan:
-            import uuid as _uuid
-            result = await db.execute(select(User).where(User.id == _uuid.UUID(user_id)))
-            user = result.scalar_one_or_none()
-            if user:
-                user.plan = plan
-                sub_result = await db.execute(
-                    select(Subscription).where(Subscription.user_id == user.id)
-                )
-                sub = sub_result.scalar_one_or_none()
-                if sub:
-                    sub.plan = plan
-                    sub.is_active = True
-                await db.commit()
-                logger.info(f"[billing] Updated user {user_id} to plan '{plan}'")
+    if etype == "checkout.session.completed":
+        if obj.get("payment_status") in ("paid", "no_payment_required") and uid and plan:
+            await _apply_plan(db, uid, plan, customer_id)
 
-    elif event_type in ("customer.subscription.deleted", "customer.subscription.paused"):
-        data = event["data"]["object"]
-        user_id = (data.get("metadata") or {}).get("user_id")
-        if user_id:
-            import uuid as _uuid
-            result = await db.execute(select(User).where(User.id == _uuid.UUID(user_id)))
-            user = result.scalar_one_or_none()
-            if user:
-                user.plan = "free"
-                sub_result = await db.execute(
-                    select(Subscription).where(Subscription.user_id == user.id)
-                )
-                sub = sub_result.scalar_one_or_none()
-                if sub:
-                    sub.plan = "free"
-                    sub.is_active = False
-                await db.commit()
-                logger.info(f"[billing] Downgraded user {user_id} to free")
+    elif etype == "customer.subscription.updated":
+        # Re-read plan from subscription metadata
+        if uid and plan:
+            await _apply_plan(db, uid, plan, customer_id)
+
+    elif etype in ("customer.subscription.deleted", "customer.subscription.paused"):
+        if uid:
+            await _apply_plan(db, uid, "free", None)
+
+    elif etype == "invoice.payment_failed":
+        # Optionally notify / downgrade; for now just log
+        logger.warning(f"[billing/webhook] Payment failed for customer {customer_id}")
 
     return {"received": True}

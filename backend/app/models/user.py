@@ -26,6 +26,8 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(255), nullable=True)
     plan: Mapped[str] = mapped_column(String(20), default="free")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    stripe_customer_id: Mapped[str] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
     )

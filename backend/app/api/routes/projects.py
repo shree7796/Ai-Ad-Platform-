@@ -20,7 +20,7 @@ from app.schemas.project import (
 )
 from app.schemas.common import APIResponse
 from app.api.deps import get_current_user
-from app.services.storage import StorageService
+from app.services.storage import StorageService, StorageUploadError
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -62,7 +62,13 @@ async def create_project(
         storage = StorageService()
         file_content = await media.read()
         file_key = f"uploads/{current_user.id}/{uuid.uuid4()}/{media.filename}"
-        media_url = await storage.upload_file(file_key, file_content, content_type)
+        try:
+            media_url = await storage.upload_file(file_key, file_content, content_type)
+        except StorageUploadError as e:
+            raise HTTPException(
+                status_code=status.HTTP_507_INSUFFICIENT_STORAGE,
+                detail=e.detail,
+            ) from e
 
     project = Project(
         user_id=current_user.id,

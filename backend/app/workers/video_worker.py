@@ -196,6 +196,7 @@ def generate_video(
             task_type=task_type,
             tier=tier,
             cost=cost,
+            video_billing_units=v_units,
         )
         db.add(usage_log)
         db.commit()

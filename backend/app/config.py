@@ -100,6 +100,15 @@ class Settings(BaseSettings):
     # ── Fal.ai ──
     fal_key: Optional[str] = None
 
+    # ── Stripe ──
+    stripe_secret_key: Optional[str] = None
+    stripe_webhook_secret: Optional[str] = None
+    stripe_price_basic: Optional[str] = None
+    stripe_price_pro: Optional[str] = None
+    stripe_price_premium: Optional[str] = None
+    public_app_url: str = "http://localhost:3000"
+    require_paid_plan: bool = False
+
 
 def load_yaml_config(filename: str) -> dict:
     """Load a YAML config file from the config directory."""

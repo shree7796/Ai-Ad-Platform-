@@ -8,8 +8,38 @@ from typing import Optional
 
 import boto3
 from botocore.config import Config as BotoConfig
+from botocore.exceptions import ClientError
 
 from app.config import get_settings
+
+
+class StorageUploadError(Exception):
+    """Upload failed (e.g. MinIO full, permissions). Use `.detail` for API responses."""
+
+    def __init__(self, detail: str, *, aws_code: Optional[str] = None):
+        self.detail = detail
+        self.aws_code = aws_code
+        super().__init__(detail)
+
+
+def _map_client_error(exc: ClientError) -> StorageUploadError:
+    err = exc.response.get("Error") or {}
+    code = err.get("Code") or ""
+    msg = err.get("Message") or str(exc)
+
+    if code == "XMinioStorageFull":
+        return StorageUploadError(
+            "Object storage is full (MinIO disk below free threshold). Free host disk space, remove old files "
+            "from the MinIO bucket, or run: docker compose down && docker volume rm <project>_minio_data (dev only), "
+            "then bring the stack back up.",
+            aws_code=code,
+        )
+    if code in ("NoSuchBucket", "NotFound"):
+        return StorageUploadError(
+            f"Storage bucket is missing or not reachable ({code}). Ensure MinIO is running and the bucket was created.",
+            aws_code=code,
+        )
+    return StorageUploadError(f"Storage upload failed ({code or 'unknown'}): {msg}", aws_code=code or None)
 
 
 class StorageService:
@@ -41,12 +71,15 @@ class StorageService:
         Returns:
             Public URL of the uploaded file.
         """
-        self.client.put_object(
-            Bucket=self.bucket,
-            Key=key,
-            Body=data,
-            ContentType=content_type,
-        )
+        try:
+            self.client.put_object(
+                Bucket=self.bucket,
+                Key=key,
+                Body=data,
+                ContentType=content_type,
+            )
+        except ClientError as e:
+            raise _map_client_error(e) from e
         return f"{self.public_url}/{self.bucket}/{key}"
 
     async def upload_video(

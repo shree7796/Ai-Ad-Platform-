@@ -12,6 +12,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import noload
 
 from app.config import get_settings, get_plans_config
 from app.db.session import get_db
@@ -70,7 +71,15 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    result = await db.execute(
+        select(User)
+        .options(
+            noload(User.projects),
+            noload(User.usage_logs),
+            noload(User.subscription),
+        )
+        .where(User.id == uuid.UUID(user_id))
+    )
     user = result.scalar_one_or_none()
 
     if user is None:

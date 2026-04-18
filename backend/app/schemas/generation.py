@@ -12,9 +12,9 @@ class GenerationRequest(BaseModel):
     tier: str = Field(default="basic")  # basic, pro, premium
     duration_seconds: int = Field(
         default=12,
-        ge=5,
+        ge=1,
         le=120,
-        description="Output length in seconds; plan may cap below 120 (see max_video_duration).",
+        description="Output length in seconds; plan may cap below 120 (see max_video_duration). UI allows 3s+.",
     )
     enhance_prompt: bool = True
     task_type: str = Field(default="image_to_video")
