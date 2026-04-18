@@ -10,7 +10,12 @@ class GenerationRequest(BaseModel):
     project_id: uuid.UUID
     prompt: str = Field(..., min_length=1, max_length=2000)
     tier: str = Field(default="basic")  # basic, pro, premium
-    duration_seconds: int = Field(default=12, ge=5, le=15)
+    duration_seconds: int = Field(
+        default=12,
+        ge=5,
+        le=120,
+        description="Output length in seconds; plan may cap below 120 (see max_video_duration).",
+    )
     enhance_prompt: bool = True
     task_type: str = Field(default="image_to_video")
     requested_provider: Optional[str] = None

@@ -3,14 +3,14 @@ Auth API Routes — Register, Login, Profile.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import noload
 
 from app.db.session import get_db
 from app.models.user import User
 from app.models.subscription import Subscription
 from app.schemas.user import UserRegister, UserLogin, UserResponse, TokenResponse
-from app.schemas.common import APIResponse
 from app.api.deps import hash_password, verify_password, create_access_token, get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -19,8 +19,17 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
     """Register a new user account."""
-    # Check existing email
-    result = await db.execute(select(User).where(User.email == payload.email))
+    email_key = str(payload.email).strip().lower()
+
+    result = await db.execute(
+        select(User)
+        .options(
+            noload(User.projects),
+            noload(User.usage_logs),
+            noload(User.subscription),
+        )
+        .where(func.lower(User.email) == email_key)
+    )
     if result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -28,7 +37,15 @@ async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
         )
 
     # Check existing username
-    result = await db.execute(select(User).where(User.username == payload.username))
+    result = await db.execute(
+        select(User)
+        .options(
+            noload(User.projects),
+            noload(User.usage_logs),
+            noload(User.subscription),
+        )
+        .where(User.username == payload.username)
+    )
     if result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -37,7 +54,7 @@ async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
 
     # Create user
     user = User(
-        email=payload.email,
+        email=email_key,
         username=payload.username,
         password_hash=hash_password(payload.password),
         full_name=payload.full_name,
@@ -63,10 +80,31 @@ async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
 @router.post("/login", response_model=TokenResponse)
 async def login(payload: UserLogin, db: AsyncSession = Depends(get_db)):
     """Authenticate and receive a JWT token."""
-    result = await db.execute(select(User).where(User.email == payload.email))
+    identifier = str(payload.email).strip().lower()
+    _user_opts = (
+        noload(User.projects),
+        noload(User.usage_logs),
+        noload(User.subscription),
+    )
+    result = await db.execute(
+        select(User)
+        .options(*_user_opts)
+        .where(func.lower(User.email) == identifier)
+    )
     user = result.scalar_one_or_none()
+    if user is None:
+        result = await db.execute(
+            select(User)
+            .options(*_user_opts)
+            .where(func.lower(User.username) == identifier)
+        )
+        user = result.scalar_one_or_none()
 
-    if not user or not verify_password(payload.password, user.password_hash):
+    if (
+        not user
+        or not user.password_hash
+        or not verify_password(payload.password, user.password_hash)
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",

@@ -16,8 +16,9 @@ class UserRegister(BaseModel):
 
 
 class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
+    # JSON field name stays `email` for the login form, but value may be email or username.
+    email: str = Field(..., min_length=1, max_length=255)
+    password: str = Field(..., min_length=1, max_length=128)
 
 
 # ── Response Schemas ──
@@ -28,6 +29,7 @@ class UserResponse(BaseModel):
     username: str
     full_name: Optional[str] = None
     plan: str
+    is_admin: bool = False
     is_active: bool
     created_at: datetime
 

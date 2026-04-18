@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import String, DateTime, Boolean, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
@@ -25,6 +26,8 @@ class Subscription(Base):
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    stripe_subscription_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    stripe_price_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # Relationships
     user = relationship("User", back_populates="subscription")

@@ -30,6 +30,8 @@ class UsageLog(Base):
     cost: Mapped[Decimal] = mapped_column(
         Numeric(10, 4), default=Decimal("0.0000")
     )
+    # Video only: units toward monthly video cap (see plans.video_billing_unit_seconds). Images: 0.
+    video_billing_units: Mapped[int] = mapped_column(default=0)
     metadata_json: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow

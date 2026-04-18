@@ -9,8 +9,23 @@ from functools import lru_cache
 from typing import Optional
 
 import yaml
-from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# backend/app/config.py → backend dir; parent → monorepo root (when not in Docker /app-only layout)
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
+_REPO_ROOT = _BACKEND_DIR.parent
+
+
+def _dotenv_paths() -> tuple[str, ...]:
+    """Prefer repo-root `.env` so `uvicorn` from `backend/` still sees Stripe keys next to docker-compose."""
+    paths: list[str] = []
+    repo_env = _REPO_ROOT / ".env"
+    backend_env = _BACKEND_DIR / ".env"
+    if repo_env.is_file():
+        paths.append(str(repo_env))
+    if backend_env.is_file():
+        paths.append(str(backend_env))
+    return tuple(paths)
 
 
 class Settings(BaseSettings):
@@ -86,9 +101,20 @@ class Settings(BaseSettings):
     # ── Fal.ai ──
     fal_key: Optional[str] = None
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    # ── Billing (Stripe) ──
+    public_app_url: str = "http://localhost:3000"
+    require_paid_plan: bool = False
+    stripe_secret_key: Optional[str] = None
+    stripe_webhook_secret: Optional[str] = None
+    stripe_price_basic: Optional[str] = None
+    stripe_price_pro: Optional[str] = None
+    stripe_price_premium: Optional[str] = None
+
+    model_config = SettingsConfigDict(
+        env_file=_dotenv_paths() or None,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
 def load_yaml_config(filename: str) -> dict:
