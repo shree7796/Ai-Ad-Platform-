@@ -28,7 +28,7 @@ class ModelResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.get("/", response_model=List[ModelResponse])
+@router.get("", response_model=List[ModelResponse])
 async def list_models(
     db: AsyncSession = Depends(get_db),
 ):

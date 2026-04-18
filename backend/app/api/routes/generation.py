@@ -15,11 +15,18 @@ from app.models.scene import Scene
 from app.schemas.generation import GenerationRequest, GenerationStatusResponse
 from app.schemas.common import APIResponse
 from app.api.deps import get_current_user, enforce_plan_access
+from app.config import get_settings
+from app.services.billing_quota import (
+    enforce_generation_allowed,
+    is_video_task,
+    max_video_duration_for_plan,
+)
 from app.services.orchestrator import OrchestrationService
 
 router = APIRouter(prefix="/generate", tags=["Generation"])
 
 
+@router.post("", response_model=GenerationStatusResponse)
 @router.post("/", response_model=GenerationStatusResponse)
 async def trigger_generation(
     payload: GenerationRequest,
@@ -46,7 +53,28 @@ async def trigger_generation(
                 detail="Please upload media to the project first for this task type",
             )
 
-    # Enforce plan-based tier access
+    plan_key = (current_user.plan or "free").lower()
+    if is_video_task(payload.task_type):
+        max_vid_len = max_video_duration_for_plan(plan_key)
+        if payload.duration_seconds > max_vid_len:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Your plan allows videos up to {max_vid_len}s. "
+                    "Shorten the duration or upgrade for longer outputs."
+                ),
+            )
+
+    # Paid plan (optional) + monthly image / video unit quota
+    await enforce_generation_allowed(
+        db,
+        current_user,
+        get_settings(),
+        payload.task_type,
+        duration_seconds=payload.duration_seconds,
+    )
+
+    # Enforce plan-based tier access (model tier: basic / pro / premium)
     enforce_plan_access(current_user, payload.tier)
 
     # Create scene record

@@ -6,6 +6,7 @@ Handles the full pipeline: prompt enhancement → video generation → post-proc
 import asyncio
 import uuid
 import logging
+import math
 import traceback
 from datetime import datetime
 from decimal import Decimal
@@ -160,7 +161,7 @@ def generate_video(
         scene.task_type = task_type
         scene.output_video_url = media_url
         
-        plans_config = get_plans_config()
+        plans_config = get_plans_config() or {}
         costs = plans_config.get("generation_costs", {}) if plans_config else {}
         cost = Decimal(str(costs.get(tier, 0.10)))
         
@@ -180,6 +181,12 @@ def generate_video(
         if project:
             project.output_video_url = media_url
             project.status = "completed"
+
+        unit_s = plans_config.get("video_billing_unit_seconds")
+        unit_s = max(1, int(unit_s)) if unit_s is not None else 15
+        dur = int(scene.duration_seconds) if scene and scene.duration_seconds else int(duration_seconds)
+        dur = max(1, dur)
+        v_units = max(1, math.ceil(dur / unit_s))
 
         usage_log = UsageLog(
             user_id=uuid.UUID(user_id),

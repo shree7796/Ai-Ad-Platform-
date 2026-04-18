@@ -9,12 +9,18 @@ from functools import lru_cache
 from typing import Optional
 
 import yaml
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     # ── App ──
     app_name: str = "AI Ad Generator"
@@ -25,6 +31,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
 
     # ── Database ──
+    database_url_override: Optional[str] = Field(default=None, validation_alias="DATABASE_URL")
     postgres_user: str = "adgen"
     postgres_password: str = "adgen_secret"
     postgres_db: str = "adgen_db"
@@ -33,6 +40,11 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
+        if self.database_url_override:
+            u = self.database_url_override.strip()
+            if u.startswith("postgresql://") and "+asyncpg" not in u:
+                return u.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return u
         return (
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
@@ -40,6 +52,8 @@ class Settings(BaseSettings):
 
     @property
     def database_url_sync(self) -> str:
+        if self.database_url_override:
+            return self.database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
         return (
             f"postgresql://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
@@ -85,10 +99,6 @@ class Settings(BaseSettings):
 
     # ── Fal.ai ──
     fal_key: Optional[str] = None
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
 
 
 def load_yaml_config(filename: str) -> dict:

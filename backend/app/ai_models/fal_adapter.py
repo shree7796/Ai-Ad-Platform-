@@ -79,6 +79,59 @@ def _strip_watermark_phrases(text: str) -> str:
     return t.strip(" ,\t\n").strip(",")
 
 
+def _strip_watermark_instructions_for_generation(text: str) -> str:
+    """
+    Strip watermark/branding instructions before sending to Flux so the model does not paint
+    garbled text or fake URLs; we add a clean watermark in post.
+    """
+    t = text
+    t = re.sub(
+        r",?\s*add\s+(?:metallic\s+)?[\"'\u201c][^\"'\u201d]+[\"'\u201d]\s+watermark[^,.\n]*(?:bottom\s+(?:right|left|center)[^,.\n]*)?",
+        "",
+        t,
+        flags=re.I,
+    )
+    t = re.sub(r",?\s*add\s+[\"']?[\w\s]+[\"']?\s+watermark[^,.\n]*", "", t, flags=re.I)
+    t = re.sub(r",?\s*watermark\s+bottom\s+(?:right|left|center)[^,.\n]*", "", t, flags=re.I)
+    t = re.sub(r",?\s*with\s+watermark[^,.\n]*", "", t, flags=re.I)
+    t = re.sub(
+        r",?\s*add\s+[^,\n]{0,120}\bwatermark\b[^,\n]{0,100}",
+        "",
+        t,
+        flags=re.I,
+    )
+    t = re.sub(r"\s+,", ",", t)
+    t = re.sub(r",\s*,+", ",", t)
+    return t.strip(" ,\t\n").strip(",")
+
+
+def _sanitize_watermark_draw_text(wm: Optional[str]) -> Optional[str]:
+    """Deduplicate glitched doubles; drop fake URLs."""
+    if not wm:
+        return None
+    s = " ".join(wm.split())
+    if re.search(r"www\.|https?://", s, re.I):
+        return None
+    if len(s) >= 8 and len(s) % 2 == 0:
+        h = len(s) // 2
+        if s[:h] == s[h:]:
+            s = s[:h].strip()
+    elif len(s) >= 16 and s[: len(s) // 2] == s[len(s) // 2 :]:
+        s = s[: len(s) // 2].strip()
+    low = s.lower()
+    if "countrylink" in low:
+        return "COUNTRYLINK"
+    return s[:48]
+
+
+def _watermark_corner_from_prompt(user_prompt: str) -> str:
+    """Where to draw programmatic watermark: 'right' | 'center'."""
+    low = user_prompt.lower()
+    if re.search(r"watermark.*bottom\s+right|bottom\s+right.*watermark", low):
+        return "right"
+    return "center"
+
+
 def _scene_fragment_from_prompt(user_prompt: str) -> str:
     """
     Extract only the environment description from a complex prompt.
@@ -242,6 +295,71 @@ def _wants_cinematic_redraw(prompt: str) -> bool:
         "new hero product",
     )
     return any(p in low for p in phrases)
+
+
+def _wants_structural_showcase_redraw(prompt: str) -> bool:
+    """
+    Exploded view, open panels, or interior visibility need a full img2img — composite (same cutout) cannot do it.
+    """
+    low = prompt.lower()
+    markers = (
+        "exploded view",
+        "exploded-view",
+        "doors open",
+        "door open",
+        "hood open",
+        "bonnet open",
+        "trunk open",
+        "boot open",
+        "interior visible",
+        "show interior",
+        "open interior",
+        "dashboard visible",
+        "cutaway",
+        "cut-away",
+        "cross section",
+        "cross-section",
+        "engineering showcase",
+        "engineering look",
+        "engineering visualization",
+        "floating parts",
+        "parts separated",
+        "components separated",
+        "suspended parts",
+        "disassembled",
+        "assembly diagram",
+    )
+    if any(m in low for m in markers):
+        return True
+    if "engineering" in low and any(x in low for x in ("showcase", "high detail", "high-detail", "diagram")):
+        return True
+    return False
+
+
+_STRUCTURAL_SHOWCASE_DIECAST = (
+    "Diecast or scale-model ENGINEERING exploded diagram: you MUST open hood and doors as requested and show interior "
+    "detail. Separate real vehicle assemblies from THIS car only — front bumper cover, hood, doors, trunk/boot lid, "
+    "wheels with brakes visible, rear wing — each part clearly from the same model as the source photo. "
+    "When the prompt asks for exploded or floating layout, show several major modules separated with clear air gaps "
+    "(aim for multiple distinct pieces, not a single loose fragment). "
+    "Gaps between parts like a factory service manual exploded illustration. "
+)
+
+_STRUCTURAL_EXPLODED_NEGATIVE = (
+    "Do NOT add random foam, tools, electronics, or unrelated accessories above the roof or on the floor. "
+    "Do NOT render watermarks, fake URLs, or marketing copy in the image — leave the image text-free for post-production. "
+)
+
+_STRUCTURAL_SHOWCASE_GENERIC = (
+    "Product visualization: follow the prompt for open panels, exploded or floating parts, and clean studio background. "
+)
+
+_STRUCTURAL_SHOWCASE_TAIL = (
+    "Seamless bright white or very light gray cyclorama, soft even product lighting, subtle floor shadow, "
+    "premium catalog / press-kit quality, photorealistic. Keep the same vehicle model identity and badging family as "
+    "the source; do not substitute a different car. License plate: leave blank or an unobtrusive soft blur — "
+    "do not invent random letters or numbers on plates."
+)
 
 
 def _coerce_bool_opt(value: Any, default: bool) -> bool:
@@ -713,7 +831,9 @@ def _get_font(size: int, bold: bool = False) -> ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
-def _draw_watermark_road_surface(img: Image.Image, text: str) -> None:
+def _draw_watermark_road_surface(
+    img: Image.Image, text: str, align: str = "center"
+) -> None:
     if img.mode != "RGB":
         img = img.convert("RGB")
     w, h = img.size
@@ -723,7 +843,11 @@ def _draw_watermark_road_surface(img: Image.Image, text: str) -> None:
 
     bbox = draw.textbbox((0, 0), text, font=font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    x = (w - tw) // 2
+    margin = max(12, int(w * 0.028))
+    if align == "right":
+        x = w - tw - margin
+    else:
+        x = (w - tw) // 2
     y = min(int(h * 0.90), h - th - 8)
 
     for dx, dy in ((2, 2), (1, 1)):
@@ -732,7 +856,11 @@ def _draw_watermark_road_surface(img: Image.Image, text: str) -> None:
 
 
 def _draw_watermark_metallic(
-    img: Image.Image, text: str, on_road: bool = True, warm_glow: bool = False
+    img: Image.Image,
+    text: str,
+    on_road: bool = True,
+    warm_glow: bool = False,
+    align: str = "center",
 ) -> None:
     """Metallic embossed text; optional contact shadow + faint warm bounce on asphalt."""
     base = img.convert("RGBA")
@@ -744,7 +872,11 @@ def _draw_watermark_metallic(
     tmp_draw = ImageDraw.Draw(Image.new("L", (1, 1)))
     bbox = tmp_draw.textbbox((0, 0), text, font=font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    x = (w - tw) // 2
+    margin = max(12, int(w * 0.028))
+    if align == "right":
+        x = w - tw - margin
+    else:
+        x = (w - tw) // 2
     y = min(int(h * 0.86), h - th - 10)
 
     layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
@@ -798,32 +930,46 @@ class FalAdapter(BaseAIProvider):
     async def _ensure_public_url(self, url: str) -> str:
         """
         Ensures the URL is publicly accessible by Fal AI.
-        If it's a localhost/internal URL, upload it to Fal's CDN.
+        If it's a localhost/internal URL, fetch bytes locally then upload to Fal's CDN.
         """
         if not url:
             return ""
-            
+
         is_internal = any(x in url for x in ["localhost", "127.0.0.1", "172.", "10."]) or url.startswith("/")
-        
+
         if is_internal:
-            # Internal URL detected. Translate 'localhost' to 'minio' for internal Docker network access if applicable
-            # In some setups, 'minio' is the service name in docker-compose
-            internal_url = url.replace("localhost", "minio").replace("127.0.0.1", "minio")
             logger.info(f"[{self.name}] Internal URL detected: {url}. Promoting to Fal storage...")
-            
+            # Rewrite public URL to the storage endpoint so we can fetch it from inside the worker.
+            # STORAGE_ENDPOINT is the address boto3 / internal services use to reach MinIO
+            # (e.g. http://127.0.0.1:9000 or http://minio:9000).  Use that origin for the fetch.
+            settings = get_settings()
             try:
+                from urllib.parse import urlparse, urlunparse
+                parsed_src = urlparse(url)
+                parsed_ep = urlparse(settings.storage_endpoint)
+                # Swap origin only; keep path, query, fragment intact
+                fetch_url = urlunparse((
+                    parsed_ep.scheme,
+                    parsed_ep.netloc,
+                    parsed_src.path,
+                    parsed_src.params,
+                    parsed_src.query,
+                    parsed_src.fragment,
+                ))
                 async with self._get_client() as client:
-                    resp = await client.get(internal_url)
+                    resp = await client.get(fetch_url)
                     resp.raise_for_status()
                     data = resp.content
-                
-                # Use sync upload via to_thread for byte data
-                public_url = await asyncio.to_thread(fal_client.upload, data, "image/png")
-                logger.info(f"[{self.name}] Promoted to: {public_url}")
+
+                # Detect content type from URL extension for correct Fal upload
+                path_lower = parsed_src.path.lower()
+                ct = "image/jpeg" if path_lower.endswith((".jpg", ".jpeg")) else "image/png"
+                public_url = await asyncio.to_thread(fal_client.upload, data, ct)
+                logger.info(f"[{self.name}] Promoted to Fal CDN: {public_url}")
                 return public_url
             except Exception as e:
                 logger.error(f"[{self.name}] Failed to promote internal URL: {str(e)}")
-                # Fallback to original URL and hope for the best
+                # Fallback: return original URL (will fail for truly private hosts, but safe for dev)
                 return url
         return url
 
@@ -904,9 +1050,9 @@ class FalAdapter(BaseAIProvider):
     async def image_to_image(self, image_url: str, prompt: str, **kwargs) -> GenerationResult:
         """
         Hybrid pipeline (Fal.ai) for any product/subject:
-        1. Route: preserve_subject + hero_cinematic_reframe → DIRECT flux-dev (camera may move like a fire poster;
-           identity locked). Else preserve_subject → composite + optional blend. cinematic_redraw → full direct reskin.
-           force_direct or prompt phrases can also force direct.
+        1. Route: exploded view / open doors / interior / engineering showcase → DIRECT (structural redraw).
+           preserve_subject + hero_cinematic_reframe → DIRECT hero. Else preserve_subject → composite + optional blend.
+           cinematic_redraw → full direct reskin. force_direct forces direct.
         2. Generate once
         3. Optional refinement for composite only if enable_refine
         4. Watermarking (prefers raw user_prompt for watermark extraction)
@@ -923,9 +1069,16 @@ class FalAdapter(BaseAIProvider):
             cinematic = _coerce_bool_opt(kwargs.get("cinematic_redraw"), False) or _wants_cinematic_redraw(
                 routing_prompt
             )
-            hero_reframe = _coerce_bool_opt(kwargs.get("hero_cinematic_reframe"), False) and not cinematic
+            structural = _wants_structural_showcase_redraw(routing_prompt)
+            if structural:
+                kwargs["structural_showcase_redraw"] = True
+            hero_reframe = (
+                _coerce_bool_opt(kwargs.get("hero_cinematic_reframe"), False)
+                and not cinematic
+                and not structural
+            )
 
-            if kwargs.get("force_direct") or cinematic or hero_reframe:
+            if kwargs.get("force_direct") or cinematic or hero_reframe or structural:
                 use_composite = False
             else:
                 use_composite = (
@@ -934,7 +1087,9 @@ class FalAdapter(BaseAIProvider):
                     or preserve_subject
                 )
             use_direct = not use_composite
-            if hero_reframe:
+            if structural:
+                mode_name = "DIRECT structural showcase (flux dev)"
+            elif hero_reframe:
                 mode_name = "DIRECT hero reframe (flux dev)"
             elif use_direct:
                 mode_name = "DIRECT (flux dev img2img)"
@@ -943,7 +1098,7 @@ class FalAdapter(BaseAIProvider):
             logger.info(
                 f"[{self.name}] Stage 1: {mode_name} "
                 f"(preserve_subject={preserve_subject}, preserve_pixels={preserve_pixels}, "
-                f"cinematic={cinematic}, hero_reframe={hero_reframe})"
+                f"cinematic={cinematic}, hero_reframe={hero_reframe}, structural={structural})"
             )
 
             if use_composite and (preserve_pixels or preserve_subject):
@@ -1002,14 +1157,19 @@ class FalAdapter(BaseAIProvider):
             wm_source = (kwargs.get("user_prompt") or prompt) or ""
             _, wm_text, wm_metallic = _build_full_background_prompt(wm_source)
             wm = kwargs.get("watermark_text", wm_text)
+            wm = _sanitize_watermark_draw_text(wm)
+            wm_align = _watermark_corner_from_prompt(wm_source)
             if wm:
-                logger.info(f"[{self.name}] Stage 4: Applying watermark '{wm}'")
+                logger.info(f"[{self.name}] Stage 4: Applying watermark '{wm}' align={wm_align}")
                 if kwargs.get("watermark_metallic", wm_metallic):
                     _draw_watermark_metallic(
-                        final_image, str(wm), warm_glow=_has_fire_or_burning(wm_source)
+                        final_image,
+                        str(wm),
+                        warm_glow=_has_fire_or_burning(wm_source),
+                        align=wm_align,
                     )
                 else:
-                    _draw_watermark_road_surface(final_image, str(wm))
+                    _draw_watermark_road_surface(final_image, str(wm), align=wm_align)
             
             # Save final output
             out = io.BytesIO()
@@ -1034,35 +1194,61 @@ class FalAdapter(BaseAIProvider):
             if not creative:
                 creative = prompt
 
-            mini_lock = _miniature_subject_style_lock(creative)
-            core = f"{creative}. {_DIRECT_SUBJECT_IDENTITY_GUARD} {_TEXT_INTEGRITY_GUARD}"
-            if mini_lock:
-                core = f"{core} {mini_lock}"
+            structural = _coerce_bool_opt(kwargs.get("structural_showcase_redraw"), False) or _wants_structural_showcase_redraw(
+                creative
+            )
+            hero = _coerce_bool_opt(kwargs.get("hero_cinematic_reframe"), False) and not structural
 
-            hero = _coerce_bool_opt(kwargs.get("hero_cinematic_reframe"), False)
-            if hero:
-                env_clause = _hero_cinematic_environment_clause(creative)
-                d_strength = 0.84 if _wants_preserve_exact_product(creative) else 0.88
-                strength = float(kwargs.get("img2img_strength", d_strength))
-                steps = int(kwargs.get("img2img_steps", 44))
+            if structural:
+                flux_user = _strip_watermark_instructions_for_generation(creative)
+                struct_body = (
+                    _STRUCTURAL_SHOWCASE_DIECAST
+                    if _wants_preserve_exact_product(creative)
+                    else _STRUCTURAL_SHOWCASE_GENERIC
+                )
+                core = (
+                    f"{flux_user}. {_DIRECT_SUBJECT_IDENTITY_GUARD} {_TEXT_INTEGRITY_GUARD} "
+                    f"{struct_body}{_STRUCTURAL_EXPLODED_NEGATIVE}{_STRUCTURAL_SHOWCASE_TAIL}"
+                )
+                strength = float(kwargs.get("img2img_strength", 0.94))
+                steps = int(kwargs.get("img2img_steps", 48))
                 full_prompt = (
                     f"{core} "
-                    f"{env_clause}"
-                    "Photorealistic, ultra detailed. You may move the camera to a dramatic hero angle "
-                    "(low front, straight-on, or strong three-quarter) like a blockbuster car poster — "
-                    "but keep this exact same vehicle: body kit, wheels, spoiler, paint, badges, and scale. "
-                    "Apply the full scene, lighting, and effects from the prompt. "
-                    "Do not replace the subject with a different car, color, or generic render."
+                    "Photorealistic, ultra sharp, studio catalog resolution. "
+                    "Execute every structural instruction: open panels, show interior, exploded spacing — exactly as the user asked."
                 )
             else:
-                strength = float(kwargs.get("img2img_strength", 0.95))
-                steps = int(kwargs.get("img2img_steps", 40))
-                full_prompt = (
-                    f"{core} "
-                    "Cinematic product photography, photorealistic, ultra detailed. "
-                    "Apply the full scene, lighting, and effects described. "
-                    "Keep the same subject as the source; do not replace it with a different product or object."
-                )
+                mini_lock = _miniature_subject_style_lock(creative)
+                core = f"{creative}. {_DIRECT_SUBJECT_IDENTITY_GUARD} {_TEXT_INTEGRITY_GUARD}"
+                if mini_lock:
+                    core = f"{core} {mini_lock}"
+
+                if hero:
+                    env_clause = _hero_cinematic_environment_clause(creative)
+                    d_strength = 0.84 if _wants_preserve_exact_product(creative) else 0.88
+                    strength = float(kwargs.get("img2img_strength", d_strength))
+                    steps = int(kwargs.get("img2img_steps", 44))
+                    full_prompt = (
+                        f"{core} "
+                        f"{env_clause}"
+                        "Photorealistic, ultra detailed. You may move the camera to a dramatic hero angle "
+                        "(low front, straight-on, or strong three-quarter) like a blockbuster car poster — "
+                        "but keep this exact same vehicle: body kit, wheels, spoiler, paint, badges, and scale. "
+                        "Apply the full scene, lighting, and effects from the prompt. "
+                        "Do not replace the subject with a different car, color, or generic render."
+                    )
+                else:
+                    strength = float(kwargs.get("img2img_strength", 0.95))
+                    steps = int(kwargs.get("img2img_steps", 40))
+                    full_prompt = (
+                        f"{core} "
+                        "Cinematic product photography, photorealistic, ultra detailed. "
+                        "Apply the full scene, lighting, and effects described. "
+                        "Keep the same subject as the source; do not replace it with a different product or object."
+                    )
+
+            default_guidance = 3.65 if structural else 3.5
+            guidance = float(kwargs.get("guidance_scale", default_guidance))
 
             handler = await asyncio.to_thread(
                 fal_client.submit,
@@ -1072,7 +1258,7 @@ class FalAdapter(BaseAIProvider):
                     "prompt": full_prompt,
                     "strength": strength,
                     "num_inference_steps": steps,
-                    "guidance_scale": float(kwargs.get("guidance_scale", 3.5)),
+                    "guidance_scale": guidance,
                     "enable_safety_checker": False,
                 },
             )

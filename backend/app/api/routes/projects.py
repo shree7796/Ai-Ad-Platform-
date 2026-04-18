@@ -3,7 +3,7 @@ Project API Routes — CRUD + file upload.
 """
 
 import uuid
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy import select
@@ -27,12 +27,17 @@ router = APIRouter(prefix="/projects", tags=["Projects"])
 
 from sqlalchemy.orm import selectinload
 
+@router.post(
+    "",
+    response_model=ProjectResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 @router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 async def create_project(
     title: str = Form(...),
-    description: str = Form(None),
-    task_type: str = Form(None),
-    media: UploadFile = File(None),
+    description: Optional[str] = Form(default=None),
+    task_type: Optional[str] = Form(default=None),
+    media: Optional[UploadFile] = File(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
