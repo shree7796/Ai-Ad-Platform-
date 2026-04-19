@@ -1,5 +1,10 @@
 # Subscription plans — image vs video monthly caps; video quota is in **units** (video_billing_unit_seconds each).
 # Longer videos consume more units (see billing_quota.video_units_for_duration).
+#
+# Actual fal.ai API costs (per 5-second video):
+#   basic tier  → Kling v1 Standard  → $0.225
+#   pro tier    → Kling v1.6 Pro     → ~$0.70
+#   premium tier→ Kling v1 Standard  → $0.225  (Master was $2.80 — loss-making)
 
 video_billing_unit_seconds: 15
 
@@ -24,7 +29,7 @@ plans:
     stripe_price_id: null
     features:
       max_image_generations_per_month: 90
-      max_video_generations_per_month: 12
+      max_video_generations_per_month: 12      # 12 × $0.225 = $2.70 fal cost  →  $9.30 margin
       max_upload_size_mb: 50
       available_tiers:
         - basic
@@ -38,7 +43,7 @@ plans:
     stripe_price_id: null
     features:
       max_image_generations_per_month: 240
-      max_video_generations_per_month: 32
+      max_video_generations_per_month: 20      # 20 × $0.70 = $14 fal cost  →  $15 margin
       max_upload_size_mb: 200
       available_tiers:
         - basic
@@ -53,7 +58,7 @@ plans:
     stripe_price_id: null
     features:
       max_image_generations_per_month: 520
-      max_video_generations_per_month: 72
+      max_video_generations_per_month: 40      # 40 × $0.225 = $9 fal cost  →  $50 margin
       max_upload_size_mb: 500
       available_tiers:
         - basic
@@ -65,5 +70,5 @@ plans:
 
 generation_costs:
   basic: 0.08
-  pro: 0.08
+  pro: 0.15
   premium: 0.08

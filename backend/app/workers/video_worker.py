@@ -90,12 +90,47 @@ def generate_video(
                 )
                 
                 logger.info(f"[Worker] Using adapter: {adapter.name} for task: {task_type}")
-                
+
+                # Auto-generate audio via Beatoven if requested (wan model only, $0.10 extra)
+                resolved_audio_url = kwargs.get("audio_url")
+                generate_audio = kwargs.get("generate_audio", False)
+                audio_prompt = kwargs.get("audio_prompt") or enhanced_prompt
+                audio_type = kwargs.get("audio_type", "sfx")
+                video_model = kwargs.get("video_model")
+
+                if generate_audio and not resolved_audio_url:
+                    # Auto-switch to wan when audio is requested (only wan supports audio_url)
+                    if not video_model:
+                        video_model = "wan"
+                    logger.info(f"[Worker] Auto-generating audio: type={audio_type}  prompt={audio_prompt[:60]}…")
+                    audio_result = await adapter.text_to_audio(
+                        prompt=audio_prompt,
+                        duration_seconds=min(duration_seconds, 30),
+                        audio_type=audio_type,
+                    )
+                    if audio_result.success:
+                        resolved_audio_url = audio_result.media_url
+                        logger.info(f"[Worker] Audio generated → {resolved_audio_url[:80]}…")
+                    else:
+                        logger.warning(f"[Worker] Audio generation failed ({audio_result.error_message}), proceeding without audio")
+
                 # Dispatch dynamically based on task_type (Video-only)
                 if task_type == "image_to_video":
-                    result = await adapter.image_to_video(input_media_url, enhanced_prompt, duration_seconds)
+                    result = await adapter.image_to_video(
+                        input_media_url, enhanced_prompt, duration_seconds,
+                        tier=tier,
+                        audio_url=resolved_audio_url,
+                        resolution=kwargs.get("resolution"),
+                        model=video_model,
+                    )
                 elif task_type == "text_to_video":
-                    result = await adapter.text_to_video(enhanced_prompt, duration_seconds)
+                    result = await adapter.text_to_video(
+                        enhanced_prompt, duration_seconds,
+                        tier=tier,
+                        audio_url=resolved_audio_url,
+                        resolution=kwargs.get("resolution"),
+                        model=kwargs.get("video_model"),
+                    )
                 elif task_type == "video_to_video":
                     result = await adapter.video_to_video(input_media_url, enhanced_prompt, duration_seconds)
                 else:

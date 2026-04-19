@@ -1876,45 +1876,313 @@ class FalAdapter(BaseAIProvider):
             logger.exception(f"[{self.name}] Composite pipeline failed: {e}")
             return None
 
+    # -----------------------------------------------------------------------
+    # Video generation — model registry
+    # -----------------------------------------------------------------------
+    #
+    # Cost reference (fal.ai, per video):
+    #   kling_standard  ~$0.028/s  → 5 s ≈ $0.14   ← cheapest Kling
+    #   wan             ~$0.10/s   → 5 s ≈ $0.50
+    #   luma            ~$0.14/video fixed
+    #   minimax         ~$0.50/video fixed
+    #   kling_pro       ~$0.14/s   → 5 s ≈ $0.70
+    #   kling_master    ~$0.28/s   → 5 s ≈ $1.40  (was wrongly the default → $2.80!)
+    #
+    # Default tiers:
+    #   basic  → kling_standard  (~$0.14 / 5 s)
+    #   pro    → kling_pro       (~$0.70 / 5 s)
+    #   premium→ kling_master    (~$1.40 / 5 s)
+
+    _I2V_MODELS: Dict[str, str] = {
+        # affordable
+        "kling_standard": "fal-ai/kling-video/v1/standard/image-to-video",  # ~$0.028/s
+        "wan":            "wan/v2.6/image-to-video",                          # $0.10/s 720p | $0.15/s 1080p, up to 15s, audio_url
+        "luma":           "fal-ai/luma-dream-machine/image-to-video",        # ~$0.14 fixed
+        # mid
+        "kling_pro":      "fal-ai/kling-video/v1.6/pro/image-to-video",     # ~$0.14/s
+        "minimax":        "fal-ai/minimax/video-01/image-to-video",          # ~$0.50 fixed
+        # premium
+        "kling_master":   "fal-ai/kling-video/v2/master/image-to-video",    # ~$0.28/s
+        # legacy alias kept for backwards compat — maps to standard now
+        "kling":          "fal-ai/kling-video/v1/standard/image-to-video",
+    }
+
+    # Per-tier defaults — basic users get cheap standard, premium get master
+    _I2V_TIER_DEFAULT: Dict[str, str] = {
+        "free":    "kling_standard",
+        "basic":   "kling_standard",
+        "pro":     "kling_pro",
+        "premium": "kling_standard",   # master ($2.80/5s) makes premium loss-making at $59/mo
+    }
+    _I2V_DEFAULT = "kling_standard"
+
+    _T2V_MODELS: Dict[str, str] = {
+        "kling_standard": "fal-ai/kling-video/v1/standard/text-to-video",
+        "kling_pro":      "fal-ai/kling-video/v1.6/pro/text-to-video",
+        "kling_master":   "fal-ai/kling-video/v2/master/text-to-video",
+        "kling":          "fal-ai/kling-video/v1/standard/text-to-video",
+        "minimax":        "fal-ai/minimax/video-01",
+        "wan":            "wan/v2.6/text-to-video",
+        "luma":           "fal-ai/luma-dream-machine",
+    }
+    _T2V_TIER_DEFAULT: Dict[str, str] = {
+        "free":    "kling_standard",
+        "basic":   "kling_standard",
+        "pro":     "kling_pro",
+        "premium": "kling_standard",   # master is loss-making at scale
+    }
+    _T2V_DEFAULT = "kling_standard"
+
+    # -----------------------------------------------------------------------
+    # text_to_video
+    # -----------------------------------------------------------------------
     async def text_to_video(self, prompt: str, duration_seconds: int = 5, **kwargs) -> GenerationResult:
+        """
+        Generate a video from a text prompt.
+
+        kwargs
+        ------
+        model        : "kling_standard"|"kling_pro"|"kling_master"|"wan"|"minimax"|"luma"
+        tier         : "free"|"basic"|"pro"|"premium"  — used to auto-pick model if model not set
+        aspect_ratio : "16:9" | "9:16" | "1:1"               (default: 16:9)
+        negative_prompt : str
+        """
+        tier = str(kwargs.get("tier", "basic")).lower()
+        tier_default = self._T2V_TIER_DEFAULT.get(tier, self._T2V_DEFAULT)
+        model_key = str(kwargs.get("model", tier_default)).lower()
+        endpoint = self._T2V_MODELS.get(model_key, self._T2V_MODELS[self._T2V_DEFAULT])
+        aspect_ratio = kwargs.get("aspect_ratio", "16:9")
+        negative_prompt = kwargs.get("negative_prompt", "blurry, low quality, distorted")
+
+        # Duration — each model has its own param name / allowed values
+        duration_str = str(min(max(int(duration_seconds), 5), 10))  # clamp 5-10
+
         try:
-            handler = await asyncio.to_thread(
-                fal_client.submit, "fal-ai/luma-dream-machine",
-                arguments={"prompt": prompt, "aspect_ratio": "16:9", "loop": False}
-            )
+            if model_key in ("kling", "kling_standard", "kling_pro", "kling_master"):
+                args: Dict[str, Any] = {
+                    "prompt": prompt,
+                    "negative_prompt": negative_prompt,
+                    "duration": duration_str,
+                    "aspect_ratio": aspect_ratio,
+                }
+            elif model_key == "minimax":
+                args = {
+                    "prompt": prompt,
+                    "prompt_optimizer": True,
+                }
+            elif model_key == "wan":
+                dur_t2v = min(max(int(duration_seconds), 5), 15)
+                dur_t2v = str(min([5, 10, 15], key=lambda x: abs(x - dur_t2v)))
+                args = {
+                    "prompt": prompt,
+                    "negative_prompt": negative_prompt,
+                    "duration": dur_t2v,
+                    "resolution": kwargs.get("resolution", "1080p"),
+                    "enable_prompt_expansion": kwargs.get("enable_prompt_expansion", False),
+                }
+                if kwargs.get("audio_url"):
+                    args["audio_url"] = kwargs["audio_url"]
+            else:  # luma
+                args = {
+                    "prompt": prompt,
+                    "aspect_ratio": aspect_ratio,
+                    "loop": False,
+                }
+
+            logger.info(f"[{self.name}] text_to_video → {endpoint}  duration={duration_seconds}s")
+            handler = await asyncio.to_thread(fal_client.submit, endpoint, arguments=args)
             result = await asyncio.to_thread(handler.get)
-            if result and "video" in result:
-                return GenerationResult(success=True, media_url=result["video"]["url"], model_name=self.name)
+
+            video_url = (result or {}).get("video", {}).get("url") or (result or {}).get("video_url")
+            if video_url:
+                return GenerationResult(success=True, media_url=video_url, model_name=f"{self.name}/{model_key}")
             return GenerationResult(success=False, error_message="No video URL in result", model_name=self.name)
         except Exception as e:
+            logger.exception(f"[{self.name}] text_to_video failed: {e}")
             return GenerationResult(success=False, error_message=str(e), model_name=self.name)
 
-    async def image_to_video(self, image_url: str, prompt: str, duration_seconds: int = 5, **kwargs) -> GenerationResult:
+    # -----------------------------------------------------------------------
+    # image_to_video  — full multi-model implementation
+    # -----------------------------------------------------------------------
+    async def image_to_video(
+        self,
+        image_url: str,
+        prompt: str,
+        duration_seconds: int = 5,
+        **kwargs,
+    ) -> GenerationResult:
+        """
+        Animate a static image into a video clip.
+
+        kwargs
+        ------
+        model           : "kling_standard"|"kling_pro"|"kling_master"|"wan"|"minimax"|"luma"
+        tier            : "free"|"basic"|"pro"|"premium"  — auto-picks model if model not set
+        aspect_ratio    : "16:9" | "9:16" | "1:1"               (default: 16:9)
+        negative_prompt : str
+        resolution      : "720p" | "1080p"                       (wan only)
+        end_image_url   : str                                    (kling only — end frame)
+        """
+        tier = str(kwargs.get("tier", "basic")).lower()
+        tier_default = self._I2V_TIER_DEFAULT.get(tier, self._I2V_DEFAULT)
+        model_key = str(kwargs.get("model", tier_default)).lower()
+        endpoint = self._I2V_MODELS.get(model_key, self._I2V_MODELS[self._I2V_DEFAULT])
+        aspect_ratio = kwargs.get("aspect_ratio", "16:9")
+        negative_prompt = kwargs.get("negative_prompt", "blurry, low quality, distorted, watermark")
+
         try:
             public_image_url = await self._ensure_public_url(image_url)
-            handler = await asyncio.to_thread(
-                fal_client.submit, "fal-ai/luma-dream-machine/image-to-video",
-                arguments={"prompt": prompt, "image_url": public_image_url}
-            )
+            logger.info(f"[{self.name}] image_to_video → {endpoint}  duration={duration_seconds}s  image={public_image_url[:60]}…")
+
+            # Build model-specific argument dict
+            if model_key in ("kling", "kling_standard", "kling_pro", "kling_master"):
+                # All Kling variants share the same params; duration is "5" or "10"
+                dur = "10" if int(duration_seconds) >= 8 else "5"
+                args: Dict[str, Any] = {
+                    "image_url": public_image_url,
+                    "prompt": prompt,
+                    "negative_prompt": negative_prompt,
+                    "duration": dur,
+                    "aspect_ratio": aspect_ratio,
+                }
+                if kwargs.get("end_image_url"):
+                    args["tail_image_url"] = await self._ensure_public_url(kwargs["end_image_url"])
+
+            elif model_key == "minimax":
+                # MiniMax Video-01: prompt + image_url; prompt optimizer optional
+                args = {
+                    "image_url": public_image_url,
+                    "prompt": prompt,
+                    "prompt_optimizer": kwargs.get("prompt_optimizer", True),
+                }
+
+            elif model_key == "wan":
+                # Wan v2.6: duration "5"/"10"/"15" (string), 720p or 1080p (default 1080p)
+                dur_wan = min(max(int(duration_seconds), 5), 15)
+                dur_wan = str(min([5, 10, 15], key=lambda x: abs(x - dur_wan)))
+                args = {
+                    "image_url": public_image_url,
+                    "prompt": prompt,
+                    "negative_prompt": negative_prompt,
+                    "duration": dur_wan,
+                    "resolution": kwargs.get("resolution", "1080p"),
+                    "enable_prompt_expansion": kwargs.get("enable_prompt_expansion", False),
+                }
+                # audio_url: attach background music/sound (WAV or MP3, 3–30s, ≤15 MB)
+                if kwargs.get("audio_url"):
+                    args["audio_url"] = kwargs["audio_url"]
+
+            else:  # luma — fast fallback
+                args = {
+                    "image_url": public_image_url,
+                    "prompt": prompt,
+                    "aspect_ratio": aspect_ratio,
+                }
+
+            handler = await asyncio.to_thread(fal_client.submit, endpoint, arguments=args)
             result = await asyncio.to_thread(handler.get)
-            if result and "video" in result:
-                return GenerationResult(success=True, media_url=result["video"]["url"], model_name=self.name)
+
+            # Normalise across response shapes: {video: {url:...}} or {video_url:...}
+            video_url = (result or {}).get("video", {}).get("url") or (result or {}).get("video_url")
+            if video_url:
+                logger.info(f"[{self.name}] image_to_video success → {video_url[:80]}…")
+                return GenerationResult(success=True, media_url=video_url, model_name=f"{self.name}/{model_key}")
+
+            logger.error(f"[{self.name}] image_to_video: no video URL in result: {result}")
             return GenerationResult(success=False, error_message="No video URL in result", model_name=self.name)
+
         except Exception as e:
+            logger.exception(f"[{self.name}] image_to_video failed: {e}")
             return GenerationResult(success=False, error_message=str(e), model_name=self.name)
 
+    # -----------------------------------------------------------------------
+    # video_to_video
+    # -----------------------------------------------------------------------
     async def video_to_video(self, video_url: str, prompt: str, duration_seconds: int = 5, **kwargs) -> GenerationResult:
+        """
+        Restyle / enhance an existing video clip.
+
+        kwargs
+        ------
+        model : "kling"  (only model currently supported for v2v)
+        """
         try:
             public_video_url = await self._ensure_public_url(video_url)
+            logger.info(f"[{self.name}] video_to_video → kling  video={public_video_url[:60]}…")
             handler = await asyncio.to_thread(
-                fal_client.submit, "fal-ai/kling-video/v1/standard/video-to-video",
-                arguments={"video_url": public_video_url, "prompt": prompt, "negative_prompt": "blurry, low quality"}
+                fal_client.submit,
+                "fal-ai/kling-video/v1/standard/video-to-video",
+                arguments={
+                    "video_url": public_video_url,
+                    "prompt": prompt,
+                    "negative_prompt": kwargs.get("negative_prompt", "blurry, low quality"),
+                },
             )
             result = await asyncio.to_thread(handler.get)
-            if result and "video" in result:
-                return GenerationResult(success=True, media_url=result["video"]["url"], model_name=self.name)
+            video_url_out = (result or {}).get("video", {}).get("url") or (result or {}).get("video_url")
+            if video_url_out:
+                return GenerationResult(success=True, media_url=video_url_out, model_name=self.name)
             return GenerationResult(success=False, error_message="No video URL in result", model_name=self.name)
         except Exception as e:
+            logger.exception(f"[{self.name}] video_to_video failed: {e}")
+            return GenerationResult(success=False, error_message=str(e), model_name=self.name)
+
+    # -----------------------------------------------------------------------
+    # Audio generation — Beatoven AI (sound effects + music)
+    # -----------------------------------------------------------------------
+
+    async def text_to_audio(
+        self,
+        prompt: str,
+        duration_seconds: float = 5.0,
+        audio_type: str = "sfx",
+        **kwargs,
+    ) -> GenerationResult:
+        """
+        Generate audio from a text description using Beatoven AI.
+
+        Parameters
+        ----------
+        prompt        : describe the sound — e.g. "engine roar, tire screech, dramatic bass"
+        duration_seconds : 1–35 for sfx, 5–90 for music
+        audio_type    : "sfx"   → beatoven/sound-effect-generation  ($0.10/req)
+                        "music" → beatoven/music-generation          ($0.10/req)
+
+        Returns GenerationResult with media_url pointing to a public WAV file.
+        """
+        if audio_type == "music":
+            endpoint = "beatoven/music-generation"
+            dur = min(max(float(duration_seconds), 5.0), 90.0)
+        else:
+            endpoint = "beatoven/sound-effect-generation"
+            dur = min(max(float(duration_seconds), 1.0), 35.0)
+
+        try:
+            logger.info(f"[{self.name}] text_to_audio → {endpoint}  duration={dur}s  prompt={prompt[:60]}…")
+            handler = await asyncio.to_thread(
+                fal_client.submit,
+                endpoint,
+                arguments={
+                    "prompt": prompt,
+                    "duration": dur,
+                    "negative_prompt": kwargs.get("negative_prompt", ""),
+                    "refinement": kwargs.get("refinement", 40),
+                    "creativity": kwargs.get("creativity", 16),
+                },
+            )
+            result = await asyncio.to_thread(handler.get)
+
+            # Response shape: { "audio": { "url": "..." } }
+            audio_url = (result or {}).get("audio", {}).get("url") or (result or {}).get("audio_url")
+            if audio_url:
+                logger.info(f"[{self.name}] text_to_audio success → {audio_url[:80]}…")
+                return GenerationResult(success=True, media_url=audio_url, model_name=f"{self.name}/beatoven-{audio_type}")
+
+            logger.error(f"[{self.name}] text_to_audio: no audio URL in result: {result}")
+            return GenerationResult(success=False, error_message="No audio URL in result", model_name=self.name)
+
+        except Exception as e:
+            logger.exception(f"[{self.name}] text_to_audio failed: {e}")
             return GenerationResult(success=False, error_message=str(e), model_name=self.name)
 
     async def check_status(self, job_id: str) -> Dict[str, Any]:

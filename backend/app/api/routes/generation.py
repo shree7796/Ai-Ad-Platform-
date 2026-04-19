@@ -109,6 +109,12 @@ async def trigger_generation(
         preserve_subject=payload.preserve_subject,
         cinematic_redraw=payload.cinematic_redraw,
         hero_cinematic_reframe=payload.hero_cinematic_reframe,
+        audio_url=payload.audio_url,
+        resolution=payload.resolution,
+        video_model=payload.video_model,
+        generate_audio=payload.generate_audio,
+        audio_prompt=payload.audio_prompt,
+        audio_type=payload.audio_type,
     )
 
     # Store celery task ID

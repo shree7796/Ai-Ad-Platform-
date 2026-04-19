@@ -24,6 +24,17 @@ class GenerationRequest(BaseModel):
     cinematic_redraw: bool = False
     # image_to_image: flux-dev direct path; may reframe camera like a fire/poster hero shot while locking identity
     hero_cinematic_reframe: bool = False
+    # wan only: public URL to a WAV/MP3 file (3–30s, ≤15 MB) to use as background audio
+    audio_url: Optional[str] = None
+    # wan only: "720p" | "1080p" (default 1080p)
+    resolution: Optional[str] = None
+    # video model override: "kling_standard"|"kling_pro"|"kling_master"|"wan"|"minimax"|"luma"
+    video_model: Optional[str] = None
+    # auto-generate audio via Beatoven AI and attach to video (wan only, $0.10 extra)
+    # set generate_audio=True and describe the sound — e.g. "engine roar with dramatic music"
+    generate_audio: bool = False
+    audio_prompt: Optional[str] = None   # e.g. "epic cinematic music with deep bass and engine revving"
+    audio_type: str = "sfx"              # "sfx" (sound effects) | "music" (background music)
 
 
 class GenerationStatusResponse(BaseModel):
