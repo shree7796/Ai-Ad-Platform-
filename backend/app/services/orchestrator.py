@@ -31,6 +31,12 @@ class OrchestrationService:
         preserve_subject: bool = True,
         cinematic_redraw: bool = False,
         hero_cinematic_reframe: bool = False,
+        audio_url: Optional[str] = None,
+        resolution: Optional[str] = None,
+        video_model: Optional[str] = None,
+        generate_audio: bool = False,
+        audio_prompt: Optional[str] = None,
+        audio_type: Optional[str] = "sfx",
     ) -> str:
         """
         Dispatch a generation job to the appropriate worker queue.
@@ -61,6 +67,12 @@ class OrchestrationService:
                 "preserve_subject": preserve_subject,
                 "cinematic_redraw": cinematic_redraw,
                 "hero_cinematic_reframe": hero_cinematic_reframe,
+                "audio_url": audio_url,
+                "resolution": resolution,
+                "video_model": video_model,
+                "generate_audio": generate_audio,
+                "audio_prompt": audio_prompt,
+                "audio_type": audio_type,
             },
             queue=queue,
         )

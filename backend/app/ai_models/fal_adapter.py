@@ -1569,7 +1569,6 @@ class FalAdapter(BaseAIProvider):
                 "strength": strength,
                 "num_inference_steps": steps,
                 "guidance_scale": float(kwargs.get("guidance_scale", gc_default)),
-                "enable_safety_checker": False,
             }
             if kwargs.get("seed") is not None:
                 try:
@@ -1664,7 +1663,6 @@ class FalAdapter(BaseAIProvider):
                     "strength": float(kwargs.get("composite_blend_strength", 0.72)),
                     "num_inference_steps": int(kwargs.get("composite_blend_steps", 32)),
                     "guidance_scale": float(kwargs.get("composite_blend_guidance", 3.2)),
-                    "enable_safety_checker": False,
                 },
             )
             result = await asyncio.to_thread(handler.get)
