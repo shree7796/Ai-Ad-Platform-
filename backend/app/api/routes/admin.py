@@ -13,13 +13,14 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
-from sqlalchemy import select, func, or_
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.models.user import User
 from app.models.project import Project
 from app.models.usage_log import UsageLog
+from app.services.billing_quota import month_window_utc
 from app.models.subscription import Subscription
 from app.api.deps import get_current_user
 
@@ -72,6 +73,17 @@ class UpdateUserBody(BaseModel):
     plan: Optional[str] = None
     is_active: Optional[bool] = None
     is_admin: Optional[bool] = None
+
+
+class ResetMonthlyUsageBody(BaseModel):
+    email: str
+
+
+class ResetMonthlyUsageResponse(BaseModel):
+    email: str
+    deleted_rows: int
+    period_start: str
+    period_end: str
 
 
 # ── routes ────────────────────────────────────────────────────────────────────
@@ -144,6 +156,48 @@ async def list_users(
         ))
 
     return AdminUserListResponse(items=rows, total=total, page=page, per_page=per_page)
+
+
+@router.post("/users/reset-monthly-usage", response_model=ResetMonthlyUsageResponse)
+async def reset_user_monthly_usage(
+    body: ResetMonthlyUsageBody,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(_require_admin),
+):
+    """
+    Clear this user's generation usage for the current UTC month (same window as quota).
+    Does not change plan; only removes usage_logs rows with action=generation.
+    """
+    email_key = body.email.strip().lower()
+    result = await db.execute(
+        select(User).where(func.lower(User.email) == email_key)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    period_start, period_end = month_window_utc()
+    stmt = delete(UsageLog).where(
+        UsageLog.user_id == user.id,
+        UsageLog.action == "generation",
+        UsageLog.created_at >= period_start,
+        UsageLog.created_at < period_end,
+    )
+    del_result = await db.execute(stmt)
+    await db.commit()
+    n = int(del_result.rowcount or 0)
+    logger.info(
+        "Admin %s reset monthly usage for %s: %s row(s)",
+        _admin.email,
+        email_key,
+        n,
+    )
+    return ResetMonthlyUsageResponse(
+        email=user.email,
+        deleted_rows=n,
+        period_start=period_start.isoformat(),
+        period_end=period_end.isoformat(),
+    )
 
 
 @router.patch("/users/{user_id}", response_model=AdminUserRow)
