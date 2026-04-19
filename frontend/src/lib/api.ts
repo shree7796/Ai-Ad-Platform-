@@ -255,6 +255,13 @@ export const adminAPI = {
     id: string,
     body: { plan?: string; is_active?: boolean; is_admin?: boolean }
   ) => api.patch<User>(`/admin/users/${id}`, body),
+  resetMonthlyUsage: (email: string) =>
+    api.post<{
+      email: string;
+      deleted_rows: number;
+      period_start: string;
+      period_end: string;
+    }>('/admin/users/reset-monthly-usage', { email }),
 };
 
 export default api;

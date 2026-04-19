@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Copy,
   RefreshCw,
+  RotateCcw,
   Search,
   UserRound,
 } from 'lucide-react';
@@ -53,6 +54,7 @@ export default function AdminUsersPage() {
   const [searchInput, setSearchInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
   const perPage = 12;
   const me = hydrated ? getUser() : null;
 
@@ -121,6 +123,30 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function resetMonthlyQuota(row: AdminUserRow) {
+    const ok = window.confirm(
+      `Reset generation usage for ${row.email} for the current UTC month?\n\n` +
+        'This clears logged generations toward their monthly image/video caps. It does not change their plan.'
+    );
+    if (!ok) return;
+
+    setResettingId(row.id);
+    try {
+      const res = await adminAPI.resetMonthlyUsage(row.email);
+      const n = res.data.deleted_rows;
+      toast.success(
+        n === 0
+          ? `No usage rows to clear for ${row.email} (current UTC month).`
+          : `Cleared ${n} usage record(s) for ${row.email}.`
+      );
+    } catch (err: unknown) {
+      const d = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(typeof d === 'string' ? d : 'Could not reset usage');
+    } finally {
+      setResettingId(null);
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / perPage));
   const rangeStart = total === 0 ? 0 : (page - 1) * perPage + 1;
   const rangeEnd = Math.min(page * perPage, total);
@@ -135,7 +161,9 @@ export default function AdminUsersPage() {
               Users
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--text-secondary)]">
-              Search by email or username. Plan changes apply in-app immediately; keep Stripe in sync for paying customers.{' '}
+              Search by email or username. Plan changes apply in-app immediately; keep Stripe in sync for paying customers.
+              Use <span className="font-semibold text-[var(--text-primary)]">Reset quota</span> to clear this month’s
+              generation counts (UTC) for a user.{' '}
               <Link href="/admin" className="font-semibold text-[var(--accent)] underline-offset-2 hover:underline">
                 Back to overview
               </Link>
@@ -209,6 +237,7 @@ export default function AdminUsersPage() {
                 <th className="whitespace-nowrap px-4 py-3.5">Status</th>
                 <th className="whitespace-nowrap px-4 py-3.5">Role</th>
                 <th className="whitespace-nowrap px-4 py-3.5">Stripe</th>
+                <th className="whitespace-nowrap px-4 py-3.5">Quota</th>
                 <th className="whitespace-nowrap px-4 py-3.5 pr-5">Joined</th>
               </tr>
             </thead>
@@ -220,7 +249,7 @@ export default function AdminUsersPage() {
             >
               {loading && items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-14">
+                  <td colSpan={8} className="px-5 py-14">
                     <div className="mx-auto flex max-w-lg flex-col items-center gap-3">
                       <div className="h-3 w-40 animate-pulse rounded-full bg-[var(--bg-muted)]" />
                       <div className="h-12 w-full animate-pulse rounded-xl bg-[var(--bg-muted)]" />
@@ -230,7 +259,7 @@ export default function AdminUsersPage() {
                 </tr>
               ) : !loading && items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-16 text-center">
+                  <td colSpan={8} className="px-5 py-16 text-center">
                     <div className="mx-auto flex max-w-sm flex-col items-center gap-2">
                       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--bg-accent-soft)] text-[var(--accent)]">
                         <UserRound className="h-6 w-6" aria-hidden />
@@ -248,6 +277,7 @@ export default function AdminUsersPage() {
                 items.map((row) => {
                   const isSelf = me?.id === row.id;
                   const busy = savingId === row.id;
+                  const resetting = resettingId === row.id;
                   return (
                     <tr
                       key={row.id}
@@ -366,6 +396,21 @@ export default function AdminUsersPage() {
                         ) : (
                           <span className="text-xs text-[var(--text-muted)]">None</span>
                         )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <button
+                          type="button"
+                          disabled={busy || resetting}
+                          title="Clear this month’s generation usage (UTC) for this user"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/35 bg-amber-500/8 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-amber-900 ring-1 ring-amber-500/15 transition hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-45 dark:text-amber-100"
+                          onClick={() => void resetMonthlyQuota(row)}
+                        >
+                          <RotateCcw
+                            className={`h-3.5 w-3.5 shrink-0 ${resetting ? 'animate-spin' : ''}`}
+                            aria-hidden
+                          />
+                          {resetting ? '…' : 'Reset'}
+                        </button>
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 pr-5 text-xs font-medium tabular-nums text-[var(--text-secondary)]">
                         {formatJoined(row.created_at)}
