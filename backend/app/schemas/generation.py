@@ -30,6 +30,8 @@ class GenerationRequest(BaseModel):
     resolution: Optional[str] = None
     # video model override: "kling_standard"|"kling_pro"|"kling_master"|"wan"|"minimax"|"luma"
     video_model: Optional[str] = None
+    # image model override: "flux-dev" (default) | "nano-banana" | "nano-banana-2"
+    image_model: Optional[str] = None
     # auto-generate audio via Beatoven AI and attach to video (wan only, $0.10 extra)
     # set generate_audio=True and describe the sound — e.g. "engine roar with dramatic music"
     generate_audio: bool = False

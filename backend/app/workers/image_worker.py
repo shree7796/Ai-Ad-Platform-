@@ -81,6 +81,13 @@ def generate_image(
 
             # Fal img2img: enhanced text often says "preserve exactly" which fights edits.
             kwargs["user_prompt"] = raw_user_prompt
+
+            # Map image_model → model so fal_adapter.image_to_image() can read it
+            if kwargs.get("image_model"):
+                kwargs["model"] = kwargs.pop("image_model")
+            else:
+                kwargs.pop("image_model", None)
+
             if task_type == "image_to_image":
                 kwargs["cinematic_redraw"] = cinematic_redraw
                 kwargs["preserve_subject"] = False if cinematic_redraw else preserve_subject

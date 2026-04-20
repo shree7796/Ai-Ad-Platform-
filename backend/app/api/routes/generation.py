@@ -115,6 +115,7 @@ async def trigger_generation(
         generate_audio=payload.generate_audio,
         audio_prompt=payload.audio_prompt,
         audio_type=payload.audio_type,
+        image_model=payload.image_model,
     )
 
     # Store celery task ID

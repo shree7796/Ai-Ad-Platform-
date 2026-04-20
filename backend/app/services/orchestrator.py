@@ -37,6 +37,7 @@ class OrchestrationService:
         generate_audio: bool = False,
         audio_prompt: Optional[str] = None,
         audio_type: Optional[str] = "sfx",
+        image_model: Optional[str] = None,
     ) -> str:
         """
         Dispatch a generation job to the appropriate worker queue.
@@ -73,6 +74,7 @@ class OrchestrationService:
                 "generate_audio": generate_audio,
                 "audio_prompt": audio_prompt,
                 "audio_type": audio_type,
+                "image_model": image_model,
             },
             queue=queue,
         )
