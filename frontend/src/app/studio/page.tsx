@@ -107,6 +107,16 @@ export default function HomePage() {
         cinematic_redraw: false,
         hero_cinematic_reframe:
           task_type === 'image_to_image' && 'heroCinematic' in payload ? !!payload.heroCinematic : undefined,
+        // AI model selector: flux-dev (default) | nano-banana | nano-banana-2
+        image_model:
+          task_type === 'image_to_image' && payload.model && payload.model !== 'flux-dev'
+            ? payload.model
+            : undefined,
+        // Video model selector: kling_pro (default) | kling_21_pro | seedance_fast
+        video_model:
+          (task_type === 'image_to_video' || task_type === 'text_to_video') && payload.videoModel
+            ? payload.videoModel
+            : undefined,
       });
 
       const { scene_id } = genRes.data;

@@ -8,6 +8,11 @@ const STYLES = ['Cinematic', 'Realistic', 'Animation', 'Product Ad'];
 const CAMERA = ['Static', 'Pan', 'Zoom', 'Dolly'];
 const DURATIONS = ['3s', '5s', '10s'];
 const RATIOS = ['16:9', '9:16', '1:1'];
+const VIDEO_MODELS = [
+    { value: 'kling_pro',     label: 'Kling v1.6 Pro',    desc: 'Reliable · 720p · $0.70/5s' },
+    { value: 'kling_21_pro',  label: 'Kling 2.1 Pro ✨',  desc: 'Newer · sharper · $0.49/5s' },
+    { value: 'seedance_fast', label: 'Seedance 2.0 Fast', desc: 'Audio included · up to 15s · $1.21/5s' },
+];
 const SUGGESTIONS = [
     'A product bottle rotating on a white pedestal with soft studio lighting',
     'Ocean waves crashing on a rocky shore at sunset',
@@ -17,7 +22,7 @@ const SUGGESTIONS = [
 ];
 
 interface Props {
-    onGenerate: (data: { prompt: string; style: string; camera: string; duration: string; ratio: string }) => void;
+    onGenerate: (data: { prompt: string; style: string; camera: string; duration: string; ratio: string; videoModel: string }) => void;
     loading: boolean;
 }
 
@@ -27,6 +32,7 @@ export default function TextToVideo({ onGenerate, loading }: Props) {
     const [camera, setCamera] = useState('Static');
     const [duration, setDuration] = useState('5s');
     const [ratio, setRatio] = useState('16:9');
+    const [videoModel, setVideoModel] = useState('kling_pro');
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
     const handleMouseMove = (e: React.MouseEvent) => {
@@ -146,11 +152,39 @@ export default function TextToVideo({ onGenerate, loading }: Props) {
                 </div>
             </motion.div>
 
-            {/* Duration & Ratio */}
+            {/* Video Model */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
+                className="card"
+                style={{ padding: 20 }}
+            >
+                <label className="text-label" style={{ display: 'block', marginBottom: 12 }}>AI Model</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {VIDEO_MODELS.map(m => (
+                        <button
+                            key={m.value}
+                            onClick={() => setVideoModel(m.value)}
+                            style={{
+                                padding: '10px 14px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                                border: videoModel === m.value ? '2px solid var(--accent)' : '1.5px solid var(--border)',
+                                background: videoModel === m.value ? 'var(--bg-accent-soft)' : 'var(--bg-subtle)',
+                                fontFamily: 'inherit', transition: 'all 0.15s',
+                            }}
+                        >
+                            <div style={{ fontSize: 13, fontWeight: 600, color: videoModel === m.value ? 'var(--accent)' : 'var(--text-primary)' }}>{m.label}</div>
+                            <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>{m.desc}</div>
+                        </button>
+                    ))}
+                </div>
+            </motion.div>
+
+            {/* Duration & Ratio */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
                 style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}
             >
                 <div className="card" style={{ padding: 20 }}>
@@ -183,7 +217,7 @@ export default function TextToVideo({ onGenerate, loading }: Props) {
 
             <button
                 className="btn-primary"
-                onClick={() => prompt.trim() && onGenerate({ prompt, style, camera, duration, ratio })}
+                onClick={() => prompt.trim() && onGenerate({ prompt, style, camera, duration, ratio, videoModel })}
                 disabled={loading || !prompt.trim()}
             >
                 <Film size={16} />

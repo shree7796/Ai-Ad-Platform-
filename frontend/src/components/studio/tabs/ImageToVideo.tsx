@@ -6,8 +6,14 @@ import { Upload, Video, X } from 'lucide-react';
 
 const DURATIONS = ['3s', '5s', '10s'];
 
+const VIDEO_MODELS = [
+    { value: 'kling_pro',    label: 'Kling v1.6 Pro',    desc: 'Reliable · 720p · $0.70/5s' },
+    { value: 'kling_21_pro', label: 'Kling 2.1 Pro ✨',  desc: 'Newer · sharper · $0.49/5s' },
+    { value: 'seedance_fast',label: 'Seedance 2.0 Fast', desc: 'Audio included · up to 15s · $1.21/5s' },
+];
+
 interface Props {
-    onGenerate: (data: { image: File; motion: number; duration: string; prompt: string }) => void;
+    onGenerate: (data: { image: File; motion: number; duration: string; prompt: string; videoModel: string }) => void;
     loading: boolean;
 }
 
@@ -17,6 +23,7 @@ export default function ImageToVideo({ onGenerate, loading }: Props) {
     const [motion, setMotion] = useState(50);
     const [duration, setDuration] = useState('5s');
     const [prompt, setPrompt] = useState('');
+    const [videoModel, setVideoModel] = useState('kling_pro');
 
     const onDrop = useCallback((files: File[]) => {
         if (files[0]) {
@@ -109,6 +116,28 @@ export default function ImageToVideo({ onGenerate, loading }: Props) {
                 </div>
             </div>
 
+            {/* Video Model */}
+            <div className="card" style={{ padding: 20 }}>
+                <label className="text-label" style={{ display: 'block', marginBottom: 12 }}>AI Model</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {VIDEO_MODELS.map(m => (
+                        <button
+                            key={m.value}
+                            onClick={() => setVideoModel(m.value)}
+                            style={{
+                                padding: '10px 14px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                                border: videoModel === m.value ? '2px solid var(--accent)' : '1.5px solid var(--border)',
+                                background: videoModel === m.value ? 'var(--bg-accent-soft)' : 'var(--bg-subtle)',
+                                fontFamily: 'inherit', transition: 'all 0.15s',
+                            }}
+                        >
+                            <div style={{ fontSize: 13, fontWeight: 600, color: videoModel === m.value ? 'var(--accent)' : 'var(--text-primary)' }}>{m.label}</div>
+                            <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>{m.desc}</div>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             {/* Motion prompt */}
             <div className="card" style={{ padding: 20 }}>
                 <label className="text-label" style={{ display: 'block', marginBottom: 10 }}>Motion Style</label>
@@ -123,7 +152,7 @@ export default function ImageToVideo({ onGenerate, loading }: Props) {
 
             <button
                 className="btn-primary"
-                onClick={() => image && onGenerate({ image, motion, duration, prompt })}
+                onClick={() => image && onGenerate({ image, motion, duration, prompt, videoModel })}
                 disabled={loading || !image}
             >
                 <Video size={16} />
