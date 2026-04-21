@@ -2,33 +2,17 @@
 
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Wand2, Lightbulb, Zap, Cpu } from 'lucide-react';
+import { Wand2, Lightbulb, Zap } from 'lucide-react';
+import ModelDropdown, { ModelOption } from '@/components/studio/ModelDropdown';
 
-const IMAGE_MODELS = [
-    {
-        value: 'flux-dev',
-        label: 'Flux Dev',
-        badge: 'DEFAULT',
-        badgeColor: 'var(--accent)',
-        desc: 'Best quality · product & scene preservation',
-        credits: 2,
-    },
-    {
-        value: 'nano-banana',
-        label: 'Nano Banana v1',
-        badge: 'FAST',
-        badgeColor: '#10b981',
-        desc: 'Quick & affordable · Google Imagen diffusion',
-        credits: 1,
-    },
-    {
-        value: 'nano-banana-2',
-        label: 'Nano Banana 2',
-        badge: 'BEST',
-        badgeColor: '#f59e0b',
-        desc: 'Reasoning-guided · complex scenes · 4K',
-        credits: 2,
-    },
+const IMAGE_MODELS: ModelOption[] = [
+    { value: 'flux-schnell',    label: 'FLUX Schnell',     badge: 'FAST',     badgeColor: '#10b981', desc: 'Fastest generation · great for drafts',                 credits: 4  },
+    { value: 'flux-dev',        label: 'FLUX Dev',          badge: 'DEFAULT',  badgeColor: 'var(--accent)', desc: 'Best quality · product & scene preservation',     credits: 8  },
+    { value: 'flux-pro',        label: 'FLUX Pro 1.1',      badge: 'PREMIUM',  badgeColor: '#f59e0b', desc: 'Ultra-detailed · photorealistic output',                credits: 11 },
+    { value: 'flux-2-pro',      label: 'FLUX 2 Pro',        badge: 'NEWEST',   badgeColor: '#a855f7', desc: 'Latest FLUX generation · state of the art',             credits: 15 },
+    { value: 'nano-banana-pro', label: 'Nano Banana Pro',   badge: 'PRO',      badgeColor: '#f97316', desc: 'Google Imagen Pro · highest nano quality',               credits: 10 },
+    { value: 'seedream-45',     label: 'Seedream 4.5',      badge: 'BYTEDANCE',badgeColor: '#ec4899', desc: 'ByteDance · photorealistic · sharp details',             credits: 8  },
+    { value: 'ideogram-v3',     label: 'Ideogram V3',       badge: 'TEXT',     badgeColor: '#06b6d4', desc: 'Best for text in images · typography · logos',           credits: 10 },
 ];
 
 const STYLES = ['Realistic', 'Anime', 'Cinematic', 'Product', '3D'];
@@ -118,74 +102,13 @@ export default function TextToImage({ onGenerate, loading }: Props) {
                 </div>
             </motion.div>
 
-            {/* AI Model */}
+            {/* AI Model dropdown */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.08 }}
                 className="card" style={{ padding: 20 }}
             >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
-                    <Cpu size={14} color="var(--accent)" />
-                    <span className="text-label">AI Model</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {IMAGE_MODELS.map(m => {
-                        const active = model === m.value;
-                        return (
-                            <button
-                                key={m.value}
-                                onClick={() => setModel(m.value)}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 10,
-                                    padding: '11px 14px', borderRadius: 10,
-                                    cursor: 'pointer', textAlign: 'left', width: '100%',
-                                    border: active ? '2px solid var(--accent)' : '1.5px solid var(--border)',
-                                    background: active ? 'var(--bg-accent-soft)' : 'var(--bg-subtle)',
-                                    fontFamily: 'inherit', transition: 'all 0.18s',
-                                }}
-                            >
-                                {/* Radio indicator */}
-                                <div style={{
-                                    width: 16, height: 16, borderRadius: 99, flexShrink: 0,
-                                    border: `2px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                                    background: active ? 'var(--accent)' : 'transparent',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                }}>
-                                    {active && <div style={{ width: 5, height: 5, borderRadius: 99, background: '#fff' }} />}
-                                </div>
-                                {/* Label + desc */}
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                                        <span style={{ fontSize: 13, fontWeight: 700, color: active ? 'var(--accent)' : 'var(--text-primary)' }}>
-                                            {m.label}
-                                        </span>
-                                        <span style={{
-                                            fontSize: 9, fontWeight: 800, letterSpacing: '0.05em',
-                                            padding: '2px 5px', borderRadius: 4,
-                                            background: `${m.badgeColor}20`, color: m.badgeColor,
-                                            border: `1px solid ${m.badgeColor}40`,
-                                        }}>
-                                            {m.badge}
-                                        </span>
-                                    </div>
-                                    <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{m.desc}</div>
-                                </div>
-                                {/* Credit cost */}
-                                <div style={{
-                                    display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0,
-                                    fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap',
-                                    color: active ? 'var(--accent)' : 'var(--text-muted)',
-                                    background: active ? 'rgba(99,102,241,0.12)' : 'var(--bg-muted)',
-                                    border: `1px solid ${active ? 'rgba(99,102,241,0.25)' : 'var(--border)'}`,
-                                    borderRadius: 6, padding: '3px 7px',
-                                }}>
-                                    <Zap size={10} fill="currentColor" />
-                                    {m.credits} credit{m.credits !== 1 ? 's' : ''}
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
+                <ModelDropdown models={IMAGE_MODELS} value={model} onChange={setModel} />
             </motion.div>
 
             {/* Style */}
@@ -257,7 +180,7 @@ export default function TextToImage({ onGenerate, loading }: Props) {
                         display: 'flex', alignItems: 'center', gap: 3,
                     }}>
                         <Zap size={11} fill="currentColor" />
-                        {selectedModel.credits} credit{selectedModel.credits !== 1 ? 's' : ''}
+                        {selectedModel.credits} credits
                     </span>
                 )}
             </button>

@@ -1250,24 +1250,100 @@ class FalAdapter(BaseAIProvider):
             logger.warning(f"[{self.name}] Fire foreground overlay failed: {e}")
             return None
 
+    _T2I_MODELS: Dict[str, str] = {
+        # ── FLUX series ───────────────────────────────────────────────────────
+        "flux-schnell":        "fal-ai/flux/schnell",
+        "flux_schnell":        "fal-ai/flux/schnell",
+        "flux-dev":            "fal-ai/flux/dev",
+        "flux_dev":            "fal-ai/flux/dev",
+        "flux-pro":            "fal-ai/flux-pro/v1.1",
+        "flux_pro":            "fal-ai/flux-pro/v1.1",
+        "flux-2-pro":          "fal-ai/flux-2-pro",
+        "flux_2_pro":          "fal-ai/flux-2-pro",
+        # ── Nano Banana series ────────────────────────────────────────────────
+        "nano-banana":         "fal-ai/nano-banana",
+        "nano_banana":         "fal-ai/nano-banana",
+        "nano-banana-2":       "fal-ai/nano-banana-2",
+        "nano_banana_2":       "fal-ai/nano-banana-2",
+        "nano-banana-pro":     "fal-ai/nano-banana-pro",
+        "nano_banana_pro":     "fal-ai/nano-banana-pro",
+        # ── ByteDance Seedream ────────────────────────────────────────────────
+        "seedream-45":         "fal-ai/bytedance/seedream/v4.5",
+        "seedream_45":         "fal-ai/bytedance/seedream/v4.5",
+        "seedream-50":         "fal-ai/bytedance/seedream/v5",
+        "seedream_50":         "fal-ai/bytedance/seedream/v5",
+        # ── Ideogram ──────────────────────────────────────────────────────────
+        "ideogram-v3":         "fal-ai/ideogram/v3",
+        "ideogram_v3":         "fal-ai/ideogram/v3",
+    }
+
     async def text_to_image(self, prompt: str, **kwargs) -> GenerationResult:
-        logger.info(f"[{self.name}] Starting text_to_image. Prompt: {prompt[:100]}...")
+        model_hint = str(kwargs.get("model", "flux-dev")).lower()
+        endpoint = self._T2I_MODELS.get(model_hint, "fal-ai/flux/dev")
+        logger.info(f"[{self.name}] text_to_image → {endpoint}  prompt={prompt[:80]}…")
         try:
-            _steps = max(1, min(int(kwargs.get("steps", 4)), _SCHNELL_MAX_INFERENCE_STEPS))
-            handler = await asyncio.to_thread(
-                fal_client.submit, "fal-ai/flux/schnell",
-                arguments={
-                    "prompt": prompt, "image_size": kwargs.get("image_size", "square"),
-                    "num_inference_steps": _steps, "enable_safety_checker": False,
+            image_size = kwargs.get("image_size", "square_hd")
+            aspect_ratio = kwargs.get("aspect_ratio", "1:1")
+
+            if endpoint == "fal-ai/flux/schnell":
+                args: Dict[str, Any] = {
+                    "prompt": prompt,
+                    "image_size": image_size,
+                    "num_inference_steps": max(1, min(int(kwargs.get("steps", 4)), _SCHNELL_MAX_INFERENCE_STEPS)),
+                    "enable_safety_checker": False,
                     "guidance_scale": float(kwargs.get("guidance_scale", 3.5)),
                 }
-            )
+            elif endpoint == "fal-ai/flux/dev":
+                args = {
+                    "prompt": prompt,
+                    "image_size": image_size,
+                    "num_inference_steps": int(kwargs.get("steps", 28)),
+                    "enable_safety_checker": False,
+                    "guidance_scale": float(kwargs.get("guidance_scale", 3.5)),
+                }
+            elif endpoint in ("fal-ai/flux-pro/v1.1", "fal-ai/flux-2-pro"):
+                args = {
+                    "prompt": prompt,
+                    "image_size": image_size,
+                    "enable_safety_checker": False,
+                }
+            elif endpoint in ("fal-ai/nano-banana", "fal-ai/nano-banana-2", "fal-ai/nano-banana-pro"):
+                args = {
+                    "prompt": prompt,
+                    "image_size": image_size,
+                    "safety_tolerance": "4",
+                }
+            elif endpoint in ("fal-ai/bytedance/seedream/v4.5", "fal-ai/bytedance/seedream/v5"):
+                args = {
+                    "prompt": prompt,
+                    "image_size": image_size,
+                    "enable_safety_checker": False,
+                }
+            elif endpoint == "fal-ai/ideogram/v3":
+                # Ideogram uses different aspect ratio format
+                _ratio_map = {
+                    "1:1": "ASPECT_1_1", "16:9": "ASPECT_16_9", "9:16": "ASPECT_9_16",
+                    "4:3": "ASPECT_4_3", "3:4": "ASPECT_3_4",
+                }
+                args = {
+                    "prompt": prompt,
+                    "aspect_ratio": _ratio_map.get(aspect_ratio, "ASPECT_1_1"),
+                    "rendering_quality": "QUALITY",
+                }
+            else:
+                args = {
+                    "prompt": prompt,
+                    "image_size": image_size,
+                    "enable_safety_checker": False,
+                }
+
+            handler = await asyncio.to_thread(fal_client.submit, endpoint, arguments=args)
             result = await asyncio.to_thread(handler.get)
             if result and "images" in result and len(result["images"]) > 0:
-                return GenerationResult(success=True, media_url=result["images"][0]["url"], model_name=self.name)
+                return GenerationResult(success=True, media_url=result["images"][0]["url"], model_name=f"{self.name}/{model_hint}")
             return GenerationResult(success=False, error_message="No images in result", model_name=self.name)
         except Exception as e:
-            logger.error(f"[{self.name}] text_to_image failed: {str(e)}")
+            logger.error(f"[{self.name}] text_to_image failed (model={model_hint}): {str(e)}")
             return GenerationResult(success=False, error_message=str(e), model_name=self.name)
 
     async def image_to_image(self, image_url: str, prompt: str, **kwargs) -> GenerationResult:
@@ -1275,9 +1351,79 @@ class FalAdapter(BaseAIProvider):
         try:
             current_image_url = await self._ensure_public_url(image_url)
 
-            # --- Nano Banana fast-path (Google Imagen instruction-based edit) ---
             _model_hint = str(kwargs.get("model", "")).lower()
-            if "nano-banana" in _model_hint or _model_hint == "nano-banana-2":
+
+            # --- FLUX Kontext / FLUX 2 Pro Edit fast-path ----------------------
+            _flux_edit_models = {
+                "flux-kontext":    "fal-ai/flux-pro/kontext",
+                "flux_kontext":    "fal-ai/flux-pro/kontext",
+                "flux-2-pro-edit": "fal-ai/flux-2-pro/edit",
+                "flux_2_pro_edit": "fal-ai/flux-2-pro/edit",
+            }
+            if _model_hint in _flux_edit_models or "kontext" in _model_hint:
+                _endpoint = _flux_edit_models.get(_model_hint, "fal-ai/flux-pro/kontext")
+                logger.info(f"[{self.name}] Routing to {_endpoint} img2img (model={_model_hint})")
+                try:
+                    handler = await asyncio.to_thread(
+                        fal_client.submit,
+                        _endpoint,
+                        arguments={
+                            "prompt": prompt,
+                            "image_url": current_image_url,
+                            "guidance_scale": float(kwargs.get("guidance_scale", 3.5)),
+                            "num_inference_steps": int(kwargs.get("steps", 28)),
+                            "safety_tolerance": "4",
+                        },
+                    )
+                    result = await asyncio.to_thread(handler.get)
+                    if result and "images" in result and len(result["images"]) > 0:
+                        return GenerationResult(
+                            success=True,
+                            media_url=result["images"][0]["url"],
+                            model_name=f"{self.name}/{_model_hint}",
+                        )
+                    return GenerationResult(
+                        success=False,
+                        error_message=f"{_endpoint} returned no images",
+                        model_name=self.name,
+                    )
+                except Exception as e:
+                    logger.exception(f"[{self.name}] {_endpoint} img2img failed: {e}")
+                    return GenerationResult(success=False, error_message=str(e), model_name=self.name)
+
+            # --- Seedream 4.5 Edit fast-path ------------------------------------
+            _seedream_edit_models = {
+                "seedream-45-edit": "fal-ai/bytedance/seedream/v4.5/edit",
+                "seedream_45_edit": "fal-ai/bytedance/seedream/v4.5/edit",
+            }
+            if _model_hint in _seedream_edit_models:
+                _endpoint = _seedream_edit_models[_model_hint]
+                logger.info(f"[{self.name}] Routing to {_endpoint} img2img")
+                try:
+                    handler = await asyncio.to_thread(
+                        fal_client.submit,
+                        _endpoint,
+                        arguments={
+                            "prompt": prompt,
+                            "image_url": current_image_url,
+                        },
+                    )
+                    result = await asyncio.to_thread(handler.get)
+                    if result and "images" in result and len(result["images"]) > 0:
+                        return GenerationResult(
+                            success=True,
+                            media_url=result["images"][0]["url"],
+                            model_name=f"{self.name}/{_model_hint}",
+                        )
+                    return GenerationResult(
+                        success=False, error_message="Seedream edit returned no images", model_name=self.name,
+                    )
+                except Exception as e:
+                    logger.exception(f"[{self.name}] Seedream edit failed: {e}")
+                    return GenerationResult(success=False, error_message=str(e), model_name=self.name)
+
+            # --- Nano Banana fast-path (Google Imagen instruction-based edit) ---
+            if "nano-banana" in _model_hint or _model_hint in ("nano-banana-2", "nano-banana-pro", "nano_banana_pro"):
                 logger.info(f"[{self.name}] Routing to nano-banana img2img (model={_model_hint})")
                 nb_bytes = await self._img2img_nano_banana(current_image_url, prompt, **kwargs)
                 if not nb_bytes:
@@ -1643,7 +1789,9 @@ class FalAdapter(BaseAIProvider):
             creative_clean = _strip_watermark_instructions_for_generation(creative)
 
             model_version = str(kwargs.get("model", "nano-banana")).lower()
-            if "2" in model_version or model_version == "nano-banana-2":
+            if "pro" in model_version or model_version in ("nano-banana-pro", "nano_banana_pro"):
+                endpoint = "fal-ai/nano-banana-pro/edit"
+            elif "2" in model_version or model_version == "nano-banana-2":
                 endpoint = "fal-ai/nano-banana-2/edit"
             else:
                 endpoint = "fal-ai/nano-banana/edit"
@@ -2012,20 +2160,30 @@ class FalAdapter(BaseAIProvider):
     #   premium→ kling_master    (~$1.40 / 5 s)
 
     _I2V_MODELS: Dict[str, str] = {
-        # affordable
-        "kling_standard": "fal-ai/kling-video/v1/standard/image-to-video",   # ~$0.028/s
-        "wan":            "wan/v2.6/image-to-video",                           # $0.10/s 720p | $0.15/s 1080p, up to 15s
-        "luma":           "fal-ai/luma-dream-machine/image-to-video",         # ~$0.14 fixed
-        # mid
-        "kling_pro":      "fal-ai/kling-video/v1.6/pro/image-to-video",      # ~$0.14/s
-        "kling_21_pro":   "fal-ai/kling-video/v2.1/pro/image-to-video",      # ~$0.098/s — newer, better, cheaper than v1.6
-        "minimax":        "fal-ai/minimax/video-01/image-to-video",           # ~$0.50 fixed
-        # premium
-        "kling_master":   "fal-ai/kling-video/v2/master/image-to-video",     # ~$0.28/s
-        # ByteDance Seedance 2.0 — native audio, up to 15s, director camera
-        "seedance_fast":  "bytedance/seedance-2.0/fast/image-to-video",       # ~$0.2419/s, audio included
-        # legacy alias
-        "kling":          "fal-ai/kling-video/v1/standard/image-to-video",
+        # ── Kling series ──────────────────────────────────────────────────────
+        "kling_standard":    "fal-ai/kling-video/v1/standard/image-to-video",  # ~$0.028/s
+        "kling_pro":         "fal-ai/kling-video/v1.6/pro/image-to-video",     # ~$0.14/s
+        "kling_21_pro":      "fal-ai/kling-video/v2.1/pro/image-to-video",     # ~$0.098/s
+        "kling_26_pro":      "fal-ai/kling-video/v2.6/pro/image-to-video",     # ~$0.098/s, audio
+        "kling_30_pro":      "fal-ai/kling-video/v3/pro/image-to-video",       # ~$0.14/s, newest, audio
+        "kling_master":      "fal-ai/kling-video/v2/master/image-to-video",    # ~$0.28/s
+        # ── ByteDance Seedance 2.0 ─────────────────────────────────────────
+        "seedance_fast":          "bytedance/seedance-2.0/fast/image-to-video",          # ~$0.2419/s, audio
+        "seedance_standard":      "bytedance/seedance-2.0/image-to-video",               # ~$0.16/s, audio
+        # ── ByteDance Seedance 2.0 Reference-to-Video ──────────────────────
+        "seedance_ref":           "bytedance/seedance-2.0/reference-to-video",           # ~$0.16/s, ref-guided, audio
+        "seedance_fast_ref":      "bytedance/seedance-2.0/fast/reference-to-video",      # ~$0.2419/s, ref-guided, audio
+        # ── PixVerse ──────────────────────────────────────────────────────
+        "pixverse_v6":            "fal-ai/pixverse/v6/image-to-video",                   # ~$0.04/s, 1080p, audio
+        "pixverse_c1":            "fal-ai/pixverse/c1/image-to-video",                   # ~$0.04/s, 1080p, audio
+        # ── PixVerse C1 Transition (start→end morph) ──────────────────────
+        "pixverse_c1_transition": "fal-ai/pixverse/c1/transition",                       # ~$0.04/s, start+end frames
+        # ── Others ────────────────────────────────────────────────────────
+        "wan":               "wan/v2.6/image-to-video",                        # $0.10/s, up to 15s
+        "luma":              "fal-ai/luma-dream-machine/image-to-video",       # ~$0.14 fixed
+        "minimax":           "fal-ai/minimax/video-01/image-to-video",         # ~$0.50 fixed
+        # ── Legacy alias ──────────────────────────────────────────────────
+        "kling":             "fal-ai/kling-video/v1/standard/image-to-video",
     }
 
     # Per-tier defaults — basic users get cheap standard, premium get master
@@ -2038,15 +2196,24 @@ class FalAdapter(BaseAIProvider):
     _I2V_DEFAULT = "kling_standard"
 
     _T2V_MODELS: Dict[str, str] = {
-        "kling_standard": "fal-ai/kling-video/v1/standard/text-to-video",
-        "kling_pro":      "fal-ai/kling-video/v1.6/pro/text-to-video",
-        "kling_21_pro":   "fal-ai/kling-video/v2.1/pro/text-to-video",       # ~$0.098/s
-        "kling_master":   "fal-ai/kling-video/v2/master/text-to-video",
-        "kling":          "fal-ai/kling-video/v1/standard/text-to-video",
-        "minimax":        "fal-ai/minimax/video-01",
-        "wan":            "wan/v2.6/text-to-video",
-        "luma":           "fal-ai/luma-dream-machine",
-        "seedance_fast":  "bytedance/seedance-2.0/fast/text-to-video",        # ~$0.2419/s, audio included
+        # ── Kling series ──────────────────────────────────────────────────────
+        "kling_standard":    "fal-ai/kling-video/v1/standard/text-to-video",
+        "kling_pro":         "fal-ai/kling-video/v1.6/pro/text-to-video",
+        "kling_21_pro":      "fal-ai/kling-video/v2.1/pro/text-to-video",
+        "kling_26_pro":      "fal-ai/kling-video/v2.6/pro/text-to-video",    # audio
+        "kling_30_pro":      "fal-ai/kling-video/v3/pro/text-to-video",      # newest, audio
+        "kling_master":      "fal-ai/kling-video/v2/master/text-to-video",
+        "kling":             "fal-ai/kling-video/v1/standard/text-to-video",
+        # ── ByteDance Seedance 2.0 ─────────────────────────────────────────
+        "seedance_fast":     "bytedance/seedance-2.0/fast/text-to-video",    # audio
+        "seedance_standard": "bytedance/seedance-2.0/text-to-video",         # audio
+        # ── PixVerse ──────────────────────────────────────────────────────
+        "pixverse_v6":       "fal-ai/pixverse/v6/text-to-video",             # 1080p, audio
+        "pixverse_c1":       "fal-ai/pixverse/c1/text-to-video",             # 1080p, audio
+        # ── Others ────────────────────────────────────────────────────────
+        "minimax":           "fal-ai/minimax/video-01",
+        "wan":               "wan/v2.6/text-to-video",
+        "luma":              "fal-ai/luma-dream-machine",
     }
     _T2V_TIER_DEFAULT: Dict[str, str] = {
         "free":    "kling_standard",
@@ -2081,14 +2248,19 @@ class FalAdapter(BaseAIProvider):
         duration_str = str(min(max(int(duration_seconds), 5), 10))  # clamp 5-10
 
         try:
-            if model_key in ("kling", "kling_standard", "kling_pro", "kling_master", "kling_21_pro"):
+            _kling_models = (
+                "kling", "kling_standard", "kling_pro", "kling_master",
+                "kling_21_pro", "kling_26_pro", "kling_30_pro",
+            )
+            _seedance_models = ("seedance_fast", "seedance_standard")
+            if model_key in _kling_models:
                 args: Dict[str, Any] = {
                     "prompt": prompt,
                     "negative_prompt": negative_prompt,
                     "duration": duration_str,
                     "aspect_ratio": aspect_ratio,
                 }
-            elif model_key == "seedance_fast":
+            elif model_key in _seedance_models:
                 dur_sd = min(max(int(duration_seconds), 4), 15)
                 args = {
                     "prompt": prompt,
@@ -2096,6 +2268,15 @@ class FalAdapter(BaseAIProvider):
                     "aspect_ratio": kwargs.get("aspect_ratio", "16:9"),
                     "resolution": kwargs.get("resolution", "720p"),
                     "generate_audio": kwargs.get("generate_audio", True),
+                }
+            elif model_key in ("pixverse_c1", "pixverse_v6"):
+                dur_pv = min(max(int(duration_seconds), 5), 8)
+                args = {
+                    "prompt": prompt,
+                    "duration": dur_pv,
+                    "aspect_ratio": aspect_ratio,
+                    "quality_mode": kwargs.get("quality_mode", "quality"),
+                    "motion_mode": kwargs.get("motion_mode", "normal"),
                 }
             elif model_key == "minimax":
                 args = {
@@ -2167,7 +2348,13 @@ class FalAdapter(BaseAIProvider):
             logger.info(f"[{self.name}] image_to_video → {endpoint}  duration={duration_seconds}s  image={public_image_url[:60]}…")
 
             # Build model-specific argument dict
-            if model_key in ("kling", "kling_standard", "kling_pro", "kling_master", "kling_21_pro"):
+            _kling_models = (
+                "kling", "kling_standard", "kling_pro", "kling_master",
+                "kling_21_pro", "kling_26_pro", "kling_30_pro",
+            )
+            _seedance_models = ("seedance_fast", "seedance_standard")
+            _seedance_ref_models = ("seedance_ref", "seedance_fast_ref")
+            if model_key in _kling_models:
                 # All Kling variants share the same params; duration is "5" or "10"
                 dur = "10" if int(duration_seconds) >= 8 else "5"
                 args: Dict[str, Any] = {
@@ -2180,7 +2367,7 @@ class FalAdapter(BaseAIProvider):
                 if kwargs.get("end_image_url"):
                     args["tail_image_url"] = await self._ensure_public_url(kwargs["end_image_url"])
 
-            elif model_key == "seedance_fast":
+            elif model_key in _seedance_models:
                 dur_sd = min(max(int(duration_seconds), 4), 15)
                 args = {
                     "image_url": public_image_url,
@@ -2192,6 +2379,50 @@ class FalAdapter(BaseAIProvider):
                 }
                 if kwargs.get("end_image_url"):
                     args["end_image_url"] = await self._ensure_public_url(kwargs["end_image_url"])
+
+            elif model_key in _seedance_ref_models:
+                # Seedance reference-to-video: image_url is the reference image guiding the output.
+                # The main project image IS the reference; an optional second reference can be added.
+                ref_url = kwargs.get("reference_image_url")
+                primary = await self._ensure_public_url(ref_url if ref_url else image_url)
+                dur_sd = min(max(int(duration_seconds), 4), 15)
+                args = {
+                    "image_url": primary,
+                    "prompt": prompt,
+                    "duration": str(dur_sd),
+                    "aspect_ratio": kwargs.get("aspect_ratio", "auto"),
+                    "resolution": kwargs.get("resolution", "720p"),
+                    "generate_audio": kwargs.get("generate_audio", True),
+                }
+
+            elif model_key == "pixverse_c1_transition":
+                # PixVerse C1 Transition: morphs from start_image to end_image.
+                # main project image = start; reference_image_url = end frame (required).
+                end_url = kwargs.get("reference_image_url") or kwargs.get("end_image_url")
+                if not end_url:
+                    raise ValueError(
+                        "PixVerse C1 Transition requires an end frame image. "
+                        "Please upload a reference / end-frame image."
+                    )
+                dur_pv = min(max(int(duration_seconds), 5), 8)
+                args = {
+                    "start_image_url": public_image_url,
+                    "end_image_url": await self._ensure_public_url(end_url),
+                    "prompt": prompt,
+                    "duration": dur_pv,
+                    "aspect_ratio": aspect_ratio,
+                    "quality_mode": kwargs.get("quality_mode", "quality"),
+                }
+
+            elif model_key in ("pixverse_c1", "pixverse_v6"):
+                dur_pv = min(max(int(duration_seconds), 5), 8)
+                args = {
+                    "image_url": public_image_url,
+                    "prompt": prompt,
+                    "duration": dur_pv,
+                    "quality_mode": kwargs.get("quality_mode", "quality"),
+                    "motion_mode": kwargs.get("motion_mode", "normal"),
+                }
 
             elif model_key == "minimax":
                 # MiniMax Video-01: prompt + image_url; prompt optimizer optional

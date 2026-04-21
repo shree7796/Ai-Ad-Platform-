@@ -6,21 +6,50 @@
 
 # ── Per-model credit costs (per generation / per 5-second clip) ──────────────
 model_credit_costs:
-  kling_standard:   10    # provider ~$0.028  →  margin ~72%
-  kling_pro:        10    # provider ~$0.028  →  margin ~72%
-  kling_21_pro:     22    # provider ~$0.098  →  margin ~55%
-  kling_21_master:  60    # provider ~$0.280  →  margin ~53%
-  seedance_fast:    55    # provider ~$0.240  →  margin ~56%
-  minimax:          110   # provider ~$0.500  →  margin ~55%
-  wan:              15    # provider ~$0.060  →  margin ~60%
-  luma:             35    # provider ~$0.150  →  margin ~57%
-  default:          22    # fallback for unlisted models
+  # ── Kling series ────────────────────────────────────────────────────────────
+  kling_standard:    10    # provider ~$0.028/5s  →  margin ~78%  ✅
+  kling_pro:         98    # provider ~$0.490/5s  →  margin ~60%
+  kling_21_pro:      98    # provider ~$0.490/5s  →  margin ~60%
+  kling_21_master:   60    # provider ~$0.280/5s  →  margin ~63%  ✅
+  kling_26_pro:      98    # provider ~$0.490/5s  →  margin ~60%  (v2.6 — native audio)
+  kling_30_pro:      140   # provider ~$0.700/5s  →  margin ~60%  (v3.0 — newest, audio)
+  # ── Seedance series ─────────────────────────────────────────────────────────
+  seedance_fast:         242   # provider ~$1.209/5s  →  margin ~60%  (fast tier)
+  seedance_standard:     160   # provider ~$0.800/5s  →  margin ~60%  (standard quality, audio)
+  # ── Seedance Reference-to-Video ─────────────────────────────────────────────
+  seedance_ref:          160   # provider ~$0.800/5s  →  margin ~60%  (reference-guided, audio)
+  seedance_fast_ref:     242   # provider ~$1.209/5s  →  margin ~60%  (fast reference-guided, audio)
+  # ── PixVerse ────────────────────────────────────────────────────────────────
+  pixverse_v6:           50    # provider ~$0.040/5s  →  margin ~60%  (1080p, audio)
+  pixverse_c1:           40    # provider ~$0.200/5s  →  margin ~60%  (1080p, audio)
+  # ── PixVerse C1 Transition ───────────────────────────────────────────────────
+  pixverse_c1_transition: 40   # provider ~$0.200/5s  →  margin ~60%  (start→end morph, 1080p)
+  # ── Other providers ──────────────────────────────────────────────────────────
+  minimax:           110   # provider ~$0.500/5s  →  margin ~64%  ✅
+  wan:               100   # provider ~$0.500/5s  →  margin ~60%
+  luma:              35    # provider ~$0.150/5s  →  margin ~66%  ✅
+  default:           98    # fallback for unlisted models
 
 # ── Image generation credit costs (per image) ────────────────────────────────
 image_credit_costs:
-  flux_dev:         2
-  nano_banana:      1
-  default:          1
+  # ── FLUX series ─────────────────────────────────────────────────────────────
+  flux_schnell:      4     # provider ~$0.003/img →  margin ~60%  (fast draft)
+  flux_dev:          8     # provider ~$0.040/img →  margin ~60%
+  flux_pro:          11    # provider ~$0.055/img →  margin ~60%
+  flux_2_pro:        15    # provider ~$0.080/img →  margin ~60%  (newest FLUX)
+  flux_kontext:      8     # provider ~$0.040/img →  margin ~60%  (advanced editing)
+  flux_2_pro_edit:   11    # provider ~$0.055/img →  margin ~60%  (FLUX 2 edit)
+  # ── Nano Banana series ───────────────────────────────────────────────────────
+  nano_banana:       8     # provider ~$0.040/img →  margin ~60%
+  nano_banana_2:     8     # provider ~$0.040/img →  margin ~60%
+  nano_banana_pro:   10    # provider ~$0.050/img →  margin ~60%  (Pro quality)
+  # ── ByteDance Seedream ────────────────────────────────────────────────────────
+  seedream_45:       8     # provider ~$0.040/img →  margin ~60%
+  seedream_50:       10    # provider ~$0.050/img →  margin ~60%  (Seedream 5.0)
+  seedream_45_edit:  8     # provider ~$0.040/img →  margin ~60%  (Seedream edit)
+  # ── Ideogram ─────────────────────────────────────────────────────────────────
+  ideogram_v3:       10    # provider ~$0.050/img →  margin ~60%  (known for text quality)
+  default:           8     # fallback
 
 # ── Subscription monthly credit grants ───────────────────────────────────────
 # Credits are granted on first successful payment and on each renewal invoice.

@@ -179,6 +179,7 @@ async def trigger_generation(
         audio_prompt=payload.audio_prompt,
         audio_type=payload.audio_type,
         image_model=payload.image_model,
+        reference_image_url=payload.reference_image_url,
         add_lumina_watermark=add_lumina_watermark,
     )
 

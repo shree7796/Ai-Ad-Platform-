@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db.session import init_db
-from app.api.routes import admin, auth, projects, generation, health, models, usage, billing
+from app.api.routes import admin, auth, projects, generation, health, models, usage, billing, upload
 
 
 settings = get_settings()
@@ -62,6 +62,7 @@ app.include_router(models.router, prefix="/api/v1")
 app.include_router(usage.router, prefix="/api/v1")
 app.include_router(billing.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
+app.include_router(upload.router, prefix="/api/v1")
 
 
 @app.get("/")

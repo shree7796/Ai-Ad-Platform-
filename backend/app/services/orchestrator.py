@@ -38,6 +38,7 @@ class OrchestrationService:
         audio_prompt: Optional[str] = None,
         audio_type: Optional[str] = "sfx",
         image_model: Optional[str] = None,
+        reference_image_url: Optional[str] = None,
         add_lumina_watermark: bool = False,
     ) -> str:
         """
@@ -76,6 +77,7 @@ class OrchestrationService:
                 "audio_prompt": audio_prompt,
                 "audio_type": audio_type,
                 "image_model": image_model,
+                "reference_image_url": reference_image_url,
                 "add_lumina_watermark": add_lumina_watermark,
             },
             queue=queue,

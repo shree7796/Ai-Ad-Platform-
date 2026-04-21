@@ -127,6 +127,7 @@ def generate_video(
                         resolution=kwargs.get("resolution"),
                         model=video_model,
                         watermark_text=lumina_wm,
+                        reference_image_url=kwargs.get("reference_image_url"),
                     )
                 elif task_type == "text_to_video":
                     result = await adapter.text_to_video(

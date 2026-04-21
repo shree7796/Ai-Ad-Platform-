@@ -143,6 +143,8 @@ export const generationAPI = {
     hero_cinematic_reframe?: boolean;
     video_model?: string;
     image_model?: string;
+    /** Second image URL for reference/transition models (e.g. end frame for PixVerse Transition). */
+    reference_image_url?: string;
     /** Client-generated UUID — prevents double-reserve on network retries or double-clicks. */
     idempotency_key?: string;
   }) => api.post('generate/', data),
@@ -218,6 +220,17 @@ export interface CreditCostsResponse {
   subscription_credits: Record<string, number>;
   topup_credits: Record<string, number>;
 }
+
+// ── Upload API ──
+
+export const uploadAPI = {
+  /** Upload a single image file; returns a public URL. Used for reference/end-frame images. */
+  upload: (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post<{ url: string }>('upload/', fd);
+  },
+};
 
 export const billingAPI = {
   createCheckout: (data: { plan_key: 'basic' | 'pro' | 'premium' }) =>

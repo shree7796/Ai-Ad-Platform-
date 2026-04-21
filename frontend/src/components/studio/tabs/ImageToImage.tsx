@@ -8,6 +8,7 @@ import {
     Sparkles, Scissors, Camera, Cpu, Palette,
     CheckCircle2, Zap,
 } from 'lucide-react';
+import ModelDropdown, { ModelOption } from '@/components/studio/ModelDropdown';
 
 /* ─── Constants ─────────────────────────────────────────────── */
 const STYLE_OPTIONS = [
@@ -15,31 +16,14 @@ const STYLE_OPTIONS = [
     'Pixel Art', 'Impressionist', 'Minimalist',
 ];
 
-const IMAGE_MODELS = [
-    {
-        value: 'flux-dev',
-        label: 'Flux Dev',
-        badge: 'DEFAULT',
-        badgeColor: 'var(--accent)',
-        desc: 'Best product identity preservation & fire scenes',
-        credits: 2,
-    },
-    {
-        value: 'nano-banana',
-        label: 'Nano Banana v1',
-        badge: 'FAST',
-        badgeColor: '#10b981',
-        desc: 'Quick & affordable · Google Imagen diffusion',
-        credits: 1,
-    },
-    {
-        value: 'nano-banana-2',
-        label: 'Nano Banana 2',
-        badge: 'BEST',
-        badgeColor: '#f59e0b',
-        desc: 'Reasoning-guided · complex fire/env scenes · 4K',
-        credits: 2,
-    },
+const IMAGE_MODELS: ModelOption[] = [
+    { value: 'flux-dev',         label: 'FLUX Dev',          badge: 'DEFAULT',  badgeColor: 'var(--accent)', desc: 'Best product identity & fire scene preservation',  credits: 8  },
+    { value: 'flux-kontext',     label: 'FLUX Kontext',       badge: 'ADVANCED', badgeColor: '#f59e0b',       desc: 'Context-aware editing · strong identity lock',     credits: 8  },
+    { value: 'flux-2-pro-edit',  label: 'FLUX 2 Pro Edit',    badge: 'NEWEST',   badgeColor: '#a855f7',       desc: 'Latest FLUX editing · highest quality edits',      credits: 11 },
+    { value: 'nano-banana',      label: 'Nano Banana v1',     badge: 'FAST',     badgeColor: '#10b981',       desc: 'Quick & affordable · Google Imagen diffusion',     credits: 8  },
+    { value: 'nano-banana-2',    label: 'Nano Banana 2',      badge: 'SMART',    badgeColor: '#8b5cf6',       desc: 'Reasoning-guided · complex scenes · 4K',           credits: 8  },
+    { value: 'nano-banana-pro',  label: 'Nano Banana Pro',    badge: 'PRO',      badgeColor: '#f97316',       desc: 'Google Imagen Pro · best nano quality',            credits: 10 },
+    { value: 'seedream-45-edit', label: 'Seedream 4.5 Edit',  badge: 'BYTEDANCE',badgeColor: '#ec4899',       desc: 'ByteDance Seedream · photorealistic edits',        credits: 8  },
 ];
 
 interface ToggleOption {
@@ -257,76 +241,7 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
 
             {/* ── 3. AI Model ───────────────────────────────────── */}
             <SectionCard title="AI Model" icon={<Cpu size={14} />}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {IMAGE_MODELS.map(m => {
-                        const active = model === m.value;
-                        return (
-                            <button
-                                key={m.value}
-                                onClick={() => setModel(m.value)}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 12,
-                                    padding: '12px 14px', borderRadius: 10,
-                                    cursor: 'pointer', textAlign: 'left', width: '100%',
-                                    border: active
-                                        ? '2px solid var(--accent)'
-                                        : '1.5px solid var(--border)',
-                                    background: active ? 'var(--bg-accent-soft)' : 'var(--bg-subtle)',
-                                    fontFamily: 'inherit',
-                                    transition: 'all 0.18s cubic-bezier(0.16,1,0.3,1)',
-                                }}
-                            >
-                                {/* Selection indicator */}
-                                <div style={{
-                                    width: 18, height: 18, borderRadius: 99, flexShrink: 0,
-                                    border: `2px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                                    background: active ? 'var(--accent)' : 'transparent',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    transition: 'all 0.18s',
-                                }}>
-                                    {active && <div style={{ width: 6, height: 6, borderRadius: 99, background: '#fff' }} />}
-                                </div>
-
-                                {/* Text */}
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
-                                        <span style={{
-                                            fontSize: 13.5, fontWeight: 700,
-                                            color: active ? 'var(--accent)' : 'var(--text-primary)',
-                                        }}>
-                                            {m.label}
-                                        </span>
-                                        <span style={{
-                                            fontSize: 9.5, fontWeight: 800, letterSpacing: '0.05em',
-                                            padding: '2px 6px', borderRadius: 4,
-                                            background: `${m.badgeColor}20`,
-                                            color: m.badgeColor,
-                                            border: `1px solid ${m.badgeColor}40`,
-                                        }}>
-                                            {m.badge}
-                                        </span>
-                                    </div>
-                                    <div style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                                        {m.desc}
-                                    </div>
-                                </div>
-
-                                {/* Credit cost */}
-                                <div style={{
-                                    display: 'flex', alignItems: 'center', gap: 3,
-                                    fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0,
-                                    color: active ? 'var(--accent)' : 'var(--text-muted)',
-                                    background: active ? 'rgba(99,102,241,0.12)' : 'var(--bg-subtle)',
-                                    border: `1px solid ${active ? 'rgba(99,102,241,0.25)' : 'var(--border)'}`,
-                                    borderRadius: 6, padding: '3px 7px',
-                                }}>
-                                    <Zap size={10} fill="currentColor" />
-                                    {m.credits} credit{m.credits !== 1 ? 's' : ''}
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
+                <ModelDropdown models={IMAGE_MODELS} value={model} onChange={setModel} label="" />
             </SectionCard>
 
             {/* ── 4. Style Transfer ─────────────────────────────── */}

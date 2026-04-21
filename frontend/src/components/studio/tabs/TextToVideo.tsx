@@ -3,20 +3,26 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Film, Lightbulb, Zap } from 'lucide-react';
+import ModelDropdown, { ModelOption } from '@/components/studio/ModelDropdown';
 
 /**
  * Per-model base credit cost for one 5-second clip (mirrors credits.yaml).
  * Duration multiplier: ceil(durationSec / 5) × base cost.
  */
 const MODEL_BASE_CREDITS: Record<string, number> = {
-    kling_standard:  10,
-    kling_pro:       10,
-    kling_21_pro:    22,
-    kling_21_master: 60,
-    seedance_fast:   55,
-    minimax:         110,
-    wan:             15,
-    luma:            35,
+    kling_standard:    10,
+    kling_pro:         98,
+    kling_21_pro:      98,
+    kling_21_master:   60,
+    kling_26_pro:      98,
+    kling_30_pro:      140,
+    seedance_fast:     242,
+    seedance_standard: 160,
+    pixverse_v6:       50,
+    pixverse_c1:       40,
+    minimax:           110,
+    wan:               100,
+    luma:              35,
 };
 
 function estimateCredits(durationStr: string, modelValue: string): number {
@@ -30,10 +36,18 @@ const STYLES = ['Cinematic', 'Realistic', 'Animation', 'Product Ad'];
 const CAMERA = ['Static', 'Pan', 'Zoom', 'Dolly'];
 const DURATIONS = ['3s', '5s', '10s'];
 const RATIOS = ['16:9', '9:16', '1:1'];
-const VIDEO_MODELS = [
-    { value: 'kling_pro',     label: 'Kling v1.6 Pro',    badge: 'STANDARD', badgeColor: '#6366f1', desc: 'Reliable quality · 720p output' },
-    { value: 'kling_21_pro',  label: 'Kling 2.1 Pro ✨',  badge: 'SHARP',    badgeColor: '#8b5cf6', desc: 'Newer model · improved detail' },
-    { value: 'seedance_fast', label: 'Seedance 2.0 Fast', badge: 'AUDIO',    badgeColor: '#10b981', desc: 'Audio included · up to 15s' },
+const VIDEO_MODELS: ModelOption[] = [
+    { value: 'kling_pro',         label: 'Kling v1.6 Pro',      badge: 'STANDARD',  badgeColor: '#6366f1', desc: 'Reliable quality · 720p output',               credits: MODEL_BASE_CREDITS.kling_pro,         creditsSuffix: '/5s' },
+    { value: 'kling_21_pro',      label: 'Kling 2.1 Pro',       badge: 'SHARP',     badgeColor: '#8b5cf6', desc: 'Improved detail · 720p',                        credits: MODEL_BASE_CREDITS.kling_21_pro,      creditsSuffix: '/5s' },
+    { value: 'kling_26_pro',      label: 'Kling 2.6 Pro 🔊',    badge: 'AUDIO',     badgeColor: '#06b6d4', desc: 'Native audio · improved motion',                credits: MODEL_BASE_CREDITS.kling_26_pro,      creditsSuffix: '/5s' },
+    { value: 'kling_30_pro',      label: 'Kling 3.0 Pro 🔊',    badge: 'NEWEST',    badgeColor: '#f59e0b', desc: 'Latest Kling · audio · best quality',           credits: MODEL_BASE_CREDITS.kling_30_pro,      creditsSuffix: '/5s' },
+    { value: 'pixverse_v6',       label: 'PixVerse V6 🔊',       badge: '1080P',     badgeColor: '#10b981', desc: '1080p · native audio · smooth motion',          credits: MODEL_BASE_CREDITS.pixverse_v6,       creditsSuffix: '/5s' },
+    { value: 'pixverse_c1',       label: 'PixVerse C1 🔊',       badge: 'CINEMATIC', badgeColor: '#14b8a6', desc: 'Cinematic 1080p · native audio',                credits: MODEL_BASE_CREDITS.pixverse_c1,       creditsSuffix: '/5s' },
+    { value: 'seedance_standard', label: 'Seedance 2.0 🔊',      badge: 'AUDIO',     badgeColor: '#ec4899', desc: 'ByteDance · audio · director camera',           credits: MODEL_BASE_CREDITS.seedance_standard, creditsSuffix: '/5s' },
+    { value: 'seedance_fast',     label: 'Seedance 2.0 Fast 🔊', badge: 'FAST',      badgeColor: '#84cc16', desc: 'Fast generation · audio included',              credits: MODEL_BASE_CREDITS.seedance_fast,     creditsSuffix: '/5s' },
+    { value: 'luma',              label: 'Luma Dream Machine',   badge: 'SMOOTH',    badgeColor: '#a78bfa', desc: 'Cinematic smooth motion',                       credits: MODEL_BASE_CREDITS.luma,              creditsSuffix: '/5s' },
+    { value: 'wan',               label: 'Wan v2.6',             badge: '1080P',     badgeColor: '#0ea5e9', desc: 'High resolution · up to 15s',                   credits: MODEL_BASE_CREDITS.wan,               creditsSuffix: '/5s' },
+    { value: 'minimax',           label: 'MiniMax Video-01',     badge: 'PRECISE',   badgeColor: '#f97316', desc: 'Precise prompt following',                      credits: MODEL_BASE_CREDITS.minimax,           creditsSuffix: '/5s' },
 ];
 const SUGGESTIONS = [
     'A product bottle rotating on a white pedestal with soft studio lighting',
@@ -183,65 +197,7 @@ export default function TextToVideo({ onGenerate, loading }: Props) {
                 className="card"
                 style={{ padding: 20 }}
             >
-                <label className="text-label" style={{ display: 'block', marginBottom: 12 }}>AI Model</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {VIDEO_MODELS.map(m => {
-                        const active = videoModel === m.value;
-                        const modelCredits = MODEL_BASE_CREDITS[m.value] ?? 22;
-                        return (
-                            <button
-                                key={m.value}
-                                onClick={() => setVideoModel(m.value)}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 10,
-                                    padding: '11px 14px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
-                                    border: active ? '2px solid var(--accent)' : '1.5px solid var(--border)',
-                                    background: active ? 'var(--bg-accent-soft)' : 'var(--bg-subtle)',
-                                    fontFamily: 'inherit', transition: 'all 0.15s', width: '100%',
-                                }}
-                            >
-                                {/* Selection indicator */}
-                                <div style={{
-                                    width: 16, height: 16, borderRadius: 99, flexShrink: 0,
-                                    border: `2px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                                    background: active ? 'var(--accent)' : 'transparent',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                }}>
-                                    {active && <div style={{ width: 5, height: 5, borderRadius: 99, background: '#fff' }} />}
-                                </div>
-                                {/* Text */}
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                                        <span style={{ fontSize: 13, fontWeight: 700, color: active ? 'var(--accent)' : 'var(--text-primary)' }}>
-                                            {m.label}
-                                        </span>
-                                        <span style={{
-                                            fontSize: 9, fontWeight: 800, letterSpacing: '0.05em',
-                                            padding: '2px 5px', borderRadius: 4,
-                                            background: `${m.badgeColor}20`, color: m.badgeColor,
-                                            border: `1px solid ${m.badgeColor}40`,
-                                        }}>
-                                            {m.badge}
-                                        </span>
-                                    </div>
-                                    <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{m.desc}</div>
-                                </div>
-                                {/* Credit cost */}
-                                <div style={{
-                                    display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0,
-                                    fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap',
-                                    color: active ? 'var(--accent)' : 'var(--text-muted)',
-                                    background: active ? 'rgba(99,102,241,0.12)' : 'var(--bg-muted)',
-                                    border: `1px solid ${active ? 'rgba(99,102,241,0.25)' : 'var(--border)'}`,
-                                    borderRadius: 6, padding: '3px 7px',
-                                }}>
-                                    <Zap size={10} fill="currentColor" />
-                                    {modelCredits} credits / 5s
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
+                <ModelDropdown models={VIDEO_MODELS} value={videoModel} onChange={setVideoModel} />
             </motion.div>
 
             {/* Duration & Ratio */}

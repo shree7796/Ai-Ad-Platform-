@@ -10,7 +10,7 @@ import TextToImage from '@/components/studio/tabs/TextToImage';
 import ImageToImage from '@/components/studio/tabs/ImageToImage';
 import ImageToVideo from '@/components/studio/tabs/ImageToVideo';
 import TextToVideo from '@/components/studio/tabs/TextToVideo';
-import { projectsAPI, generationAPI, formatApiError } from '@/lib/api';
+import { projectsAPI, generationAPI, uploadAPI, formatApiError } from '@/lib/api';
 import { BRAND_NAME } from '@/lib/brand';
 
 export default function HomePage() {
@@ -98,6 +98,17 @@ export default function HomePage() {
       const duration_seconds =
         Number.isFinite(durationParsed) && durationParsed > 0 ? Math.min(120, durationParsed) : 10;
 
+      // Upload reference / end-frame image if provided (image_to_video reference models)
+      let reference_image_url: string | undefined;
+      if (payload.referenceImage instanceof File) {
+        try {
+          const refRes = await uploadAPI.upload(payload.referenceImage);
+          reference_image_url = refRes.data.url;
+        } catch (refErr) {
+          throw new Error(formatApiError(refErr, 'Failed to upload reference image.'));
+        }
+      }
+
       const genRes = await generationAPI.trigger({
         project_id,
         prompt: payload.prompt,
@@ -109,16 +120,18 @@ export default function HomePage() {
         cinematic_redraw: false,
         hero_cinematic_reframe:
           task_type === 'image_to_image' && 'heroCinematic' in payload ? !!payload.heroCinematic : undefined,
-        // AI model selector: flux-dev (default) | nano-banana | nano-banana-2
+        // AI model selector — always passed so backend routes correctly
         image_model:
-          (task_type === 'image_to_image' || task_type === 'text_to_image') && payload.model && payload.model !== 'flux-dev'
+          (task_type === 'image_to_image' || task_type === 'text_to_image') && payload.model
             ? payload.model
             : undefined,
-        // Video model selector: kling_pro (default) | kling_21_pro | seedance_fast
+        // Video model selector
         video_model:
           (task_type === 'image_to_video' || task_type === 'text_to_video') && payload.videoModel
             ? payload.videoModel
             : undefined,
+        // Reference / end-frame image URL (for reference-to-video and transition models)
+        reference_image_url,
         // Prevents double-reserve on retries / double-clicks; backend deduplicates by this key.
         idempotency_key: idempotencyKeyRef.current,
       });
