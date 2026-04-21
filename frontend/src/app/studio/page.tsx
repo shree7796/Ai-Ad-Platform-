@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '@/components/studio/Sidebar';
@@ -19,6 +19,8 @@ export default function HomePage() {
   const [outputSrc, setOutputSrc] = useState<string | null>(null);
   const [outputType, setOutputType] = useState<OutputType>('none');
   const [lastPayload, setLastPayload] = useState<any>(null);
+  // Stable per-click idempotency key — reset after each successful submission start
+  const idempotencyKeyRef = useRef<string>(crypto.randomUUID());
 
   /** Poll until completed/failed. Without a max, loading never stops if the Celery worker is down or the task hangs. */
   const pollStatus = (sceneId: string, type: OutputType) => {
@@ -109,7 +111,7 @@ export default function HomePage() {
           task_type === 'image_to_image' && 'heroCinematic' in payload ? !!payload.heroCinematic : undefined,
         // AI model selector: flux-dev (default) | nano-banana | nano-banana-2
         image_model:
-          task_type === 'image_to_image' && payload.model && payload.model !== 'flux-dev'
+          (task_type === 'image_to_image' || task_type === 'text_to_image') && payload.model && payload.model !== 'flux-dev'
             ? payload.model
             : undefined,
         // Video model selector: kling_pro (default) | kling_21_pro | seedance_fast
@@ -117,7 +119,11 @@ export default function HomePage() {
           (task_type === 'image_to_video' || task_type === 'text_to_video') && payload.videoModel
             ? payload.videoModel
             : undefined,
+        // Prevents double-reserve on retries / double-clicks; backend deduplicates by this key.
+        idempotency_key: idempotencyKeyRef.current,
       });
+      // Rotate key so the next distinct request gets a fresh key
+      idempotencyKeyRef.current = crypto.randomUUID();
 
       const { scene_id } = genRes.data;
 

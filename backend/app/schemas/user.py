@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserRegister(BaseModel):
@@ -19,6 +19,8 @@ class UserLogin(BaseModel):
 
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     email: str
     username: str
@@ -26,10 +28,11 @@ class UserResponse(BaseModel):
     plan: str
     is_admin: bool = False
     is_active: bool
+    credit_balance: int = 0
+    reserved_balance: int = 0
+    bonus_credit_balance: int = 0
+    bonus_credits_expire_at: Optional[datetime] = None
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class TokenResponse(BaseModel):

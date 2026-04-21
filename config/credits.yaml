@@ -1,0 +1,51 @@
+# Credit Economics — single source of truth for frontend AND backend.
+# Change pricing here; no code changes required.
+#
+# Revenue model:  1 credit ≈ $0.01 platform price
+# Margin floor:   provider_cost_usd  ×  2.2  ≤  credits × $0.01  (≥ 50% gross margin)
+
+# ── Per-model credit costs (per generation / per 5-second clip) ──────────────
+model_credit_costs:
+  kling_standard:   10    # provider ~$0.028  →  margin ~72%
+  kling_pro:        10    # provider ~$0.028  →  margin ~72%
+  kling_21_pro:     22    # provider ~$0.098  →  margin ~55%
+  kling_21_master:  60    # provider ~$0.280  →  margin ~53%
+  seedance_fast:    55    # provider ~$0.240  →  margin ~56%
+  minimax:          110   # provider ~$0.500  →  margin ~55%
+  wan:              15    # provider ~$0.060  →  margin ~60%
+  luma:             35    # provider ~$0.150  →  margin ~57%
+  default:          22    # fallback for unlisted models
+
+# ── Image generation credit costs (per image) ────────────────────────────────
+image_credit_costs:
+  flux_dev:         2
+  nano_banana:      1
+  default:          1
+
+# ── Subscription monthly credit grants ───────────────────────────────────────
+# Credits are granted on first successful payment and on each renewal invoice.
+subscription_credits:
+  free:     0        # Zero-free policy — no free generations
+  basic:    1200     # $15/mo  →  $0.0125/credit avg
+  pro:      3200     # $30/mo  →  $0.0094/credit avg
+  premium:  7000     # $59/mo  →  $0.0084/credit avg
+
+# ── Top-up packs ─────────────────────────────────────────────────────────────
+topup_credits:
+  standard:   800    # $10  — available to all plans
+  pro_bonus:  960    # $10  — Pro subscribers get 20% more credits
+
+# ── Safety policies ──────────────────────────────────────────────────────────
+velocity_limits:
+  new_account_days: 5                  # accounts younger than N days are "new"
+  new_account_credits_per_24h: 1500    # max spendable credits per 24 h for new accounts
+
+circuit_breaker:
+  failure_window_minutes: 15           # rolling window for failure tracking
+  failure_threshold: 3                 # consecutive failures before cooldown
+  cooldown_minutes: 30                 # duration of generation block
+
+# ── Bonus credit expiry ───────────────────────────────────────────────────────
+# Paid (subscription/top-up) credits: never expire.
+# Bonus (promotional) credits:         expire after this many days.
+bonus_expiry_days: 30

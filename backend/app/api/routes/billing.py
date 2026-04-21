@@ -15,10 +15,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
-from app.config import get_plans_config, get_settings
+from app.config import get_credits_config, get_plans_config, get_settings
 from app.db.session import get_db
 from app.models.subscription import Subscription
 from app.models.user import User
+from app.services.billing_quota import get_subscription_credit_grant
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/billing", tags=["Billing"])
@@ -46,12 +47,28 @@ def _price_map(settings):
     }
 
 
-async def _apply_plan(db: AsyncSession, user_id: str, plan: str, stripe_customer_id: str | None = None):
-    """Update user + subscription row for a paid/downgraded plan."""
+async def _apply_plan(
+    db: AsyncSession,
+    user_id: str,
+    plan: str,
+    stripe_customer_id: str | None = None,
+    grant_credits: bool = False,
+) -> None:
+    """Update user + subscription row for a paid/downgraded plan.
+
+    When grant_credits=True (triggered on successful payment), add the plan's
+    monthly credit grant to the user's credit_balance and record a ledger entry.
+    """
+    from app.models.credit_transaction import CreditTransaction, TransactionStatus
+    import uuid as _uuid_mod
+    from datetime import datetime as _dt
+
     result = await db.execute(select(User).where(User.id == _uuid.UUID(user_id)))
     user = result.scalar_one_or_none()
     if not user:
         return
+
+    prev_plan = user.plan
     user.plan = plan
     if stripe_customer_id:
         user.stripe_customer_id = stripe_customer_id
@@ -61,8 +78,26 @@ async def _apply_plan(db: AsyncSession, user_id: str, plan: str, stripe_customer
     if sub:
         sub.plan = plan
         sub.is_active = plan != "free"
+
+    # Grant credits on payment (new subscription or renewal)
+    if grant_credits and plan != "free":
+        credits = get_subscription_credit_grant(plan)
+        if credits > 0:
+            user.credit_balance += credits
+            db.add(
+                CreditTransaction(
+                    id=_uuid_mod.uuid4(),
+                    user_id=user.id,
+                    delta=credits,
+                    reason="purchase",
+                    status=TransactionStatus.COMPLETED,
+                    notes=f"Monthly credit grant for {plan} plan ({credits} ⚡)",
+                )
+            )
+            logger.info("[billing] Granted %d credits to user %s for plan '%s'", credits, user_id, plan)
+
     await db.commit()
-    logger.info(f"[billing] user {user_id} → plan '{plan}'")
+    logger.info("[billing] user %s → plan '%s' (prev: %s)", user_id, plan, prev_plan)
 
 
 # ── schemas ───────────────────────────────────────────────────────────────────
@@ -104,6 +139,21 @@ class SyncCheckoutRequest(BaseModel):
 
 
 # ── routes ────────────────────────────────────────────────────────────────────
+
+@router.get("/credit-costs")
+async def credit_costs(_: User = Depends(get_current_user)):
+    """
+    Return the full credit cost table from credits.yaml.
+    Frontend uses this to display accurate ⚡ costs on generate buttons.
+    """
+    cfg = get_credits_config() or {}
+    return {
+        "model_credit_costs": cfg.get("model_credit_costs") or {},
+        "image_credit_costs": cfg.get("image_credit_costs") or {},
+        "subscription_credits": cfg.get("subscription_credits") or {},
+        "topup_credits": cfg.get("topup_credits") or {},
+    }
+
 
 @router.get("/status", response_model=BillingStatusResponse)
 async def billing_status(
@@ -204,7 +254,7 @@ async def sync_checkout_session(
     if str(current_user.id) != uid:
         raise HTTPException(status_code=403, detail="Session does not belong to this user.")
 
-    await _apply_plan(db, uid, plan, customer_id)
+    await _apply_plan(db, uid, plan, customer_id, grant_credits=True)
     return {"ok": True, "plan": plan}
 
 
@@ -238,10 +288,18 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
     if etype == "checkout.session.completed":
         if obj.get("payment_status") in ("paid", "no_payment_required") and uid and plan:
-            await _apply_plan(db, uid, plan, customer_id)
+            # First payment: grant the monthly credit allotment immediately
+            await _apply_plan(db, uid, plan, customer_id, grant_credits=True)
+
+    elif etype == "invoice.paid":
+        # Recurring renewal: grant credits on each successful invoice
+        sub_meta = (obj.get("subscription_details") or {}).get("metadata") or {}
+        uid = uid or sub_meta.get("user_id")
+        plan = plan or sub_meta.get("plan")
+        if uid and plan and plan != "free":
+            await _apply_plan(db, uid, plan, customer_id, grant_credits=True)
 
     elif etype == "customer.subscription.updated":
-        # Re-read plan from subscription metadata
         if uid and plan:
             await _apply_plan(db, uid, plan, customer_id)
 

@@ -6,7 +6,7 @@ Loads settings from environment variables and YAML config files.
 import os
 from pathlib import Path
 from functools import lru_cache
-from typing import Optional
+from typing import Optional, Set
 
 import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -109,6 +109,25 @@ class Settings(BaseSettings):
     public_app_url: str = "http://localhost:3000"
     require_paid_plan: bool = False
 
+    # ── RBAC ──
+    # Comma-separated list of emails that are automatically granted admin on registration.
+    # Example: ADMIN_EMAILS="alice@example.com,bob@example.com"
+    admin_emails: str = ""
+
+    @property
+    def admin_email_set(self) -> Set[str]:
+        """Return the set of trusted admin emails (lowercased, stripped)."""
+        return {e.strip().lower() for e in self.admin_emails.split(",") if e.strip()}
+
+    # ── Credits ──
+    # Set to True to enforce the credit-balance gate on generation.
+    # Keep False during the migration rollout so existing quota-based users
+    # are not blocked before their accounts are credited.
+    enforce_credit_balance: bool = False
+
+    # Credits awarded to new users on registration (top-up separately for existing users).
+    new_user_credit_grant: int = 0
+
 
 def load_yaml_config(filename: str) -> dict:
     """Load a YAML config file from the config directory."""
@@ -153,3 +172,8 @@ def get_models_config() -> dict:
 @lru_cache()
 def get_plans_config() -> dict:
     return load_yaml_config("plans.yaml")
+
+
+@lru_cache()
+def get_credits_config() -> dict:
+    return load_yaml_config("credits.yaml")

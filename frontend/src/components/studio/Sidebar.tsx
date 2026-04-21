@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,11 +14,14 @@ import {
     LogOut,
     History,
     Shield,
+    AlertTriangle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useUsageSummary } from '@/hooks/useUsageSummary';
 import Cookies from 'js-cookie';
-import { getUser } from '@/lib/auth';
+import { getUser, setAuth, getToken } from '@/lib/auth';
+import { authAPI } from '@/lib/api';
+import type { User as UserType } from '@/lib/auth';
 
 const menuItems = [
     { id: 'generate', label: 'Generate', icon: Sparkles, path: '/studio' },
@@ -32,7 +35,32 @@ export default function Sidebar() {
     const router = useRouter();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const { data: usage, loading: usageLoading, error: usageError } = useUsageSummary();
-    const sessionUser = getUser();
+
+    // Defer cookie read to client-only to prevent SSR/client hydration mismatch.
+    // Also refresh from /auth/me so the balance reflects DB changes (e.g. credit grants).
+    const [sessionUser, setSessionUser] = useState<UserType | null>(null);
+    useEffect(() => {
+        // Start with cookie for instant render
+        setSessionUser(getUser());
+        // Then fetch fresh data from the API and update both state and cookie
+        const token = getToken();
+        if (token) {
+            authAPI.me()
+                .then(res => {
+                    const freshUser: UserType = res.data;
+                    setSessionUser(freshUser);
+                    // Refresh the cookie so the rest of the app sees updated balances
+                    setAuth(token, freshUser);
+                })
+                .catch(() => { /* silently fall back to cookie data */ });
+        }
+    }, []);
+
+    const creditBalance = sessionUser?.credit_balance ?? 0;
+    const bonusBalance = sessionUser?.bonus_credit_balance ?? 0;
+    const reservedBalance = sessionUser?.reserved_balance ?? 0;
+    const availableCredits = Math.max(0, creditBalance + bonusBalance - reservedBalance);
+    const isLowBalance = availableCredits < 100;
     const showAdminLink = sessionUser?.is_admin === true;
 
     const imgUsed = usage?.image_generations_this_month ?? 0;
@@ -266,6 +294,56 @@ export default function Sidebar() {
                         Resets monthly (UTC)
                     </div>
                 </motion.div>
+
+                {/* Token credit balance */}
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="card"
+                    style={{
+                        marginTop: 10, padding: '10px 14px', borderRadius: 12,
+                        border: isLowBalance ? '1px solid rgba(239,68,68,0.4)' : '1px solid var(--border)',
+                        background: isLowBalance ? 'rgba(239,68,68,0.06)' : 'var(--bg-muted)',
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+                            CREDITS
+                        </span>
+                        <span style={{
+                            fontSize: 13, fontWeight: 800,
+                            color: isLowBalance ? '#ef4444' : 'var(--accent)',
+                            display: 'flex', alignItems: 'center', gap: 3,
+                        }}>
+                            <Zap size={12} fill="currentColor" />
+                            {availableCredits.toLocaleString()} credits
+                        </span>
+                    </div>
+                    {reservedBalance > 0 && (
+                        <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 3 }}>
+                            {reservedBalance} reserved for active jobs
+                        </div>
+                    )}
+                    {isLowBalance && (
+                        <Link href="/studio/billing" style={{ textDecoration: 'none' }}>
+                            <motion.div
+                                whileHover={{ scale: 1.02 }}
+                                style={{
+                                    marginTop: 8, padding: '6px 10px', borderRadius: 8,
+                                    background: 'rgba(239,68,68,0.12)',
+                                    border: '1px solid rgba(239,68,68,0.3)',
+                                    display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                                }}
+                            >
+                                <AlertTriangle size={11} color="#ef4444" />
+                                <span style={{ fontSize: 10, fontWeight: 700, color: '#ef4444' }}>
+                                    Low balance — Top up
+                                </span>
+                            </motion.div>
+                        </Link>
+                    )}
+                </motion.div>
             </div>
 
             {/* User profile */}
@@ -293,10 +371,10 @@ export default function Sidebar() {
                         </div>
                         <div style={{ minWidth: 0, flex: 1 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                Bhavin S.
+                                {sessionUser?.full_name || sessionUser?.username || 'User'}
                             </div>
                             <div style={{ fontSize: 11, color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                bhavin@lumina.ai
+                                {sessionUser?.email || ''}
                             </div>
                         </div>
                         <LogOut size={14} style={{ color: 'var(--text-muted)', opacity: 0.8 }} />

@@ -71,6 +71,15 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    try:
+        uid = uuid.UUID(user_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     result = await db.execute(
         select(User)
         .options(
@@ -78,7 +87,7 @@ async def get_current_user(
             noload(User.usage_logs),
             noload(User.subscription),
         )
-        .where(User.id == uuid.UUID(user_id))
+        .where(User.id == uid)
     )
     user = result.scalar_one_or_none()
 

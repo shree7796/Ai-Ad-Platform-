@@ -23,6 +23,7 @@ from app.services.billing_quota import (
     count_monthly_generations,
     count_monthly_image_generations,
     count_monthly_video_generations,
+    get_model_credit_cost,
     month_window_utc,
     monthly_image_quota_for_plan,
     monthly_quota_for_plan,
@@ -63,6 +64,7 @@ class UsageActivityItem(BaseModel):
     task_type: Optional[str] = None
     tier: Optional[str] = None
     cost: str
+    credits: int = 0
     model_used: Optional[str] = None
 
     class Config:
@@ -192,6 +194,7 @@ async def usage_activity(
             task_type=r.task_type,
             tier=r.tier,
             cost=f"{Decimal(r.cost):.4f}" if r.cost is not None else "0.0000",
+            credits=get_model_credit_cost(r.model_used, r.task_type),
             model_used=r.model_used,
         )
         for r in rows

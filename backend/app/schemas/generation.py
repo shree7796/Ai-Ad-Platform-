@@ -37,6 +37,9 @@ class GenerationRequest(BaseModel):
     generate_audio: bool = False
     audio_prompt: Optional[str] = None   # e.g. "epic cinematic music with deep bass and engine revving"
     audio_type: str = "sfx"              # "sfx" (sound effects) | "music" (background music)
+    # Client-generated UUID to prevent double-reserve on retries / double-clicks.
+    # The backend returns the existing job immediately if the key is already in-flight.
+    idempotency_key: Optional[str] = Field(default=None, max_length=100)
 
 
 class GenerationStatusResponse(BaseModel):

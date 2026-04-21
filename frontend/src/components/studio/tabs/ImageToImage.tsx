@@ -6,7 +6,7 @@ import { useDropzone } from 'react-dropzone';
 import {
     Upload, Wand2, X, ArrowLeftRight,
     Sparkles, Scissors, Camera, Cpu, Palette,
-    CheckCircle2,
+    CheckCircle2, Zap,
 } from 'lucide-react';
 
 /* ─── Constants ─────────────────────────────────────────────── */
@@ -22,7 +22,7 @@ const IMAGE_MODELS = [
         badge: 'DEFAULT',
         badgeColor: 'var(--accent)',
         desc: 'Best product identity preservation & fire scenes',
-        price: '~$0.055/img',
+        credits: 2,
     },
     {
         value: 'nano-banana',
@@ -30,7 +30,7 @@ const IMAGE_MODELS = [
         badge: 'FAST',
         badgeColor: '#10b981',
         desc: 'Quick & affordable · Google Imagen diffusion',
-        price: '$0.039/img',
+        credits: 1,
     },
     {
         value: 'nano-banana-2',
@@ -38,7 +38,7 @@ const IMAGE_MODELS = [
         badge: 'BEST',
         badgeColor: '#f59e0b',
         desc: 'Reasoning-guided · complex fire/env scenes · 4K',
-        price: '$0.08/img',
+        credits: 2,
     },
 ];
 
@@ -103,8 +103,8 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
 
     const onDrop = useCallback((files: File[]) => {
         if (files[0]) {
+            setImageUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(files[0]); });
             setImage(files[0]);
-            setImageUrl(URL.createObjectURL(files[0]));
         }
     }, []);
 
@@ -112,7 +112,10 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
         onDrop, accept: { 'image/*': [] }, maxFiles: 1,
     });
 
-    const clearImage = () => { setImage(null); setImageUrl(null); };
+    const clearImage = () => {
+        setImage(null);
+        setImageUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
+    };
 
     const canGenerate = !loading && !!image;
 
@@ -308,13 +311,17 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
                                     </div>
                                 </div>
 
-                                {/* Price */}
+                                {/* Credit cost */}
                                 <div style={{
-                                    fontSize: 11, fontWeight: 700,
+                                    display: 'flex', alignItems: 'center', gap: 3,
+                                    fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0,
                                     color: active ? 'var(--accent)' : 'var(--text-muted)',
-                                    whiteSpace: 'nowrap', flexShrink: 0,
+                                    background: active ? 'rgba(99,102,241,0.12)' : 'var(--bg-subtle)',
+                                    border: `1px solid ${active ? 'rgba(99,102,241,0.25)' : 'var(--border)'}`,
+                                    borderRadius: 6, padding: '3px 7px',
                                 }}>
-                                    {m.price}
+                                    <Zap size={10} fill="currentColor" />
+                                    {m.credits} credit{m.credits !== 1 ? 's' : ''}
                                 </div>
                             </button>
                         );
@@ -363,7 +370,7 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
                 className="btn-primary"
                 onClick={() => image && onGenerate({ image, prompt, enhance, bgRemove, style, heroCinematic, model })}
                 disabled={!canGenerate}
-                style={{ opacity: canGenerate ? 1 : 0.5 }}
+                style={{ opacity: canGenerate ? 1 : 0.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             >
                 {loading ? (
                     <>
@@ -374,6 +381,15 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
                     <>
                         <CheckCircle2 size={16} />
                         Transform Image
+                        <span style={{
+                            marginLeft: 4, fontSize: 12, fontWeight: 700,
+                            background: 'rgba(255,255,255,0.15)',
+                            padding: '2px 8px', borderRadius: 99,
+                            display: 'flex', alignItems: 'center', gap: 3,
+                        }}>
+                            <Zap size={11} fill="currentColor" />
+                            {IMAGE_MODELS.find(m => m.value === model)?.credits ?? 2} credits
+                        </span>
                     </>
                 )}
             </button>

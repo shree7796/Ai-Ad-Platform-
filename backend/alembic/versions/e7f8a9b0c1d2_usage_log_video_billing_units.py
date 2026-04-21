@@ -18,17 +18,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "usage_logs",
-        sa.Column("video_billing_units", sa.Integer(), nullable=False, server_default="0"),
+    op.execute(
+        "ALTER TABLE usage_logs ADD COLUMN IF NOT EXISTS video_billing_units INTEGER NOT NULL DEFAULT 0"
     )
-    op.alter_column("usage_logs", "video_billing_units", server_default=None)
     op.execute(
         """
         UPDATE usage_logs
         SET video_billing_units = 1
         WHERE action = 'generation'
           AND task_type IN ('text_to_video', 'image_to_video', 'video_to_video')
+          AND video_billing_units = 0
         """
     )
 

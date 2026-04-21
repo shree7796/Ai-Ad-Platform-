@@ -23,6 +23,7 @@ from app.models.usage_log import UsageLog
 from app.services.billing_quota import month_window_utc
 from app.models.subscription import Subscription
 from app.api.deps import get_current_user
+from app.models.credit_transaction import CreditTransaction, TransactionStatus
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -245,3 +246,49 @@ async def update_user(
         subscription_active=sub.is_active if sub else None,
         subscription_plan=sub.plan if sub else None,
     )
+
+
+# ── Credit grant ──────────────────────────────────────────────────────────────
+
+class CreditGrantRequest(BaseModel):
+    email: str
+    amount: int       # positive = add credits, negative = deduct
+    reason: str = "admin_grant"
+    notes: Optional[str] = None
+
+
+@router.post("/users/grant-credits")
+async def admin_grant_credits(
+    payload: CreditGrantRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Grant (or deduct) credits for a user. Admin only."""
+    if not getattr(current_user, "is_admin", False):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required.")
+
+    result = await db.execute(select(User).where(User.email == payload.email.lower().strip()))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User '{payload.email}' not found.")
+
+    if payload.amount < 0 and abs(payload.amount) > user.credit_balance:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Deduction of {abs(payload.amount)} exceeds available balance {user.credit_balance}.",
+        )
+
+    user.credit_balance += payload.amount
+
+    db.add(CreditTransaction(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        delta=payload.amount,
+        reason=payload.reason,
+        status=TransactionStatus.COMPLETED,
+        notes=payload.notes or f"Admin grant of {payload.amount} credits by {current_user.email}",
+    ))
+
+    await db.commit()
+    logger.info("[admin] %s granted %d credits to %s", current_user.email, payload.amount, user.email)
+    return {"ok": True, "email": user.email, "new_balance": user.credit_balance}

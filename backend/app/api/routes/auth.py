@@ -12,6 +12,7 @@ from app.models.user import User
 from app.models.subscription import Subscription
 from app.schemas.user import UserRegister, UserLogin, UserResponse, TokenResponse
 from app.api.deps import hash_password, verify_password, create_access_token, get_current_user
+from app.config import get_settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -25,6 +26,7 @@ _USER_LOAD = (
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
     """Register a new user account."""
+    settings = get_settings()
     email_key = str(payload.email).strip().lower()
 
     result = await db.execute(
@@ -47,12 +49,17 @@ async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
             detail="Username already taken",
         )
 
+    is_admin = email_key in settings.admin_email_set
+
     user = User(
         email=email_key,
         username=payload.username,
         password_hash=hash_password(payload.password),
         full_name=payload.full_name,
         plan="free",
+        is_admin=is_admin,
+        credit_balance=settings.new_user_credit_grant,
+        reserved_balance=0,
     )
     db.add(user)
     await db.flush()

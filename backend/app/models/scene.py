@@ -38,6 +38,8 @@ class Scene(Base):
     error_message: Mapped[str] = mapped_column(Text, nullable=True)
     duration_seconds: Mapped[int] = mapped_column(default=12)
     celery_task_id: Mapped[str] = mapped_column(String(255), nullable=True)
+    # Idempotency key provided by the client; prevents double-reserve on retries/double-clicks.
+    idempotency_key: Mapped[str] = mapped_column(String(100), nullable=True, unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
     )

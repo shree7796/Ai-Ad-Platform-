@@ -141,6 +141,10 @@ export const generationAPI = {
     cinematic_redraw?: boolean;
     /** image_to_image: allow flux to reframe camera for fire/poster look while locking your model */
     hero_cinematic_reframe?: boolean;
+    video_model?: string;
+    image_model?: string;
+    /** Client-generated UUID — prevents double-reserve on network retries or double-clicks. */
+    idempotency_key?: string;
   }) => api.post('generate/', data),
 
   status: (sceneId: string) =>
@@ -179,6 +183,7 @@ export interface UsageActivityItem {
   task_type: string | null;
   tier: string | null;
   cost: string;
+  credits: number;
   model_used: string | null;
 }
 
@@ -207,11 +212,20 @@ export interface CheckoutSessionResponse {
   url: string;
 }
 
+export interface CreditCostsResponse {
+  model_credit_costs: Record<string, number>;
+  image_credit_costs: Record<string, number>;
+  subscription_credits: Record<string, number>;
+  topup_credits: Record<string, number>;
+}
+
 export const billingAPI = {
   createCheckout: (data: { plan_key: 'basic' | 'pro' | 'premium' }) =>
     api.post<CheckoutSessionResponse>('/billing/checkout-session', data),
   syncCheckoutSession: (data: { session_id: string }) =>
     api.post<{ ok: boolean }>('/billing/sync-checkout-session', data),
+  creditCosts: () =>
+    api.get<CreditCostsResponse>('/billing/credit-costs'),
 };
 
 // ── Admin ──
@@ -262,6 +276,8 @@ export const adminAPI = {
       period_start: string;
       period_end: string;
     }>('/admin/users/reset-monthly-usage', { email }),
+  grantCredits: (data: { email: string; amount: number; reason?: string; notes?: string }) =>
+    api.post<{ ok: boolean; email: string; new_balance: number }>('/admin/users/grant-credits', data),
 };
 
 export default api;

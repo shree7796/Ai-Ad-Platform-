@@ -7,60 +7,83 @@ import toast from 'react-hot-toast';
 import Sidebar from '@/components/studio/Sidebar';
 import { useUsageSummary } from '@/hooks/useUsageSummary';
 import { billingAPI, usageAPI, type UsageActivityItem } from '@/lib/api';
+import { getUser, setAuth, getToken } from '@/lib/auth';
+import { authAPI } from '@/lib/api';
 import {
   Check, Zap, Crown, CreditCard, ArrowRight,
   History, Sparkles, ImageIcon, Video, Loader2,
+  Image, Film, Wand2, Lock,
 } from 'lucide-react';
 
-// ── Plan config (mirrors plans.yaml) ────────────────────────────────────────
-const PLAN_META: Record<string, { icon: React.ElementType; color: string; tagline: string; features: string[] }> = {
+// ── Plan config (credit-centric) ──────────────────────────────────────────────
+interface FeatureGroup { icon: React.ElementType; label: string; items: string[]; }
+interface PlanConfig {
+  icon: React.ElementType; color: string; gradient: string;
+  display: string; tagline: string; price: string; credits: string | null;
+  groups: FeatureGroup[];
+}
+
+const PLANS: Record<string, PlanConfig> = {
   free: {
     icon: Sparkles, color: '#94a3b8',
-    tagline: 'Try the platform',
-    features: [
-      '8 images + 2 video units / month (15s per unit)',
-      'Text & Image / Video modes',
-      'Up to 10s video length',
-      'Watermarked output',
+    gradient: 'linear-gradient(135deg, rgba(148,163,184,0.12), rgba(100,116,139,0.06))',
+    display: 'Free', tagline: 'Try the platform', price: '$0', credits: null,
+    groups: [
+      {
+        icon: Wand2, label: 'What you can create',
+        items: ['Text → Image', 'Image → Image', 'Image → Video', 'Text → Video'],
+      },
+      {
+        icon: Lock, label: 'Limitations',
+        items: ['No credits included', 'First payment required to generate', 'Lumina watermark on output'],
+      },
     ],
   },
   basic: {
     icon: Zap, color: '#6366f1',
-    tagline: 'For individuals',
-    features: [
-      '90 images + 12 video units / month',
-      'Longer videos use more units',
-      'Up to 15s per video',
-      'No watermark',
+    gradient: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.06))',
+    display: 'Basic', tagline: 'For individuals', price: '$15', credits: '1,200',
+    groups: [
+      {
+        icon: Wand2, label: 'All generation types',
+        items: ['Text → Image  ·  1–2 ⚡ each', 'Image → Image  ·  1–2 ⚡ each', 'Image → Video  ·  10–55 ⚡', 'Text → Video  ·  10–55 ⚡'],
+      },
+      {
+        icon: Zap, label: 'Included perks',
+        items: ['No watermark on output', 'Credits never expire', 'Standard AI models'],
+      },
     ],
   },
   pro: {
     icon: CreditCard, color: '#8b5cf6',
-    tagline: 'For power users',
-    features: [
-      '240 images + 32 video units / month',
-      'Up to 30s per video',
-      'Pro model tier access',
-      'High priority queue',
+    gradient: 'linear-gradient(135deg, rgba(139,92,246,0.14), rgba(99,102,241,0.08))',
+    display: 'Pro', tagline: 'For power users', price: '$30', credits: '3,200',
+    groups: [
+      {
+        icon: Wand2, label: 'All generation types',
+        items: ['Text → Image  ·  1–2 ⚡ each', 'Image → Image  ·  1–2 ⚡ each', 'Image → Video  ·  10–55 ⚡', 'Text → Video  ·  10–55 ⚡'],
+      },
+      {
+        icon: Zap, label: 'Pro perks',
+        items: ['Pro & premium AI models', 'Priority generation queue', '20% bonus on top-up packs', 'Up to 30s video length'],
+      },
     ],
   },
   premium: {
     icon: Crown, color: '#f59e0b',
-    tagline: 'Full creative studio',
-    features: [
-      '520 images + 72 video units / month',
-      'Up to 60s per video',
-      'All tiers unlocked',
-      'Highest priority',
+    gradient: 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(239,68,68,0.06))',
+    display: 'Studio', tagline: 'Full creative studio', price: '$59', credits: '7,000',
+    groups: [
+      {
+        icon: Wand2, label: 'All generation types',
+        items: ['Text → Image  ·  1–2 ⚡ each', 'Image → Image  ·  1–2 ⚡ each', 'Image → Video  ·  10–55 ⚡', 'Text → Video  ·  10–110 ⚡'],
+      },
+      {
+        icon: Zap, label: 'Studio perks',
+        items: ['All AI models unlocked', 'Highest priority queue', 'Up to 60s video length', '20% bonus on top-up packs'],
+      },
     ],
   },
-};
-
-const PLAN_LABELS: Record<string, { price: string; display: string }> = {
-  free: { price: '$0', display: 'Free' },
-  basic: { price: '$12', display: 'Basic' },
-  pro: { price: '$29', display: 'Pro' },
-  premium: { price: '$59', display: 'Studio' },
 };
 
 const PLAN_ORDER = ['free', 'basic', 'pro', 'premium'];
@@ -74,6 +97,32 @@ export default function BillingPage() {
   const [activity, setActivity] = useState<UsageActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const searchParams = useSearchParams();
+
+  // Client-only: fetch live credit balance from API (cookie may be stale after credit grant)
+  const [creditBalance, setCreditBalance] = useState(0);
+  const [bonusBalance, setBonusBalance] = useState(0);
+  const [reservedBalance, setReservedBalance] = useState(0);
+  useEffect(() => {
+    // Seed from cookie immediately for instant render
+    const u = getUser() as any;
+    setCreditBalance(u?.credit_balance ?? 0);
+    setBonusBalance(u?.bonus_credit_balance ?? 0);
+    setReservedBalance(u?.reserved_balance ?? 0);
+    // Then refresh from the API so we see DB-accurate balances
+    const token = getToken();
+    if (token) {
+      authAPI.me()
+        .then(res => {
+          const freshUser = res.data as any;
+          setCreditBalance(freshUser?.credit_balance ?? 0);
+          setBonusBalance(freshUser?.bonus_credit_balance ?? 0);
+          setReservedBalance(freshUser?.reserved_balance ?? 0);
+          setAuth(token, freshUser);
+        })
+        .catch(() => {});
+    }
+  }, []);
+  const availableCredits = Math.max(0, creditBalance + bonusBalance - reservedBalance);
 
   // Handle Stripe redirect back
   useEffect(() => {
@@ -149,8 +198,57 @@ export default function BillingPage() {
             letterSpacing: '-0.03em', marginBottom: 4,
           }}>Billing & Plans</h1>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, fontWeight: 500 }}>
-            Image and video quotas are tracked separately — longer videos use more <strong style={{ fontWeight: 600 }}>units</strong> (see below).
+            Each generation spends ⚡ credits from your wallet. Credits are granted monthly with your subscription and never expire while your account is active.
           </p>
+        </motion.div>
+
+        {/* Credit wallet */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '14px 20px', borderRadius: 14, marginBottom: 20,
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))',
+            border: '1px solid rgba(99,102,241,0.25)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 10,
+              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Zap size={18} color="#fff" fill="#fff" />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                Credit Wallet
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Zap size={16} fill="currentColor" />
+                {availableCredits.toLocaleString()}
+                <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)' }}>available</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            {bonusBalance > 0 && (
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
+                Incl. <Zap size={10} style={{ verticalAlign: 'middle' }} /> {bonusBalance} bonus (30-day expiry)
+              </div>
+            )}
+            {reservedBalance > 0 && (
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
+                {reservedBalance} reserved for active jobs
+              </div>
+            )}
+            {availableCredits < 100 && (
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', marginTop: 2 }}>
+                Low balance — upgrade to refill
+              </div>
+            )}
+          </div>
         </motion.div>
 
         {/* Usage card */}
@@ -162,7 +260,7 @@ export default function BillingPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
-                {usageLoading ? 'Loading…' : `Current Usage — ${PLAN_LABELS[currentPlan]?.display || currentPlan} Plan`}
+                {usageLoading ? 'Loading…' : `Current Usage — ${PLANS[currentPlan]?.display || currentPlan} Plan`}
               </div>
               {usage && (
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>
@@ -203,8 +301,7 @@ export default function BillingPage() {
                 </div>
               )}
               <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 16 }}>
-                Quota resets at period end (UTC). Videos use <strong>units</strong> ({vidUnitSec}s each, rounded up) so
-                longer clips count more toward your video allowance.
+                Monthly generation history — your ⚡ credit balance is shown in the wallet above and the sidebar.
               </div>
               <div style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -286,16 +383,20 @@ export default function BillingPage() {
 
         {/* Plans grid */}
         <div style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 20, fontFamily: 'var(--font-display)' }}>
-            Choose Your Plan
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, fontFamily: 'var(--font-display)' }}>
+              Choose Your Plan
+            </h2>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>
+              Credits work across all 4 generation types
+            </span>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
             {PLAN_ORDER.map((key, idx) => {
-              const meta = PLAN_META[key];
-              const label = PLAN_LABELS[key];
+              const plan = PLANS[key];
               const isCurrent = currentPlan === key;
               const isPopular = key === 'pro';
-              const Icon = meta.icon;
+              const Icon = plan.icon;
 
               return (
                 <motion.div
@@ -303,79 +404,168 @@ export default function BillingPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.07, type: 'spring', stiffness: 250, damping: 22 }}
-                  whileHover={{ y: -5 }}
-                  className="card"
+                  whileHover={{ y: -4, boxShadow: `0 12px 40px ${plan.color}22` }}
                   style={{
-                    padding: 24,
-                    border: isPopular ? '2px solid var(--accent)' : '1px solid var(--border)',
-                    background: 'var(--bg-card)',
+                    borderRadius: 16,
+                    border: isCurrent
+                      ? `2px solid ${plan.color}`
+                      : isPopular
+                      ? '2px solid var(--accent)'
+                      : '1px solid var(--border)',
+                    background: isCurrent ? plan.gradient : 'var(--bg-card)',
                     position: 'relative',
-                    cursor: key === 'free' ? 'default' : 'pointer',
+                    overflow: 'visible',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    transition: 'box-shadow 0.2s',
                   }}
                 >
-                  {isPopular && (
+                  {/* Popular badge */}
+                  {isPopular && !isCurrent && (
                     <div style={{
-                      position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)',
+                      position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
                       background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
                       color: '#fff', fontSize: 10, fontWeight: 800,
-                      padding: '3px 14px', borderRadius: 99, whiteSpace: 'nowrap',
-                      boxShadow: '0 4px 12px rgba(99,102,241,0.4)',
-                    }}>POPULAR</div>
+                      padding: '3px 16px', borderRadius: 99, whiteSpace: 'nowrap',
+                      letterSpacing: '0.08em',
+                      boxShadow: '0 4px 14px rgba(99,102,241,0.45)',
+                    }}>MOST POPULAR</div>
                   )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                  {isCurrent && (
                     <div style={{
-                      width: 36, height: 36, borderRadius: 10,
-                      background: `${meta.color}20`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Icon size={18} color={meta.color} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{label.display}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>{meta.tagline}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, marginBottom: 20 }}>
-                    <span style={{ fontSize: 30, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{label.price}</span>
-                    <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>/mo</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
-                    {meta.features.map(f => (
-                      <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontWeight: 500 }}>
-                        <Check size={13} color="#10b981" strokeWidth={3} />
-                        <span style={{ color: 'var(--text-secondary)' }}>{f}</span>
+                      position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
+                      background: plan.color,
+                      color: '#fff', fontSize: 10, fontWeight: 800,
+                      padding: '3px 16px', borderRadius: 99, whiteSpace: 'nowrap',
+                      letterSpacing: '0.08em',
+                    }}>CURRENT PLAN</div>
+                  )}
+
+                  {/* Card header */}
+                  <div style={{ padding: '24px 22px 16px', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                      <div style={{
+                        width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+                        background: `${plan.color}22`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Icon size={19} color={plan.color} />
                       </div>
-                    ))}
-                  </div>
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    disabled={isCurrent || upgrading === key || key === 'free'}
-                    onClick={() => handleUpgrade(key)}
-                    style={{
-                      fontSize: 13, padding: '10px 16px', width: '100%', borderRadius: 10,
-                      border: 'none', fontWeight: 700, cursor: (isCurrent || key === 'free') ? 'default' : 'pointer',
-                      background: isCurrent
-                        ? 'var(--bg-muted)'
-                        : key === 'free' ? 'transparent'
-                        : isPopular ? 'var(--accent)' : 'rgba(99,102,241,0.15)',
-                      color: isCurrent
-                        ? 'var(--text-muted)'
-                        : key === 'free' ? 'var(--text-muted)'
-                        : isPopular ? '#fff' : 'var(--accent)',
-                      border: (!isCurrent && key !== 'free' && !isPopular) ? '1px solid var(--accent)' : 'none',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    } as React.CSSProperties}
-                  >
-                    {upgrading === key ? (
-                      <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Redirecting…</>
-                    ) : isCurrent ? (
-                      'Current Plan'
-                    ) : key === 'free' ? (
-                      'Free tier'
-                    ) : (
-                      <>Upgrade <ArrowRight size={13} /></>
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                          {plan.display}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, marginTop: 1 }}>
+                          {plan.tagline}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Price */}
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, marginBottom: plan.credits ? 12 : 0 }}>
+                      <span style={{ fontSize: 34, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                        {plan.price}
+                      </span>
+                      <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>/mo</span>
+                    </div>
+
+                    {/* Credit grant highlight */}
+                    {plan.credits && (
+                      <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        background: `${plan.color}18`,
+                        border: `1px solid ${plan.color}40`,
+                        borderRadius: 8, padding: '6px 12px',
+                      }}>
+                        <Zap size={13} color={plan.color} fill={plan.color} />
+                        <span style={{ fontSize: 14, fontWeight: 800, color: plan.color }}>
+                          {plan.credits}
+                        </span>
+                        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)' }}>
+                          credits / month
+                        </span>
+                      </div>
                     )}
-                  </motion.button>
+                  </div>
+
+                  {/* Feature groups */}
+                  <div style={{ padding: '16px 22px', flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {plan.groups.map((group) => {
+                      const GroupIcon = group.icon;
+                      return (
+                        <div key={group.label}>
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8,
+                          }}>
+                            <GroupIcon size={11} color={plan.color} />
+                            <span style={{
+                              fontSize: 10, fontWeight: 800, color: plan.color,
+                              letterSpacing: '0.07em', textTransform: 'uppercase',
+                            }}>
+                              {group.label}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {group.items.map(item => (
+                              <div key={item} style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+                                <Check size={12} color="#10b981" strokeWidth={3} style={{ marginTop: 1, flexShrink: 0 }} />
+                                <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                                  {item}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* CTA button */}
+                  <div style={{ padding: '0 22px 22px' }}>
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      disabled={isCurrent || upgrading === key || key === 'free'}
+                      onClick={() => handleUpgrade(key)}
+                      style={{
+                        width: '100%', padding: '11px 16px', borderRadius: 10,
+                        fontSize: 13, fontWeight: 700, cursor: (isCurrent || key === 'free') ? 'default' : 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        transition: 'all 0.15s',
+                        background: isCurrent
+                          ? 'var(--bg-muted)'
+                          : key === 'free'
+                          ? 'transparent'
+                          : isPopular
+                          ? `linear-gradient(135deg, #6366f1, #8b5cf6)`
+                          : `${plan.color}18`,
+                        color: isCurrent
+                          ? 'var(--text-muted)'
+                          : key === 'free'
+                          ? 'var(--text-muted)'
+                          : isPopular
+                          ? '#fff'
+                          : plan.color,
+                        border: key === 'free' || isCurrent
+                          ? '1px solid var(--border)'
+                          : isPopular
+                          ? 'none'
+                          : `1.5px solid ${plan.color}`,
+                        boxShadow: (!isCurrent && key !== 'free' && isPopular)
+                          ? '0 4px 16px rgba(99,102,241,0.35)'
+                          : 'none',
+                      } as React.CSSProperties}
+                    >
+                      {upgrading === key ? (
+                        <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Redirecting…</>
+                      ) : isCurrent ? (
+                        '✓ Current Plan'
+                      ) : key === 'free' ? (
+                        'Free — no action needed'
+                      ) : (
+                        <>Upgrade to {plan.display} <ArrowRight size={13} /></>
+                      )}
+                    </motion.button>
+                  </div>
                 </motion.div>
               );
             })}
@@ -404,7 +594,7 @@ export default function BillingPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-subtle)', textAlign: 'left' }}>
-                    {['Date', 'Type', 'Model', 'Tier', 'Cost'].map(h => (
+                    {['Date', 'Type', 'Model', 'Tier', 'Credits'].map(h => (
                       <th key={h} style={{ padding: '10px 20px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: 11, letterSpacing: '0.05em' }}>{h}</th>
                     ))}
                   </tr>
@@ -430,8 +620,15 @@ export default function BillingPage() {
                       <td style={{ padding: '14px 20px', color: 'var(--text-muted)', fontWeight: 500 }}>
                         {row.tier || '—'}
                       </td>
-                      <td style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        ${parseFloat(row.cost).toFixed(3)}
+                      <td style={{ padding: '14px 20px' }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          fontWeight: 800, color: 'var(--accent)',
+                          background: 'rgba(99,102,241,0.1)',
+                          padding: '3px 10px', borderRadius: 99, fontSize: 12,
+                        }}>
+                          ⚡ {(row.credits ?? 0).toLocaleString()} {(row.credits ?? 0) === 1 ? 'credit' : 'credits'}
+                        </span>
                       </td>
                     </motion.tr>
                   ))}

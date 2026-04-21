@@ -12,7 +12,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from celery import shared_task
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session as SyncSession, sessionmaker
 
 from app.config import get_settings, get_plans_config
@@ -50,6 +50,7 @@ def generate_video(
     requested_provider: str = None,
     preserve_subject: bool = True,
     cinematic_redraw: bool = False,
+    add_lumina_watermark: bool = False,
     **kwargs
 ):
     """
@@ -114,6 +115,9 @@ def generate_video(
                     else:
                         logger.warning(f"[Worker] Audio generation failed ({audio_result.error_message}), proceeding without audio")
 
+                # Free-tier: overlay the "Lumina" brand watermark on the output
+                lumina_wm = "Lumina" if add_lumina_watermark else None
+
                 # Dispatch dynamically based on task_type (Video-only)
                 if task_type == "image_to_video":
                     result = await adapter.image_to_video(
@@ -122,6 +126,7 @@ def generate_video(
                         audio_url=resolved_audio_url,
                         resolution=kwargs.get("resolution"),
                         model=video_model,
+                        watermark_text=lumina_wm,
                     )
                 elif task_type == "text_to_video":
                     result = await adapter.text_to_video(
@@ -130,6 +135,7 @@ def generate_video(
                         audio_url=resolved_audio_url,
                         resolution=kwargs.get("resolution"),
                         model=kwargs.get("video_model"),
+                        watermark_text=lumina_wm,
                     )
                 elif task_type == "video_to_video":
                     result = await adapter.video_to_video(input_media_url, enhanced_prompt, duration_seconds)
@@ -204,6 +210,23 @@ def generate_video(
         scene.status = "completed"
         scene.completed_at = datetime.utcnow()
 
+        # Finalize credit deduction — only active when the credit gate is enabled
+        if settings.enforce_credit_balance:
+            async def _finalize():
+                from app.services.billing_quota import finalize_deduction, compute_credit_cost
+                from app.db.session import get_async_session_factory
+                credit_amount = compute_credit_cost(cost)
+                async_sf = get_async_session_factory()
+                async with async_sf() as async_db:
+                    async with async_db.begin():
+                        await finalize_deduction(
+                            async_db, user_id, credit_amount, scene_id, reason="generation_cost"
+                        )
+            try:
+                _run_async(_finalize())
+            except Exception as ledger_err:
+                logger.warning("[Worker] Credit finalization failed (non-fatal): %s", ledger_err)
+
         draft = Draft(
             scene_id=uuid.UUID(scene_id),
             version=1,
@@ -236,6 +259,16 @@ def generate_video(
         db.add(usage_log)
         db.commit()
 
+        # Circuit breaker: reset failure counter on success
+        if settings.enforce_credit_balance:
+            async def _cb_success():
+                from app.services.circuit_breaker import record_success
+                await record_success(user_id)
+            try:
+                _run_async(_cb_success())
+            except Exception:
+                pass
+
         logger.info(f"[Worker] Task completed successfully for Scene: {scene_id}")
 
         return {
@@ -262,6 +295,26 @@ def generate_video(
                 db.commit()
         except Exception as e:
             logger.error(f"[Worker] Failed to update error status in DB: {str(e)}")
+
+        # Release the credit reservation and record circuit-breaker failure
+        if settings.enforce_credit_balance:
+            async def _release():
+                from app.services.billing_quota import release_reservation, compute_credit_cost
+                from app.services.circuit_breaker import record_failure
+                from app.db.session import get_async_session_factory
+                plans_cfg = get_plans_config() or {}
+                costs_map = plans_cfg.get("generation_costs", {}) if plans_cfg else {}
+                cost_val = Decimal(str(costs_map.get(tier, 0.10)))
+                credit_amount = compute_credit_cost(cost_val)
+                async_sf = get_async_session_factory()
+                async with async_sf() as async_db:
+                    async with async_db.begin():
+                        await release_reservation(async_db, user_id, credit_amount, scene_id)
+                await record_failure(user_id)
+            try:
+                _run_async(_release())
+            except Exception as ledger_err:
+                logger.warning("[Worker] Credit release/circuit-breaker failed (non-fatal): %s", ledger_err)
 
         # Retry with exponential backoff
         raise self.retry(exc=exc, countdown=2 ** self.request.retries * 10)

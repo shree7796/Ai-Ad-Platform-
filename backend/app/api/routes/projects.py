@@ -90,6 +90,7 @@ async def create_project(
     return ProjectResponse.model_validate(project_with_scenes)
 
 
+@router.get("", response_model=List[ProjectListResponse])
 @router.get("/", response_model=List[ProjectListResponse])
 async def list_projects(
     page: int = 1,
@@ -150,4 +151,5 @@ async def delete_project(
         raise HTTPException(status_code=404, detail="Project not found")
 
     await db.delete(project)
+    await db.commit()
     return APIResponse(message="Project deleted successfully")

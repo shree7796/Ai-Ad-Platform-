@@ -13,6 +13,7 @@ plans:
     display_name: "Free"
     price_monthly: 0
     stripe_price_id: null
+    credit_grant: 0          # Zero-free: no credits on signup; first payment required
     features:
       max_image_generations_per_month: 8
       max_video_generations_per_month: 2
@@ -25,11 +26,12 @@ plans:
 
   basic:
     display_name: "Basic"
-    price_monthly: 12
+    price_monthly: 15
     stripe_price_id: null
+    credit_grant: 1200       # 1200 credits/mo  →  $0.0125/credit avg
     features:
       max_image_generations_per_month: 90
-      max_video_generations_per_month: 12      # 12 × $0.225 = $2.70 fal cost  →  $9.30 margin
+      max_video_generations_per_month: 12
       max_upload_size_mb: 50
       available_tiers:
         - basic
@@ -39,11 +41,12 @@ plans:
 
   pro:
     display_name: "Pro"
-    price_monthly: 29
+    price_monthly: 30
     stripe_price_id: null
+    credit_grant: 3200       # 3200 credits/mo  →  $0.0094/credit avg
     features:
       max_image_generations_per_month: 240
-      max_video_generations_per_month: 20      # 20 × $0.70 = $14 fal cost  →  $15 margin
+      max_video_generations_per_month: 20
       max_upload_size_mb: 200
       available_tiers:
         - basic
@@ -56,9 +59,10 @@ plans:
     display_name: "Studio"
     price_monthly: 59
     stripe_price_id: null
+    credit_grant: 7000       # 7000 credits/mo  →  $0.0084/credit avg
     features:
       max_image_generations_per_month: 520
-      max_video_generations_per_month: 40      # 40 × $0.225 = $9 fal cost  →  $50 margin
+      max_video_generations_per_month: 40
       max_upload_size_mb: 500
       available_tiers:
         - basic

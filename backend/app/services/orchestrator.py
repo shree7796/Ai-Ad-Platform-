@@ -38,6 +38,7 @@ class OrchestrationService:
         audio_prompt: Optional[str] = None,
         audio_type: Optional[str] = "sfx",
         image_model: Optional[str] = None,
+        add_lumina_watermark: bool = False,
     ) -> str:
         """
         Dispatch a generation job to the appropriate worker queue.
@@ -75,6 +76,7 @@ class OrchestrationService:
                 "audio_prompt": audio_prompt,
                 "audio_type": audio_type,
                 "image_model": image_model,
+                "add_lumina_watermark": add_lumina_watermark,
             },
             queue=queue,
         )
