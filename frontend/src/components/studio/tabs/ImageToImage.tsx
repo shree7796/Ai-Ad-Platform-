@@ -1,36 +1,32 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { useDropzone } from 'react-dropzone';
 import {
-    Upload, Wand2, X, ArrowLeftRight,
-    Sparkles, Scissors, Camera, Cpu, Palette,
-    CheckCircle2, Zap,
+    Upload, X, ArrowLeftRight,
+    Sparkles, Scissors, Camera,
+    ImageIcon,
 } from 'lucide-react';
 import ModelDropdown, { ModelOption } from '@/components/studio/ModelDropdown';
+import { KreaDockRoot, KreaDockPrompt, KreaDockToolbar, KreaDockChipRow, KreaDockSubmit } from '@/components/studio/KreaDock';
 
-/* ─── Constants ─────────────────────────────────────────────── */
-const STYLE_OPTIONS = [
-    'None', 'Watercolor', 'Oil Painting', 'Sketch',
-    'Pixel Art', 'Impressionist', 'Minimalist',
-];
+const STYLE_OPTIONS = ['None', 'Watercolor', 'Oil Painting', 'Sketch', 'Pixel Art', 'Impressionist', 'Minimalist'];
 
 const IMAGE_MODELS: ModelOption[] = [
-    { value: 'flux-dev',         label: 'FLUX Dev',          badge: 'DEFAULT',  badgeColor: 'var(--accent)', desc: 'Best product identity & fire scene preservation',  credits: 8  },
-    { value: 'flux-kontext',     label: 'FLUX Kontext',       badge: 'ADVANCED', badgeColor: '#f59e0b',       desc: 'Context-aware editing · strong identity lock',     credits: 8  },
-    { value: 'flux-2-pro-edit',  label: 'FLUX 2 Pro Edit',    badge: 'NEWEST',   badgeColor: '#a855f7',       desc: 'Latest FLUX editing · highest quality edits',      credits: 11 },
-    { value: 'nano-banana',      label: 'Nano Banana v1',     badge: 'FAST',     badgeColor: '#10b981',       desc: 'Quick & affordable · Google Imagen diffusion',     credits: 8  },
-    { value: 'nano-banana-2',    label: 'Nano Banana 2',      badge: 'SMART',    badgeColor: '#8b5cf6',       desc: 'Reasoning-guided · complex scenes · 4K',           credits: 8  },
-    { value: 'nano-banana-pro',  label: 'Nano Banana Pro',    badge: 'PRO',      badgeColor: '#f97316',       desc: 'Google Imagen Pro · best nano quality',            credits: 10 },
-    { value: 'seedream-45-edit', label: 'Seedream 4.5 Edit',  badge: 'BYTEDANCE',badgeColor: '#ec4899',       desc: 'ByteDance Seedream · photorealistic edits',        credits: 8  },
+    { value: 'flux-dev',         label: 'FLUX Dev',          badge: 'DEFAULT',  badgeColor: '#0a84ff', desc: 'Best product identity & fire scene preservation',  credits: 8  },
+    { value: 'flux-kontext',     label: 'FLUX Kontext',       badge: 'ADVANCED', badgeColor: '#f59e0b', desc: 'Context-aware editing · strong identity lock',     credits: 8  },
+    { value: 'flux-2-pro-edit',  label: 'FLUX 2 Pro Edit',    badge: 'NEWEST',   badgeColor: '#a855f7', desc: 'Latest FLUX editing · highest quality edits',      credits: 11 },
+    { value: 'nano-banana',      label: 'Nano Banana v1',     badge: 'FAST',     badgeColor: '#10b981', desc: 'Quick & affordable · Google Imagen diffusion',     credits: 8  },
+    { value: 'nano-banana-2',    label: 'Nano Banana 2',      badge: 'SMART',    badgeColor: '#409cff', desc: 'Reasoning-guided · complex scenes · 4K',           credits: 8  },
+    { value: 'nano-banana-pro',  label: 'Nano Banana Pro',    badge: 'PRO',      badgeColor: '#f97316', desc: 'Google Imagen Pro · best nano quality',            credits: 10 },
+    { value: 'seedream-45-edit', label: 'Seedream 4.5 Edit',  badge: 'BYTEDANCE',badgeColor: '#ec4899', desc: 'ByteDance Seedream · photorealistic edits',        credits: 8  },
 ];
 
 interface ToggleOption {
     key: 'enhance' | 'bgRemove' | 'heroCinematic';
     icon: ReactNode;
-    label: string;
-    desc: string;
+    short: string;
 }
 
 interface Props {
@@ -46,7 +42,11 @@ interface Props {
     loading: boolean;
 }
 
-/* ─── Component ─────────────────────────────────────────────── */
+function cycleStr(arr: string[], current: string): string {
+    const i = arr.indexOf(current);
+    return arr[(i + 1) % arr.length];
+}
+
 export default function ImageToImage({ onGenerate, loading }: Props) {
     const [image, setImage] = useState<File | null>(null);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -65,24 +65,9 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
     };
 
     const TOGGLES: ToggleOption[] = [
-        {
-            key: 'enhance',
-            icon: <Sparkles size={15} />,
-            label: 'Enhance Quality',
-            desc: 'Sharpen details and boost realism after generation',
-        },
-        {
-            key: 'bgRemove',
-            icon: <Scissors size={15} />,
-            label: 'Remove Background',
-            desc: 'Auto-cut product from its original background first',
-        },
-        {
-            key: 'heroCinematic',
-            icon: <Camera size={15} />,
-            label: 'Cinematic Hero Camera',
-            desc: 'AI adjusts viewpoint (low front, head-on, ¾) for fire-poster shots — turn off to paste cutout on plate only',
-        },
+        { key: 'enhance',       icon: <Sparkles size={14} />, short: 'Enhance' },
+        { key: 'bgRemove',      icon: <Scissors size={14} />, short: 'Cutout' },
+        { key: 'heroCinematic', icon: <Camera size={14} />, short: 'Hero cam' },
     ];
 
     const onDrop = useCallback((files: File[]) => {
@@ -102,299 +87,141 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
     };
 
     const canGenerate = !loading && !!image;
+    const credits = useMemo(() => IMAGE_MODELS.find(m => m.value === model)?.credits ?? 8, [model]);
+
+    const runGenerate = () => {
+        if (image) onGenerate({ image, prompt, enhance, bgRemove, style, heroCinematic, model });
+    };
+
+    const sourceChipLabel = image
+        ? (image.name.length > 18 ? `${image.name.slice(0, 16)}…` : image.name)
+        : 'Start frame';
 
     return (
-        <div className="anim-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-            {/* ── 1. Upload ─────────────────────────────────────── */}
-            <div className="card" style={{ padding: 20 }}>
-                <label className="text-label" style={{ display: 'block', marginBottom: 12 }}>
-                    Source Image
-                </label>
-                {!imageUrl ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {imageUrl && (
+                <div style={{
+                    position: 'relative',
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: '#141414',
+                }}>
                     <div
-                        {...getRootProps()}
-                        className={`dropzone ${isDragActive ? 'active' : ''}`}
-                        style={{ height: 190, gap: 12 }}
+                        style={{ height: 112, position: 'relative', cursor: 'col-resize' }}
+                        onMouseMove={e => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setComparePos(Math.round(((e.clientX - rect.left) / rect.width) * 100));
+                        }}
                     >
-                        <input {...getInputProps()} />
+                        <img src={imageUrl} alt="Source" style={{ width: '100%', height: 112, objectFit: 'cover', display: 'block' }} />
                         <div style={{
-                            width: 52, height: 52, borderRadius: 14,
-                            background: 'var(--bg-accent-soft)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            position: 'absolute', top: 0, left: 0,
+                            right: `${100 - comparePos}%`, bottom: 0,
+                            background: 'rgba(255,255,255,0.06)',
+                            backdropFilter: 'saturate(1.15)',
+                            pointerEvents: 'none', transition: 'right 0.04s',
+                        }} />
+                        <div style={{
+                            position: 'absolute', top: '50%', left: `${comparePos}%`,
+                            transform: 'translate(-50%, -50%)',
+                            width: 2, height: '100%', background: '#0a84ff',
                         }}>
-                            <Upload size={22} color="var(--accent)" />
-                        </div>
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-                                Drop image here
-                            </div>
-                            <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-                                or click to browse · PNG, JPG, WEBP
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div style={{
-                        position: 'relative', borderRadius: 12, overflow: 'hidden',
-                        border: '1px solid var(--border)',
-                    }}>
-                        <div
-                            className="compare-container"
-                            style={{ height: 210 }}
-                            onMouseMove={e => {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setComparePos(Math.round(((e.clientX - rect.left) / rect.width) * 100));
-                            }}
-                        >
-                            <img
-                                src={imageUrl}
-                                alt="Original"
-                                style={{ width: '100%', height: 210, objectFit: 'cover', display: 'block' }}
-                            />
                             <div style={{
-                                position: 'absolute', top: 0, left: 0,
-                                right: `${100 - comparePos}%`, bottom: 0,
-                                background: 'rgba(99,102,241,0.12)',
-                                backdropFilter: 'saturate(1.6)',
-                                pointerEvents: 'none', transition: 'right 0.05s',
-                            }} />
-                            <div style={{
-                                position: 'absolute', top: '50%', left: `${comparePos}%`,
+                                position: 'absolute', top: '50%', left: '50%',
                                 transform: 'translate(-50%, -50%)',
-                                width: 2, height: '100%',
-                                background: 'var(--accent)',
-                                boxShadow: '0 0 8px rgba(99,102,241,0.5)',
+                                background: '#0a84ff', borderRadius: 99, padding: '3px 6px',
+                                display: 'flex', alignItems: 'center',
                             }}>
-                                <div style={{
-                                    position: 'absolute', top: '50%', left: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                    background: 'var(--accent)', borderRadius: 99,
-                                    padding: '4px 8px',
-                                    display: 'flex', alignItems: 'center',
-                                }}>
-                                    <ArrowLeftRight size={13} color="#fff" />
-                                </div>
+                                <ArrowLeftRight size={11} color="#fff" />
                             </div>
-                            <span style={badgeStyle('left')}>BEFORE</span>
-                            <span style={badgeStyle('right', 'rgba(99,102,241,0.75)')}>AFTER</span>
                         </div>
-                        <button onClick={clearImage} style={clearBtnStyle}>
-                            <X size={14} />
-                        </button>
+                        <span style={badgeStyle('left')}>Before</span>
+                        <span style={badgeStyle('right', 'rgba(255,255,255,0.2)')}>After</span>
                     </div>
-                )}
-            </div>
-
-            {/* ── 2. Transform Settings ─────────────────────────── */}
-            <SectionCard title="Transform Settings" icon={<Wand2 size={14} />}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                    {TOGGLES.map((t, i) => {
-                        const [val, setVal] = toggleMap[t.key];
-                        return (
-                            <div key={t.key}>
-                                <div
-                                    style={{
-                                        display: 'flex', alignItems: 'flex-start',
-                                        justifyContent: 'space-between',
-                                        gap: 12, padding: '13px 0',
-                                        cursor: 'pointer',
-                                    }}
-                                    onClick={() => setVal(!val)}
-                                >
-                                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flex: 1 }}>
-                                        <div style={{
-                                            width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-                                            background: val ? 'var(--bg-accent-soft)' : 'var(--bg-subtle)',
-                                            border: `1px solid ${val ? 'rgba(99,102,241,0.3)' : 'var(--border)'}`,
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            color: val ? 'var(--accent)' : 'var(--text-muted)',
-                                            transition: 'all 0.2s',
-                                        }}>
-                                            {t.icon}
-                                        </div>
-                                        <div>
-                                            <div style={{
-                                                fontSize: 13.5, fontWeight: 600,
-                                                color: 'var(--text-primary)', lineHeight: 1.3,
-                                            }}>
-                                                {t.label}
-                                            </div>
-                                            <div style={{
-                                                fontSize: 12, color: 'var(--text-muted)',
-                                                marginTop: 3, lineHeight: 1.45, maxWidth: 280,
-                                            }}>
-                                                {t.desc}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <ToggleSwitch value={val} onChange={setVal} />
-                                </div>
-                                {i < TOGGLES.length - 1 && (
-                                    <div style={{ height: 1, background: 'var(--border)', margin: '0' }} />
-                                )}
-                            </div>
-                        );
-                    })}
+                    <button type="button" onClick={clearImage} style={clearBtnStyle} aria-label="Remove image">
+                        <X size={12} />
+                    </button>
                 </div>
-            </SectionCard>
+            )}
 
-            {/* ── 3. AI Model ───────────────────────────────────── */}
-            <SectionCard title="AI Model" icon={<Cpu size={14} />}>
-                <ModelDropdown models={IMAGE_MODELS} value={model} onChange={setModel} label="" />
-            </SectionCard>
-
-            {/* ── 4. Style Transfer ─────────────────────────────── */}
-            <SectionCard title="Style Transfer" icon={<Palette size={14} />}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                    {STYLE_OPTIONS.map(s => (
-                        <button
-                            key={s}
-                            onClick={() => setStyle(s)}
-                            className={`pill ${style === s ? 'active' : ''}`}
-                        >
-                            {s}
-                        </button>
-                    ))}
-                </div>
-            </SectionCard>
-
-            {/* ── 5. Guide Prompt ───────────────────────────────── */}
-            <div className="card" style={{ padding: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <label className="text-label">Guide Prompt</label>
-                    <span style={{
-                        fontSize: 10, color: 'var(--text-muted)',
-                        background: 'var(--bg-subtle)', border: '1px solid var(--border)',
-                        padding: '2px 8px', borderRadius: 6, fontWeight: 600,
-                    }}>
-                        OPTIONAL
-                    </span>
-                </div>
-                <textarea
-                    className="studio-input"
+            <KreaDockRoot>
+                <KreaDockPrompt
                     rows={3}
                     value={prompt}
                     onChange={e => setPrompt(e.target.value)}
-                    placeholder="e.g. BMW M4 with flames and smoke, dark asphalt, add metallic BRAND watermark"
+                    placeholder="Guide the edit (optional) — e.g. BMW M4 with flames, dark asphalt…"
+                    onKeyDown={e => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                            e.preventDefault();
+                            runGenerate();
+                        }
+                    }}
                 />
-            </div>
-
-            {/* ── 6. Generate Button ────────────────────────────── */}
-            <button
-                className="btn-primary"
-                onClick={() => image && onGenerate({ image, prompt, enhance, bgRemove, style, heroCinematic, model })}
-                disabled={!canGenerate}
-                style={{ opacity: canGenerate ? 1 : 0.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-            >
-                {loading ? (
-                    <>
-                        <span style={spinnerStyle} />
-                        Processing...
-                    </>
-                ) : (
-                    <>
-                        <CheckCircle2 size={16} />
-                        Transform Image
-                        <span style={{
-                            marginLeft: 4, fontSize: 12, fontWeight: 700,
-                            background: 'rgba(255,255,255,0.15)',
-                            padding: '2px 8px', borderRadius: 99,
-                            display: 'flex', alignItems: 'center', gap: 3,
-                        }}>
-                            <Zap size={11} fill="currentColor" />
-                            {IMAGE_MODELS.find(m => m.value === model)?.credits ?? 2} credits
-                        </span>
-                    </>
-                )}
-            </button>
-
-            {!image && (
-                <p style={{
-                    textAlign: 'center', fontSize: 12, color: 'var(--text-muted)',
-                    margin: '-8px 0 0', lineHeight: 1.5,
-                }}>
-                    Upload a source image above to get started
-                </p>
-            )}
+                <KreaDockToolbar>
+                    <KreaDockChipRow>
+                        <div
+                            {...getRootProps()}
+                            className="krea-dock-chip"
+                            style={{ cursor: 'pointer' }}
+                            data-on={image ? 'true' : undefined}
+                        >
+                            <input {...getInputProps()} />
+                            {isDragActive ? <Upload size={14} /> : <ImageIcon size={14} strokeWidth={1.75} />}
+                            {sourceChipLabel}
+                        </div>
+                        <ModelDropdown models={IMAGE_MODELS} value={model} onChange={setModel} label="" variant="dock" />
+                        <button
+                            type="button"
+                            className="krea-dock-chip"
+                            title="Style transfer"
+                            onClick={() => setStyle(s => cycleStr(STYLE_OPTIONS, s))}
+                        >
+                            {style === 'None' ? 'Style' : style}
+                        </button>
+                        {TOGGLES.map(t => {
+                            const [val, setVal] = toggleMap[t.key];
+                            return (
+                                <button
+                                    key={t.key}
+                                    type="button"
+                                    className="krea-dock-chip"
+                                    data-on={val ? 'true' : undefined}
+                                    title={t.short}
+                                    onClick={() => setVal(!val)}
+                                >
+                                    {t.icon}
+                                    {t.short}
+                                </button>
+                            );
+                        })}
+                    </KreaDockChipRow>
+                    <KreaDockSubmit
+                        disabled={!canGenerate}
+                        loading={loading}
+                        onClick={runGenerate}
+                        title={`Transform (${credits} credits)`}
+                    />
+                </KreaDockToolbar>
+            </KreaDockRoot>
         </div>
     );
 }
 
-/* ─── Sub-components ────────────────────────────────────────── */
-
-function SectionCard({ title, icon, children }: {
-    title: string;
-    icon: ReactNode;
-    children: ReactNode;
-}) {
-    return (
-        <div className="card" style={{ padding: 20 }}>
-            <div style={{
-                display: 'flex', alignItems: 'center', gap: 7,
-                marginBottom: 14,
-            }}>
-                <span style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center' }}>
-                    {icon}
-                </span>
-                <span className="text-label">{title}</span>
-            </div>
-            {children}
-        </div>
-    );
-}
-
-function ToggleSwitch({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
-    return (
-        <div
-            onClick={e => { e.stopPropagation(); onChange(!value); }}
-            role="switch"
-            aria-checked={value}
-            style={{
-                width: 42, height: 24, borderRadius: 99, flexShrink: 0,
-                background: value ? 'var(--accent)' : 'var(--bg-muted)',
-                border: `1.5px solid ${value ? 'var(--accent)' : 'var(--border)'}`,
-                position: 'relative', cursor: 'pointer',
-                transition: 'all 0.22s cubic-bezier(0.16,1,0.3,1)',
-                boxShadow: value ? '0 0 10px rgba(99,102,241,0.35)' : 'none',
-            }}
-        >
-            <div style={{
-                position: 'absolute',
-                top: 2, left: value ? 20 : 2,
-                width: 16, height: 16, borderRadius: 99,
-                background: '#fff',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
-                transition: 'left 0.22s cubic-bezier(0.16,1,0.3,1)',
-            }} />
-        </div>
-    );
-}
-
-/* ─── Style helpers ─────────────────────────────────────────── */
-function badgeStyle(side: 'left' | 'right', bg = 'rgba(0,0,0,0.45)'): CSSProperties {
+function badgeStyle(side: 'left' | 'right', bg = 'rgba(0,0,0,0.4)'): CSSProperties {
     return {
-        position: 'absolute', top: 8,
-        [side]: 8,
-        fontSize: 10, fontWeight: 700, color: '#fff',
-        background: bg, padding: '3px 8px', borderRadius: 5,
+        position: 'absolute', top: 8, [side]: 8,
+        fontSize: 9, fontWeight: 700, color: '#fff',
+        background: bg, padding: '2px 7px', borderRadius: 4,
         backdropFilter: 'blur(4px)', letterSpacing: '0.04em',
+        textTransform: 'uppercase',
     };
 }
 
 const clearBtnStyle: CSSProperties = {
-    position: 'absolute', top: 10, right: 10,
-    background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: 99, width: 30, height: 30,
+    position: 'absolute', top: 8, right: 8,
+    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
+    border: 'none', borderRadius: 99, width: 26, height: 26,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    cursor: 'pointer', color: '#fff',
-};
-
-const spinnerStyle: CSSProperties = {
-    width: 15, height: 15, borderRadius: 99,
-    border: '2.5px solid rgba(255,255,255,0.3)',
-    borderTopColor: '#fff',
-    display: 'inline-block',
-    animation: 'spin 0.7s linear infinite',
+    cursor: 'pointer', color: '#fff', zIndex: 2,
 };

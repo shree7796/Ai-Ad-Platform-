@@ -1,4 +1,9 @@
-/** Same light “AI studio” tokens as marketing (`:root` in globals.css) — no `theme-studio-dark` here. */
+import { Suspense } from 'react';
+
 export default function StudioLayout({ children }: { children: React.ReactNode }) {
-  return <div className="app-workspace min-h-screen">{children}</div>;
+  return (
+    <div className="studio-root" style={{ minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-primary)' }}>
+      <Suspense fallback={<div style={{ minHeight: '100vh', background: '#000000' }} />}>{children}</Suspense>
+    </div>
+  );
 }

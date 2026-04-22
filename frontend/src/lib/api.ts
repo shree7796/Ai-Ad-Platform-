@@ -104,7 +104,10 @@ export const authAPI = {
   login: (data: { email: string; password: string }) =>
     api.post('/auth/login', data),
 
-  me: () => api.get('/auth/me'),
+  me: () => api.get<User>('/auth/me'),
+
+  updateMe: (data: { full_name?: string | null }) =>
+    api.patch<User>('/auth/me', data),
 };
 
 // ── Projects API ──

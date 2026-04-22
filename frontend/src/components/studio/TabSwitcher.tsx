@@ -1,84 +1,54 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Image as ImageIcon, Images, Video, Film } from 'lucide-react';
+import { STUDIO_MODE_ITEMS, type StudioTab } from '@/lib/studioTabs';
 
-export type StudioTab = 'text-to-image' | 'image-to-image' | 'image-to-video' | 'text-to-video';
+export type { StudioTab };
 
 interface Props {
     active: StudioTab;
     onChange: (tab: StudioTab) => void;
 }
 
-const tabs: { id: StudioTab; label: string; icon: React.ElementType; isNew?: boolean }[] = [
-    { id: 'text-to-image', label: 'Text to Image', icon: ImageIcon },
-    { id: 'image-to-image', label: 'Image to Image', icon: Images },
-    { id: 'image-to-video', label: 'Image to Video', icon: Video },
-    { id: 'text-to-video', label: 'Text to Video', icon: Film, isNew: true },
-];
-
 export default function TabSwitcher({ active, onChange }: Props) {
     return (
-        <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            background: 'var(--bg-muted)',
-            borderRadius: 14,
-            padding: 4,
-            border: '1px solid var(--border-light)',
-            width: 'fit-content',
-            position: 'relative',
-        }}>
-            {tabs.map(({ id, label, icon: Icon, isNew }) => {
+        <div className="tab-switcher">
+            {STUDIO_MODE_ITEMS.map(({ id, label, icon: Icon, isNew }) => {
                 const isActive = active === id;
                 return (
                     <button
                         key={id}
                         onClick={() => onChange(id)}
                         className={`tab-btn ${isActive ? 'active' : ''}`}
-                        style={{
-                            position: 'relative',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            padding: '8px 16px',
-                            border: 'none',
-                            background: 'transparent',
-                            borderRadius: 10,
-                            cursor: 'pointer',
-                            zIndex: 1,
-                        }}
+                        style={{ position: 'relative' }}
                     >
                         {isActive && (
                             <motion.div
-                                layoutId="active-tab-indicator"
+                                layoutId="krea-active-tab"
                                 style={{
-                                    position: 'absolute',
-                                    inset: 0,
-                                    background: 'var(--bg-card)',
-                                    borderRadius: 10,
-                                    border: '1px solid var(--border)',
-                                    boxShadow: 'var(--shadow-sm)',
+                                    position: 'absolute', inset: 0,
+                                    background: 'rgba(255,255,255,0.1)',
+                                    borderRadius: 8,
+                                    boxShadow: '0 1px 4px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
                                     zIndex: -1,
                                 }}
-                                transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                                transition={{ type: 'spring', bounce: 0.16, duration: 0.45 }}
                             />
                         )}
-                        <Icon size={14} strokeWidth={isActive ? 2.5 : 2} style={{ color: isActive ? 'var(--accent)' : 'inherit' }} />
-                        <span style={{ fontSize: 13, fontWeight: isActive ? 600 : 500, color: isActive ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                            {label}
-                        </span>
+                        <Icon
+                            size={13}
+                            strokeWidth={isActive ? 2.2 : 1.7}
+                            style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-muted)', flexShrink: 0 }}
+                        />
+                        <span>{label}</span>
                         {isNew && (
                             <span style={{
-                                fontSize: 9,
-                                fontWeight: 800,
-                                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                                color: '#fff',
-                                padding: '1px 5px',
-                                borderRadius: 4,
+                                fontSize: 9, fontWeight: 700,
+                                background: '#0a84ff',
+                                color: '#ffffff',
+                                padding: '1px 5px', borderRadius: 4,
                                 textTransform: 'uppercase',
-                                marginLeft: 2,
+                                letterSpacing: '0.04em',
                             }}>
                                 NEW
                             </span>

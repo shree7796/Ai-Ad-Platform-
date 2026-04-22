@@ -1,20 +1,21 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Sparkles,
-    CreditCard,
-    Settings,
-    ChevronRight,
-    Zap,
-    User,
-    LogOut,
-    History,
     Shield,
-    AlertTriangle,
+    User,
+    Plus,
+    Sparkles,
+    ShoppingBag,
+    BarChart3,
+    LogOut,
+    ChevronDown,
+    ChevronUp,
+    Settings,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useUsageSummary } from '@/hooks/useUsageSummary';
@@ -22,364 +23,636 @@ import Cookies from 'js-cookie';
 import { getUser, setAuth, getToken } from '@/lib/auth';
 import { authAPI } from '@/lib/api';
 import type { User as UserType } from '@/lib/auth';
+import { STUDIO_MODE_ITEMS, type StudioTab } from '@/lib/studioTabs';
 
-const menuItems = [
-    { id: 'generate', label: 'Generate', icon: Sparkles, path: '/studio' },
-    { id: 'history', label: 'History', icon: History, path: '/studio/history' },
-    { id: 'billing', label: 'Billing', icon: CreditCard, path: '/studio/billing' },
-    { id: 'settings', label: 'Settings', icon: Settings, path: '/studio/settings' },
-];
+/** Floating menu: bottom-left of panel meets top-right of trigger (Krea-style). */
+const WORKSPACE_POPOVER_WIDTH = 292;
+const WORKSPACE_POPOVER_GAP = 8;
+const WORKSPACE_POPOVER_OFFSET_X = 6;
+const WORKSPACE_OPEN_DELAY_MS = 50;
+const WORKSPACE_CLOSE_DELAY_MS = 300;
+
+/** Krea-style rounded color tile behind sidebar icons. */
+function SidebarIconTile({ bg, children }: { bg: string; children: ReactNode }) {
+    const light = bg.toLowerCase() === '#ffffff' || bg.toLowerCase() === '#fff';
+    return (
+        <span
+            aria-hidden
+            style={{
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                background: bg,
+                color: light ? '#0a0a0a' : '#ffffff',
+                boxShadow: light ? 'inset 0 0 0 1px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.4)',
+            }}
+        >
+            {children}
+        </span>
+    );
+}
+
+/** Circular progress (Krea-style credits ring). */
+function CreditRing({ fraction, size = 44 }: { fraction: number; size?: number }) {
+    const stroke = 3;
+    const r = (size - stroke) / 2;
+    const c = 2 * Math.PI * r;
+    const pct = Math.max(0, Math.min(1, fraction));
+    const offset = c * (1 - pct);
+    const cx = size / 2;
+    return (
+        <svg width={size} height={size} style={{ flexShrink: 0 }} aria-hidden>
+            <g transform={`rotate(-90 ${cx} ${cx})`}>
+                <circle cx={cx} cy={cx} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={stroke} />
+                <circle
+                    cx={cx}
+                    cy={cx}
+                    r={r}
+                    fill="none"
+                    stroke="#22c55e"
+                    strokeWidth={stroke}
+                    strokeDasharray={c}
+                    strokeDashoffset={offset}
+                    strokeLinecap="round"
+                />
+            </g>
+        </svg>
+    );
+}
 
 export default function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
-    const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const { data: usage, loading: usageLoading, error: usageError } = useUsageSummary();
+    const searchParams = useSearchParams();
+    const activeTab = (searchParams.get('tab') as StudioTab | null) || 'text-to-image';
+    const validTab =
+        activeTab === 'text-to-image' ||
+        activeTab === 'image-to-image' ||
+        activeTab === 'image-to-video' ||
+        activeTab === 'text-to-video'
+            ? activeTab
+            : 'text-to-image';
 
-    // Defer cookie read to client-only to prevent SSR/client hydration mismatch.
-    // Also refresh from /auth/me so the balance reflects DB changes (e.g. credit grants).
+    const { data: usage } = useUsageSummary();
     const [sessionUser, setSessionUser] = useState<UserType | null>(null);
-    useEffect(() => {
-        // Start with cookie for instant render
-        setSessionUser(getUser());
-        // Then fetch fresh data from the API and update both state and cookie
-        const token = getToken();
-        if (token) {
-            authAPI.me()
-                .then(res => {
-                    const freshUser: UserType = res.data;
-                    setSessionUser(freshUser);
-                    // Refresh the cookie so the rest of the app sees updated balances
-                    setAuth(token, freshUser);
-                })
-                .catch(() => { /* silently fall back to cookie data */ });
+    const [workspaceOpen, setWorkspaceOpen] = useState(false);
+    const [popoverPos, setPopoverPos] = useState<{ left: number; bottom: number } | null>(null);
+    const workspaceRef = useRef<HTMLDivElement>(null);
+    const accountTriggerRef = useRef<HTMLButtonElement>(null);
+    const workspacePopoverRef = useRef<HTMLDivElement>(null);
+    const workspaceOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const workspaceCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const clearWorkspaceTimers = useCallback(() => {
+        if (workspaceOpenTimerRef.current) {
+            clearTimeout(workspaceOpenTimerRef.current);
+            workspaceOpenTimerRef.current = null;
+        }
+        if (workspaceCloseTimerRef.current) {
+            clearTimeout(workspaceCloseTimerRef.current);
+            workspaceCloseTimerRef.current = null;
         }
     }, []);
+
+    const scheduleWorkspaceOpen = useCallback(() => {
+        if (workspaceCloseTimerRef.current) {
+            clearTimeout(workspaceCloseTimerRef.current);
+            workspaceCloseTimerRef.current = null;
+        }
+        if (workspaceOpenTimerRef.current) {
+            clearTimeout(workspaceOpenTimerRef.current);
+            workspaceOpenTimerRef.current = null;
+        }
+        workspaceOpenTimerRef.current = setTimeout(() => {
+            workspaceOpenTimerRef.current = null;
+            setWorkspaceOpen(true);
+        }, WORKSPACE_OPEN_DELAY_MS);
+    }, []);
+
+    const scheduleWorkspaceClose = useCallback(() => {
+        if (workspaceOpenTimerRef.current) {
+            clearTimeout(workspaceOpenTimerRef.current);
+            workspaceOpenTimerRef.current = null;
+        }
+        if (workspaceCloseTimerRef.current) {
+            clearTimeout(workspaceCloseTimerRef.current);
+            workspaceCloseTimerRef.current = null;
+        }
+        workspaceCloseTimerRef.current = setTimeout(() => {
+            workspaceCloseTimerRef.current = null;
+            setWorkspaceOpen(false);
+        }, WORKSPACE_CLOSE_DELAY_MS);
+    }, []);
+
+    const updateWorkspacePopoverPosition = useCallback(() => {
+        if (!workspaceOpen || !accountTriggerRef.current) return;
+        const r = accountTriggerRef.current.getBoundingClientRect();
+        const pad = 10;
+        let left = r.right + WORKSPACE_POPOVER_OFFSET_X;
+        if (left + WORKSPACE_POPOVER_WIDTH > window.innerWidth - pad) {
+            left = Math.max(pad, window.innerWidth - WORKSPACE_POPOVER_WIDTH - pad);
+        }
+        const bottom = window.innerHeight - r.top + WORKSPACE_POPOVER_GAP;
+        setPopoverPos({ left, bottom });
+    }, [workspaceOpen]);
+
+    useLayoutEffect(() => {
+        if (!workspaceOpen) {
+            setPopoverPos(null);
+            return;
+        }
+        updateWorkspacePopoverPosition();
+        const onReposition = () => updateWorkspacePopoverPosition();
+        window.addEventListener('resize', onReposition);
+        document.addEventListener('scroll', onReposition, true);
+        return () => {
+            window.removeEventListener('resize', onReposition);
+            document.removeEventListener('scroll', onReposition, true);
+        };
+    }, [workspaceOpen, updateWorkspacePopoverPosition]);
+
+    useEffect(() => {
+        setSessionUser(getUser());
+        const token = getToken();
+        if (token) {
+            authAPI
+                .me()
+                .then((res) => {
+                    const freshUser: UserType = res.data;
+                    setSessionUser(freshUser);
+                    setAuth(token, freshUser);
+                })
+                .catch(() => {});
+        }
+    }, []);
+
+    useEffect(() => {
+        function onDocClick(e: MouseEvent) {
+            const t = e.target as Node;
+            if (workspaceRef.current?.contains(t)) return;
+            if (workspacePopoverRef.current?.contains(t)) return;
+            clearWorkspaceTimers();
+            setWorkspaceOpen(false);
+        }
+        document.addEventListener('mousedown', onDocClick);
+        return () => document.removeEventListener('mousedown', onDocClick);
+    }, [clearWorkspaceTimers]);
+
+    useEffect(() => () => clearWorkspaceTimers(), [clearWorkspaceTimers]);
 
     const creditBalance = sessionUser?.credit_balance ?? 0;
     const bonusBalance = sessionUser?.bonus_credit_balance ?? 0;
     const reservedBalance = sessionUser?.reserved_balance ?? 0;
     const availableCredits = Math.max(0, creditBalance + bonusBalance - reservedBalance);
-    const isLowBalance = availableCredits < 100;
     const showAdminLink = sessionUser?.is_admin === true;
-
-    const imgUsed = usage?.image_generations_this_month ?? 0;
-    const imgCap = usage?.monthly_image_quota ?? (usageError && !usageLoading ? 8 : 0);
-    const vidUsed = usage?.video_units_used_this_month ?? usage?.video_generations_this_month ?? 0;
-    const vidCap = usage?.monthly_video_quota ?? (usageError && !usageLoading ? 2 : 0);
-    const imgPct = useMemo(() => {
-        if (!usage || imgCap <= 0) return imgUsed > 0 ? 100 : 0;
-        return Math.min(100, (imgUsed / imgCap) * 100);
-    }, [usage, imgUsed, imgCap]);
-    const vidPct = useMemo(() => {
-        if (!usage || vidCap <= 0) return vidUsed > 0 ? 100 : 0;
-        return Math.min(100, (vidUsed / vidCap) * 100);
-    }, [usage, vidUsed, vidCap]);
     const planLabel = usage?.plan_display_name || 'Free';
 
-    const handleSignOut = () => {
-        setIsLoggingOut(true);
+    const displayName = sessionUser?.full_name || sessionUser?.username || 'Account';
+    const usernameShort =
+        sessionUser?.username ||
+        sessionUser?.email?.split('@')[0] ||
+        displayName;
+
+    const handleSignOut = useCallback(() => {
         const t = toast.loading('Signing out...');
         Cookies.remove('token');
         Cookies.remove('user');
+        setWorkspaceOpen(false);
         setTimeout(() => {
             toast.dismiss(t);
             toast.success('Signed out successfully');
             router.push('/login');
-        }, 800);
-    };
+        }, 600);
+    }, [router]);
 
-    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-    const handleMouseMove = (e: React.MouseEvent) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    const toolHref = (id: StudioTab) => `/studio?tab=${id}`;
+
+    /** Ring fill: comfortable target scales by plan (visual only). */
+    const ringTarget = usage?.subscription_active ? 3200 : 120;
+    const ringFraction = Math.min(1, availableCredits / Math.max(ringTarget, 1));
+
+    const periodHint = usage?.period_end
+        ? `Resets ${new Date(usage.period_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+        : null;
+
+    const menuRowStyle: React.CSSProperties = {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        width: '100%',
+        padding: '10px 12px',
+        borderRadius: 10,
+        border: 'none',
+        background: 'transparent',
+        color: '#e5e5e5',
+        fontSize: 13,
+        fontWeight: 500,
+        cursor: 'pointer',
+        textAlign: 'left',
+        fontFamily: 'inherit',
+        textDecoration: 'none',
+        boxSizing: 'border-box',
     };
 
     return (
         <aside
-            className="studio-sidebar glow-container"
-            onMouseMove={handleMouseMove}
-            style={{
-                '--mouse-x': `${mousePos.x}px`,
-                '--mouse-y': `${mousePos.y}px`
-            } as any}
+            className="studio-sidebar"
+            style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}
         >
-            <div className="glow-overlay" />
-            {/* Logo */}
-            <div style={{ padding: '24px 20px 20px' }}>
-                <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }} className="group">
-                    <motion.div
-                        whileHover={{ scale: 1.05, rotate: 5 }}
-                        whileTap={{ scale: 0.95 }}
+            <div style={{ padding: '2px 10px 14px', flexShrink: 0 }}>
+                <Link
+                    href="/"
                         style={{
-                            width: 32, height: 32, borderRadius: 10,
-                            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            flexShrink: 0,
-                            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
-                        }}
-                    >
-                        <Zap size={16} color="#fff" fill="#fff" />
-                    </motion.div>
-                    <span style={{
-                        fontFamily: 'var(--font-display, Montserrat), sans-serif',
-                        fontWeight: 800, fontSize: 18,
-                        background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                        letterSpacing: '-0.02em',
-                    }}>
-                        Lumina
-                    </span>
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: '#ffffff',
+                        letterSpacing: '-0.03em',
+                        textDecoration: 'none',
+                    }}
+                >
+                    Lumina
                 </Link>
-
-                <div style={{
-                    marginTop: 8, fontSize: 11, fontWeight: 500,
-                    color: 'var(--text-muted)', letterSpacing: '0.05em',
-                }}>
-                    AI Creative Studio
+                <div
+                    style={{
+                        fontSize: 10,
+                        fontWeight: 600,
+                        letterSpacing: '0.1em',
+                        textTransform: 'uppercase',
+                        color: 'rgba(255,255,255,0.38)',
+                        marginTop: 6,
+                    }}
+                >
+                    Tools &amp; sessions
                 </div>
             </div>
 
-            <div className="divider" style={{ margin: '0 16px' }} />
+            {showAdminLink && (
+                <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0, marginBottom: 8 }}>
+                    <Link
+                        href="/admin"
+                        className={`studio-sidebar-nav-link ${pathname?.startsWith('/admin') ? 'active' : ''}`}
+                    >
+                        <SidebarIconTile bg="#64748b">
+                            <Shield size={15} strokeWidth={pathname?.startsWith('/admin') ? 2.2 : 1.85} />
+                        </SidebarIconTile>
+                        Admin
+                    </Link>
+                </nav>
+            )}
 
-            {/* Navigation */}
-            <nav style={{ padding: '12px 12px', flex: 1 }}>
-                <div style={{ marginBottom: 4, padding: '0 8px 8px' }}>
-                    <span className="text-label">Workspace</span>
-                </div>
-                {menuItems.map(({ icon: Icon, label, path: href }, index) => {
-                    const isActive = pathname === href;
+            <div className="studio-side-section-label">TOOLS</div>
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
+                {STUDIO_MODE_ITEMS.map(({ id, label, icon: Icon, sidebarTileBg }) => {
+                    const isActive = pathname === '/studio' && validTab === id;
                     return (
-                        <motion.div
-                            key={href}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.1, type: 'spring', stiffness: 200, damping: 20 }}
-                        >
-                            <Link href={href} style={{ textDecoration: 'none', display: 'block', marginBottom: 2 }}>
-                                <motion.div
-                                    className={`nav-item ${isActive ? 'active' : ''}`}
-                                    whileHover={{ x: 6 }}
-                                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                                    style={{ position: 'relative' }}
-                                >
-                                    <Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
-                                    <span>{label}</span>
-                                    {isActive && (
-                                        <motion.div
-                                            layoutId="active-pill"
-                                            style={{
-                                                position: 'absolute',
-                                                left: 0, right: 0, top: 0, bottom: 0,
-                                                background: 'var(--bg-accent-soft)',
-                                                borderRadius: 12,
-                                                zIndex: -1,
-                                            }}
-                                            transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                                        />
-                                    )}
-                                    {isActive && (
-                                        <ChevronRight size={14} style={{ marginLeft: 'auto', opacity: 0.5 }} />
-                                    )}
-                                </motion.div>
+                        <Link key={id} href={toolHref(id)} className={`studio-sidebar-nav-link ${isActive ? 'active' : ''}`}>
+                            <SidebarIconTile bg={sidebarTileBg}>
+                                <Icon size={15} strokeWidth={isActive ? 2.2 : 1.85} />
+                            </SidebarIconTile>
+                            {label}
                             </Link>
-                        </motion.div>
                     );
                 })}
-
-                {showAdminLink && (
-                    <>
-                        <div style={{ marginTop: 16, marginBottom: 4, padding: '0 8px 8px' }}>
-                            <span className="text-label">Administration</span>
-                        </div>
-                        <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.35, type: 'spring', stiffness: 200, damping: 20 }}
-                        >
-                            <Link href="/admin" style={{ textDecoration: 'none', display: 'block', marginBottom: 2 }}>
-                                <motion.div
-                                    className={`nav-item ${pathname === '/admin' || pathname?.startsWith('/admin/') ? 'active' : ''}`}
-                                    whileHover={{ x: 6 }}
-                                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                                    style={{ position: 'relative' }}
-                                >
-                                    <Shield size={16} strokeWidth={pathname?.startsWith('/admin') ? 2.5 : 2} />
-                                    <span>Admin console</span>
-                                    {(pathname === '/admin' || pathname?.startsWith('/admin/')) && (
-                                        <motion.div
-                                            layoutId="active-pill"
-                                            style={{
-                                                position: 'absolute',
-                                                left: 0, right: 0, top: 0, bottom: 0,
-                                                background: 'var(--bg-accent-soft)',
-                                                borderRadius: 12,
-                                                zIndex: -1,
-                                            }}
-                                            transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                                        />
-                                    )}
-                                    {(pathname === '/admin' || pathname?.startsWith('/admin/')) && (
-                                        <ChevronRight size={14} style={{ marginLeft: 'auto', opacity: 0.5 }} />
-                                    )}
-                                </motion.div>
-                            </Link>
-                        </motion.div>
-                    </>
-                )}
             </nav>
 
-            <div className="divider" style={{ margin: '0 16px' }} />
+            <div className="studio-side-section-label">SESSIONS</div>
+            <button
+                type="button"
+                className="studio-sidebar-nav-link"
+                style={{ marginBottom: 8 }}
+                onClick={() => {
+                    router.push('/studio');
+                    router.refresh();
+                }}
+            >
+                <SidebarIconTile bg="#22c55e">
+                    <Plus size={15} strokeWidth={2.2} />
+                </SidebarIconTile>
+                New Session
+            </button>
 
-            {/* Credits */}
-            <div style={{ padding: '12px 16px' }}>
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    whileHover={{ scale: 1.02 }}
-                    className="card"
-                    style={{
-                        padding: '12px 14px',
-                        borderRadius: 12,
-                        border: '1px solid var(--border)',
-                        background: 'var(--bg-muted)',
-                        boxShadow: '0 4px 20px rgba(99, 102, 241, 0.05)'
-                    }}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>MONTHLY USE</span>
-                        <motion.span
-                            animate={{
-                                boxShadow: ['0 0 0px var(--accent-glow)', '0 0 10px var(--accent-glow)', '0 0 0px var(--accent-glow)']
-                            }}
-                            transition={{ repeat: Infinity, duration: 2 }}
-                            style={{
-                                fontSize: 10, fontWeight: 700, color: 'var(--accent)',
-                                background: 'var(--bg-accent-soft)', padding: '2px 10px', borderRadius: 99,
-                                textTransform: 'uppercase'
-                            }}
-                        >{planLabel}</motion.span>
-                    </div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 6 }}>
-                        Images <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{usage ? `${imgUsed}/${imgCap}` : '—'}</span>
-                    </div>
-                    <div style={{ height: 5, background: 'var(--progress-track)', borderRadius: 99, overflow: 'hidden', marginBottom: 8 }}>
-                        <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${imgPct}%` }}
-                            transition={{ duration: 0.85, ease: 'easeOut' }}
-                            style={{
-                                height: '100%',
-                                background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
-                                borderRadius: 99,
-                            }}
-                        />
-                    </div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 6 }}>
-                        Video units <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{usage ? `${vidUsed}/${vidCap}` : '—'}</span>
-                    </div>
-                    <div style={{ height: 5, background: 'var(--progress-track)', borderRadius: 99, overflow: 'hidden' }}>
-                        <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${vidPct}%` }}
-                            transition={{ duration: 0.85, ease: 'easeOut' }}
-                            style={{
-                                height: '100%',
-                                background: 'linear-gradient(90deg, #0ea5e9, #6366f1)',
-                                borderRadius: 99,
-                            }}
-                        />
-                    </div>
-                    <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 500, marginTop: 6 }}>
-                        Resets monthly (UTC)
-                    </div>
-                </motion.div>
+            <div style={{ flex: 1, minHeight: 16 }} aria-hidden />
 
-                {/* Token credit balance */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="card"
-                    style={{
-                        marginTop: 10, padding: '10px 14px', borderRadius: 12,
-                        border: isLowBalance ? '1px solid rgba(239,68,68,0.4)' : '1px solid var(--border)',
-                        background: isLowBalance ? 'rgba(239,68,68,0.06)' : 'var(--bg-muted)',
-                    }}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
-                            CREDITS
-                        </span>
-                        <span style={{
-                            fontSize: 13, fontWeight: 800,
-                            color: isLowBalance ? '#ef4444' : 'var(--accent)',
-                            display: 'flex', alignItems: 'center', gap: 3,
-                        }}>
-                            <Zap size={12} fill="currentColor" />
-                            {availableCredits.toLocaleString()} credits
-                        </span>
-                    </div>
-                    {reservedBalance > 0 && (
-                        <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 3 }}>
-                            {reservedBalance} reserved for active jobs
-                        </div>
-                    )}
-                    {isLowBalance && (
-                        <Link href="/studio/billing" style={{ textDecoration: 'none' }}>
-                            <motion.div
-                                whileHover={{ scale: 1.02 }}
+            {/* Account row + floating workspace menu (portal — opens above & to the right of the rail) */}
+            <div
+                ref={workspaceRef}
+                style={{ position: 'relative', flexShrink: 0, paddingTop: 4 }}
+                onMouseEnter={() => {
+                    if (workspaceCloseTimerRef.current) {
+                        clearTimeout(workspaceCloseTimerRef.current);
+                        workspaceCloseTimerRef.current = null;
+                    }
+                    scheduleWorkspaceOpen();
+                }}
+                onMouseLeave={() => {
+                    if (workspaceOpenTimerRef.current) {
+                        clearTimeout(workspaceOpenTimerRef.current);
+                        workspaceOpenTimerRef.current = null;
+                    }
+                    scheduleWorkspaceClose();
+                }}
+            >
+                {typeof document !== 'undefined' &&
+                    createPortal(
+                        <AnimatePresence>
+                            {workspaceOpen && popoverPos && (
+                    <motion.div
+                                    ref={workspacePopoverRef}
+                                    onMouseEnter={() => {
+                                        if (workspaceCloseTimerRef.current) {
+                                            clearTimeout(workspaceCloseTimerRef.current);
+                                            workspaceCloseTimerRef.current = null;
+                                        }
+                                    }}
+                                    onMouseLeave={() => scheduleWorkspaceClose()}
+                                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                                    style={{
+                                        position: 'fixed',
+                                        left: popoverPos.left,
+                                        bottom: popoverPos.bottom,
+                                        width: WORKSPACE_POPOVER_WIDTH,
+                                        padding: 0,
+                                        borderRadius: 14,
+                                        background: '#141414',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        boxShadow: '0 16px 48px rgba(0,0,0,0.65)',
+                                        zIndex: 9999,
+                                        maxHeight: 'min(78vh, 520px)',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        overflow: 'hidden',
+                                        transformOrigin: 'bottom left',
+                                    }}
+                                >
+                            <div
                                 style={{
-                                    marginTop: 8, padding: '6px 10px', borderRadius: 8,
-                                    background: 'rgba(239,68,68,0.12)',
-                                    border: '1px solid rgba(239,68,68,0.3)',
-                                    display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                                    flex: 1,
+                                    minHeight: 0,
+                                    overflowY: 'auto',
+                                    padding: 14,
+                                    paddingBottom: 10,
                                 }}
                             >
-                                <AlertTriangle size={11} color="#ef4444" />
-                                <span style={{ fontSize: 10, fontWeight: 700, color: '#ef4444' }}>
-                                    Low balance — Top up
-                                </span>
-                            </motion.div>
-                        </Link>
-                    )}
-                </motion.div>
-            </div>
+                            <div
+                                style={{
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    letterSpacing: '0.12em',
+                                    color: 'rgba(255,255,255,0.38)',
+                                    textTransform: 'uppercase',
+                                    marginBottom: 10,
+                                }}
+                            >
+                                Workspaces
+                            </div>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 10,
+                                    padding: '10px 12px',
+                                    borderRadius: 10,
+                                    background: 'rgba(255,255,255,0.05)',
+                                    marginBottom: 8,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        width: 28,
+                                        height: 28,
+                                        borderRadius: 8,
+                                        background: 'rgba(10,132,255,0.2)',
+                                        color: '#409cff',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: 13,
+                                        fontWeight: 800,
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    D
+                                </div>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: '#fafafa' }}>Default workspace</div>
+                                    <div style={{ fontSize: 11, color: '#737373', marginTop: 2 }}>{planLabel}</div>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => toast('Workspaces coming soon')}
+                                style={{
+                                    ...menuRowStyle,
+                                    color: '#a3a3a3',
+                                    marginBottom: 14,
+                                    padding: '8px 12px',
+                                }}
+                            >
+                                <Plus size={16} strokeWidth={2} />
+                                Add workspace
+                            </button>
 
-            {/* User profile */}
-            <div style={{ padding: '8px 16px 20px' }}>
-                <div style={{ position: 'relative' }}>
-                    <motion.div
-                        onClick={handleSignOut}
+                            <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '4px 0 14px' }} />
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+                                <CreditRing fraction={ringFraction} size={48} />
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontSize: 15, fontWeight: 700, color: '#fafafa', letterSpacing: '-0.02em' }}>
+                                        {availableCredits.toLocaleString()} credits remaining
+                                    </div>
+                                    <div style={{ fontSize: 12, color: '#737373', marginTop: 4, lineHeight: 1.45 }}>
+                                        {reservedBalance > 0 && (
+                                            <span>
+                                                {reservedBalance} reserved ·{' '}
+                                            </span>
+                                        )}
+                                        {periodHint || `${planLabel} plan`}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <Link
+                                    href="/studio/billing"
+                                    onClick={() => setWorkspaceOpen(false)}
+                                    style={menuRowStyle}
+                                    onMouseEnter={(e) => {
+                                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        (e.currentTarget as HTMLElement).style.background = 'transparent';
+                                    }}
+                                >
+                                    <Sparkles size={16} strokeWidth={1.8} style={{ color: '#eab308' }} />
+                                    Upgrade plan
+                                </Link>
+                                <Link
+                                    href="/studio/billing"
+                                    onClick={() => setWorkspaceOpen(false)}
+                                    style={menuRowStyle}
+                                    onMouseEnter={(e) => {
+                                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        (e.currentTarget as HTMLElement).style.background = 'transparent';
+                                    }}
+                                >
+                                    <ShoppingBag size={16} strokeWidth={1.8} style={{ color: '#a3a3a3' }} />
+                                    Buy credits
+                                </Link>
+                                <Link
+                                    href="/studio/settings"
+                                    onClick={() => setWorkspaceOpen(false)}
+                                    style={menuRowStyle}
+                                    onMouseEnter={(e) => {
+                                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        (e.currentTarget as HTMLElement).style.background = 'transparent';
+                                    }}
+                                >
+                                    <Settings size={16} strokeWidth={1.8} style={{ color: '#a3a3a3' }} />
+                                    Settings
+                                </Link>
+                                <Link
+                                    href="/studio/history"
+                                    onClick={() => setWorkspaceOpen(false)}
+                                    style={menuRowStyle}
+                                    onMouseEnter={(e) => {
+                                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        (e.currentTarget as HTMLElement).style.background = 'transparent';
+                                    }}
+                                >
+                                    <BarChart3 size={16} strokeWidth={1.8} style={{ color: '#a3a3a3' }} />
+                                    Usage &amp; history
+                                </Link>
+                            </div>
+                            </div>
+                            <div
+                                style={{
+                                    flexShrink: 0,
+                                    padding: '10px 14px 14px',
+                                    borderTop: '1px solid rgba(255,255,255,0.1)',
+                                    background: '#141414',
+                                }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={handleSignOut}
+                                    style={{
+                                        ...menuRowStyle,
+                                        marginTop: 0,
+                                        color: '#fca5a5',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.12)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        (e.currentTarget as HTMLElement).style.background = 'transparent';
+                                    }}
+                                >
+                                    <LogOut size={16} strokeWidth={1.8} />
+                                    Log out
+                                </button>
+                            </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>,
+                        document.body
+                    )}
+
+                <button
+                    ref={accountTriggerRef}
+                    type="button"
+                    onClick={() => {
+                        clearWorkspaceTimers();
+                        setWorkspaceOpen((v) => !v);
+                    }}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        width: '100%',
+                        padding: '12px 10px',
+                        marginTop: 4,
+                        borderRadius: 12,
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        background: workspaceOpen ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        textAlign: 'left',
+                        transition: 'background 0.15s, border-color 0.15s',
+                    }}
+                    aria-expanded={workspaceOpen}
+                    aria-haspopup="true"
+                >
+                    <div
                         style={{
-                            display: 'flex', alignItems: 'center', gap: 10,
-                            padding: '10px 12px', borderRadius: 12,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                        }}
-                        whileHover={{ background: 'var(--bg-subtle)' }}
-                        whileTap={{ scale: 0.98 }}
-                    >
-                        <div style={{
-                            width: 36, height: 36, borderRadius: 99,
-                            background: 'linear-gradient(135deg, #a78bfa, #6366f1)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            width: 34,
+                            height: 34,
+                            borderRadius: 999,
+                            background: '#2a2a2a',
+                            color: '#e5e5e5',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 13,
+                            fontWeight: 700,
                             flexShrink: 0,
-                            boxShadow: '0 2px 8px rgba(99, 102, 241, 0.2)',
-                        }}>
-                            <User size={18} color="#fff" />
+                        }}
+                    >
+                        {sessionUser?.full_name?.[0]?.toUpperCase() ||
+                            sessionUser?.username?.[0]?.toUpperCase() || <User size={16} />}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                        <div
+                            style={{
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: '#fafafa',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                            }}
+                        >
+                            {usernameShort}
                         </div>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {sessionUser?.full_name || sessionUser?.username || 'User'}
-                            </div>
-                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {sessionUser?.email || ''}
-                            </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                            <span
+                                style={{
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    letterSpacing: '0.06em',
+                                    textTransform: 'uppercase',
+                                    color: '#a3a3a3',
+                                    background: 'rgba(255,255,255,0.06)',
+                                    padding: '2px 8px',
+                                    borderRadius: 99,
+                                }}
+                            >
+                                {planLabel}
+                            </span>
+                            <span style={{ fontSize: 11, color: '#525252' }}>·</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: '#22c55e' }}>
+                                {availableCredits.toLocaleString()} ⚡
+                    </span>
                         </div>
-                        <LogOut size={14} style={{ color: 'var(--text-muted)', opacity: 0.8 }} />
-                    </motion.div>
-                </div>
+                    </div>
+                    {workspaceOpen ? (
+                        <ChevronUp size={18} color="#737373" style={{ flexShrink: 0 }} />
+                    ) : (
+                        <ChevronDown size={18} color="#737373" style={{ flexShrink: 0 }} />
+                    )}
+                </button>
             </div>
         </aside>
     );

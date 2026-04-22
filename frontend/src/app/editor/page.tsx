@@ -365,9 +365,9 @@ export default function StudioEditorPage() {
             <span className="text-[10px] font-black text-white/10 uppercase tracking-[0.5em] block mb-10 italic">PIPELINE CONFIGURATION</span>
             <div className="grid gap-4">
               {[
-                { id: 'text_to_video', label: 'Text → Video' },
-                { id: 'image_to_video', label: 'Image → Video' },
-                { id: 'text_to_image', label: 'Text → Image' }
+                { id: 'text_to_video', label: 'Text to Video' },
+                { id: 'image_to_video', label: 'Image to Video' },
+                { id: 'text_to_image', label: 'Text to Image' }
               ].map(type => (
                 <button
                   key={type.id}

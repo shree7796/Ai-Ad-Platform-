@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import Sidebar from '@/components/studio/Sidebar';
+import StudioIconRail from '@/components/studio/StudioIconRail';
 import { projectsAPI, formatApiError } from '@/lib/api';
 import {
   Search, Download, ExternalLink,
@@ -28,10 +29,10 @@ type TabKey = 'all' | 'text_to_image' | 'image_to_image' | 'image_to_video' | 't
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType; color: string; accentBg: string }[] = [
   { key: 'all',            label: 'All',            icon: Film,        color: 'var(--accent)',  accentBg: 'var(--accent)' },
-  { key: 'text_to_image',  label: 'Text → Image',   icon: Wand2,       color: '#10b981',        accentBg: '#10b981' },
-  { key: 'image_to_image', label: 'Image → Image',  icon: Repeat2,     color: '#8b5cf6',        accentBg: '#8b5cf6' },
-  { key: 'image_to_video', label: 'Image → Video',  icon: Clapperboard, color: '#f59e0b',       accentBg: '#f59e0b' },
-  { key: 'text_to_video',  label: 'Text → Video',   icon: Type,        color: '#ef4444',        accentBg: '#ef4444' },
+  { key: 'text_to_image',  label: 'Text to Image',   icon: Wand2,       color: '#10b981',        accentBg: '#10b981' },
+  { key: 'image_to_image', label: 'Image to Image',  icon: Repeat2,     color: '#0a84ff',        accentBg: '#0a84ff' },
+  { key: 'image_to_video', label: 'Image to Video',  icon: Clapperboard, color: '#f59e0b',       accentBg: '#f59e0b' },
+  { key: 'text_to_video',  label: 'Text to Video',   icon: Type,        color: '#ef4444',        accentBg: '#ef4444' },
 ];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -149,7 +150,8 @@ export default function HistoryPage() {
   const tabFailed    = displayed.filter(p => p.status === 'failed').length;
 
   return (
-    <div className="studio-layout">
+    <div className="studio-layout studio-layout--triple">
+      <StudioIconRail />
       <Sidebar />
       <main className="studio-main">
 
@@ -303,7 +305,7 @@ export default function HistoryPage() {
                   : `No ${activeTabCfg.label} generations yet`}
             </div>
             <div style={{ fontSize: 13 }}>
-              {search ? 'Try a different keyword.' : 'Go to Studio → Generate to create something.'}
+              {search ? 'Try a different keyword.' : 'Go to Studio and generate to create something.'}
             </div>
           </motion.div>
         )}

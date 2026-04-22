@@ -18,6 +18,12 @@ class UserLogin(BaseModel):
     password: str = Field(..., min_length=1, max_length=128)
 
 
+class UserProfileUpdate(BaseModel):
+    """Fields the signed-in user may change for their own account."""
+
+    full_name: Optional[str] = Field(None, max_length=255)
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

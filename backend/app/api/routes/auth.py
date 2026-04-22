@@ -10,7 +10,7 @@ from sqlalchemy.orm import noload
 from app.db.session import get_db
 from app.models.user import User
 from app.models.subscription import Subscription
-from app.schemas.user import UserRegister, UserLogin, UserResponse, TokenResponse
+from app.schemas.user import UserRegister, UserLogin, UserResponse, TokenResponse, UserProfileUpdate
 from app.api.deps import hash_password, verify_password, create_access_token, get_current_user
 from app.config import get_settings
 
@@ -121,4 +121,19 @@ async def login(payload: UserLogin, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     """Get current authenticated user profile."""
+    return UserResponse.model_validate(current_user)
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    payload: UserProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update profile fields for the current user."""
+    if payload.full_name is not None:
+        stripped = payload.full_name.strip()
+        current_user.full_name = stripped or None
+    await db.commit()
+    await db.refresh(current_user)
     return UserResponse.model_validate(current_user)

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronDown, Check, Zap } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { StudioModelIcon } from '@/lib/studioModelIcon';
 
 export interface ModelOption {
     value: string;
@@ -15,29 +16,121 @@ export interface ModelOption {
     creditsSuffix?: string;
 }
 
-interface DropdownRect { top: number; left: number; width: number; }
+/** Fixed viewport position: panel opens above trigger (`bottom` = px from viewport bottom to panel's bottom edge). */
+interface PanelPosition {
+    left: number;
+    width: number;
+    bottom: number;
+    maxHeight: number;
+}
 
 interface Props {
     models: ModelOption[];
     value: string;
     onChange: (v: string) => void;
     label?: string;
+    /** Compact pill trigger for Krea dock toolbar */
+    variant?: 'default' | 'dock';
 }
 
-export default function ModelDropdown({ models, value, onChange, label = 'AI Model' }: Props) {
+const OPEN_DELAY_MS = 50;
+const CLOSE_DELAY_MS = 280;
+
+function computePanelPosition(el: HTMLButtonElement, variant: 'default' | 'dock'): PanelPosition {
+    const r = el.getBoundingClientRect();
+    const width = variant === 'dock' ? Math.max(r.width, 300) : r.width;
+    const gap = 8;
+    let left = r.left;
+    if (left + width > window.innerWidth - 8) {
+        left = Math.max(8, window.innerWidth - width - 8);
+    }
+    const spaceAbove = r.top - gap - 8;
+    const maxHeight = Math.min(320, Math.max(120, spaceAbove));
+    return {
+        left,
+        width,
+        bottom: window.innerHeight - r.top + gap,
+        maxHeight,
+    };
+}
+
+export default function ModelDropdown({ models, value, onChange, label = 'AI Model', variant = 'default' }: Props) {
     const [open, setOpen] = useState(false);
-    const [rect, setRect] = useState<DropdownRect | null>(null);
+    const [pos, setPos] = useState<PanelPosition | null>(null);
     const btnRef = useRef<HTMLButtonElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
+    const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const selected = models.find(m => m.value === value) ?? models[0];
 
+    const clearOpenTimer = () => {
+        if (openTimerRef.current) {
+            clearTimeout(openTimerRef.current);
+            openTimerRef.current = null;
+        }
+    };
+
+    const clearCloseTimer = () => {
+        if (closeTimerRef.current) {
+            clearTimeout(closeTimerRef.current);
+            closeTimerRef.current = null;
+        }
+    };
+
+    const clearAllTimers = () => {
+        clearOpenTimer();
+        clearCloseTimer();
+    };
+
     const openDropdown = useCallback(() => {
         if (!btnRef.current) return;
-        const r = btnRef.current.getBoundingClientRect();
-        setRect({ top: r.bottom + window.scrollY + 4, left: r.left + window.scrollX, width: r.width });
+        setPos(computePanelPosition(btnRef.current, variant));
         setOpen(true);
+    }, [variant]);
+
+    const closeDropdown = useCallback(() => {
+        setOpen(false);
+        setPos(null);
     }, []);
+
+    const scheduleOpen = useCallback(() => {
+        clearCloseTimer();
+        clearOpenTimer();
+        openTimerRef.current = setTimeout(() => {
+            openTimerRef.current = null;
+            openDropdown();
+        }, OPEN_DELAY_MS);
+    }, [openDropdown]);
+
+    const scheduleClose = useCallback(() => {
+        clearOpenTimer();
+        clearCloseTimer();
+        closeTimerRef.current = setTimeout(() => {
+            closeTimerRef.current = null;
+            closeDropdown();
+        }, CLOSE_DELAY_MS);
+    }, [closeDropdown]);
+
+    const onTriggerMouseEnter = () => {
+        clearCloseTimer();
+        scheduleOpen();
+    };
+
+    const onTriggerMouseLeave = () => {
+        clearOpenTimer();
+        scheduleClose();
+    };
+
+    const onPanelMouseEnter = () => {
+        clearCloseTimer();
+    };
+
+    const onPanelMouseLeave = () => {
+        scheduleClose();
+    };
+
+    useEffect(() => () => clearAllTimers(), []);
 
     // Close on outside click
     useEffect(() => {
@@ -47,79 +140,109 @@ export default function ModelDropdown({ models, value, onChange, label = 'AI Mod
                 panelRef.current && !panelRef.current.contains(e.target as Node) &&
                 btnRef.current && !btnRef.current.contains(e.target as Node)
             ) {
-                setOpen(false);
+                clearAllTimers();
+                closeDropdown();
             }
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
-    }, [open]);
+    }, [open, closeDropdown]);
 
-    // Close only when scrolling OUTSIDE the dropdown panel (e.g. page scroll)
+    // Reposition while open (e.g. layout shift); close on scroll away from panel
     useEffect(() => {
-        if (!open) return;
+        if (!open || !btnRef.current) return;
         const handleScroll = (e: Event) => {
             if (panelRef.current && panelRef.current.contains(e.target as Node)) return;
-            setOpen(false);
+            clearAllTimers();
+            closeDropdown();
         };
-        const handleResize = () => setOpen(false);
+        const handleResize = () => {
+            if (!btnRef.current) return;
+            setPos(computePanelPosition(btnRef.current, variant));
+        };
         window.addEventListener('scroll', handleScroll, true);
         window.addEventListener('resize', handleResize);
         return () => {
             window.removeEventListener('scroll', handleScroll, true);
             window.removeEventListener('resize', handleResize);
         };
-    }, [open]);
+    }, [open, variant, closeDropdown]);
 
-    const panel = open && rect ? createPortal(
+    useEffect(() => {
+        if (!open) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                clearAllTimers();
+                closeDropdown();
+            }
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [open, closeDropdown]);
+
+    const panel = open && pos ? createPortal(
         <div
             ref={panelRef}
+            onMouseEnter={onPanelMouseEnter}
+            onMouseLeave={onPanelMouseLeave}
             style={{
-                position: 'absolute',
-                top: rect.top,
-                left: rect.left,
-                width: rect.width,
+                position: 'fixed',
+                left: pos.left,
+                width: pos.width,
+                bottom: pos.bottom,
+                maxHeight: pos.maxHeight,
                 background: 'var(--bg-card)',
-                border: '1.5px solid var(--border)',
-                borderRadius: 12,
-                boxShadow: '0 12px 40px rgba(0,0,0,0.25)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-lg)',
+                boxShadow: 'var(--shadow-lg)',
                 zIndex: 9999,
-                maxHeight: 340,
                 overflowY: 'auto',
+                padding: 6,
+                scrollbarWidth: 'thin',
             }}
         >
-            {models.map((m, i) => {
+            {models.map((m) => {
                 const active = value === m.value;
                 return (
                     <button
                         key={m.value}
                         type="button"
-                        onMouseDown={e => { e.preventDefault(); onChange(m.value); setOpen(false); }}
+                        onClick={() => { onChange(m.value); clearAllTimers(); closeDropdown(); }}
                         style={{
                             width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                            padding: '10px 14px', cursor: 'pointer', textAlign: 'left',
-                            background: active ? 'var(--bg-accent-soft)' : 'transparent',
+                            padding: '9px 12px', cursor: 'pointer', textAlign: 'left',
+                            background: active ? 'var(--bg-subtle)' : 'transparent',
                             border: 'none', fontFamily: 'inherit',
-                            borderBottom: i < models.length - 1 ? '1px solid var(--border)' : 'none',
-                            transition: 'background 0.12s',
+                            borderRadius: 'var(--radius-sm)',
+                            transition: 'background 0.1s',
                         }}
                         onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--bg-subtle)'; }}
                         onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                     >
-                        {/* Check indicator */}
                         <div style={{ width: 16, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
-                            {active && <Check size={13} color="var(--accent)" strokeWidth={3} />}
+                            {active && <Check size={12} color="#0a84ff" strokeWidth={2.5} />}
                         </div>
-                        {/* Text */}
+                        <div
+                            style={{
+                                width: 22,
+                                flexShrink: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'var(--text-primary)',
+                            }}
+                        >
+                            <StudioModelIcon modelValue={m.value} size={15} strokeWidth={2} />
+                        </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                                <span style={{ fontSize: 13, fontWeight: 700, color: active ? 'var(--accent)' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 1 }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                                     {m.label}
                                 </span>
                                 <span style={{
-                                    fontSize: 9, fontWeight: 800, letterSpacing: '0.05em',
-                                    padding: '2px 5px', borderRadius: 4, flexShrink: 0,
-                                    background: `${m.badgeColor}20`, color: m.badgeColor,
-                                    border: `1px solid ${m.badgeColor}40`,
+                                    fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
+                                    padding: '1px 5px', borderRadius: 4, flexShrink: 0,
+                                    background: `${m.badgeColor}18`, color: m.badgeColor,
                                 }}>
                                     {m.badge}
                                 </span>
@@ -128,10 +251,13 @@ export default function ModelDropdown({ models, value, onChange, label = 'AI Mod
                                 {m.desc}
                             </div>
                         </div>
-                        {/* Credits */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0, fontSize: 11, fontWeight: 800, color: active ? 'var(--accent)' : 'var(--text-muted)' }}>
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: 3,
+                            flexShrink: 0, fontSize: 11, fontWeight: 700,
+                            color: 'var(--text-muted)',
+                        }}>
                             <Zap size={9} fill="currentColor" />
-                            {m.credits}{m.creditsSuffix ?? ' credits'}
+                            {m.credits}{m.creditsSuffix ?? ''}
                         </div>
                     </button>
                 );
@@ -140,61 +266,86 @@ export default function ModelDropdown({ models, value, onChange, label = 'AI Mod
         document.body
     ) : null;
 
+    const isDock = variant === 'dock';
+
     return (
-        <div>
-            {/* Label */}
-            {label && (
-                <div style={{ marginBottom: 10 }}>
+        <div
+            className={isDock ? 'krea-model-dd-wrap' : undefined}
+            style={isDock ? { minWidth: 0 } : undefined}
+            onMouseEnter={onTriggerMouseEnter}
+            onMouseLeave={onTriggerMouseLeave}
+        >
+            {label && !isDock && (
+                <div style={{ marginBottom: 8 }}>
                     <span className="text-label">{label}</span>
                 </div>
             )}
 
-            {/* Trigger button */}
             <button
                 ref={btnRef}
                 type="button"
-                onClick={() => open ? setOpen(false) : openDropdown()}
+                onClick={() => {
+                    clearAllTimers();
+                    if (open) {
+                        closeDropdown();
+                    } else {
+                        openDropdown();
+                    }
+                }}
+                className={isDock ? 'krea-model-dd-trigger' : undefined}
                 style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '11px 14px', borderRadius: 10, cursor: 'pointer',
-                    border: open ? '2px solid var(--accent)' : '1.5px solid var(--border)',
-                    background: open ? 'var(--bg-accent-soft)' : 'var(--bg-subtle)',
-                    fontFamily: 'inherit', transition: 'all 0.15s', textAlign: 'left',
+                    width: isDock ? '100%' : '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: isDock ? 8 : 10,
+                    padding: isDock ? '8px 14px' : '9px 12px',
+                    borderRadius: isDock ? 9999 : 'var(--radius-md)',
+                    cursor: 'pointer',
+                    border: open
+                        ? '1px solid rgba(10, 132, 255, 0.55)'
+                        : `1px solid ${isDock ? 'rgba(255,255,255,0.1)' : 'var(--studio-dd-border, var(--border))'}`,
+                    background: open
+                        ? 'rgba(255,255,255,0.08)'
+                        : isDock
+                          ? '#2a2a2a'
+                          : 'var(--studio-dd-bg, var(--bg-input))',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.15s',
+                    textAlign: 'left',
+                    boxShadow: open ? '0 0 0 2px rgba(10, 132, 255, 0.35)' : 'none',
                 }}
             >
-                {/* Selected badge */}
-                <span style={{
-                    fontSize: 9, fontWeight: 800, letterSpacing: '0.05em', flexShrink: 0,
-                    padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap',
-                    background: `${selected.badgeColor}20`, color: selected.badgeColor,
-                    border: `1px solid ${selected.badgeColor}40`,
-                }}>
-                    {selected.badge}
+                {!isDock && (
+                    <span style={{
+                        fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', flexShrink: 0,
+                        padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap',
+                        background: `${selected.badgeColor}18`, color: selected.badgeColor,
+                    }}>
+                        {selected.badge}
+                    </span>
+                )}
+                <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text-primary)', flexShrink: 0 }}>
+                    <StudioModelIcon modelValue={selected.value} size={isDock ? 14 : 15} strokeWidth={2} />
                 </span>
-                {/* Selected name */}
                 <span style={{
-                    flex: 1, fontSize: 13, fontWeight: 700,
-                    color: open ? 'var(--accent)' : 'var(--text-primary)',
+                    flex: 1, minWidth: 0, fontSize: isDock ? 12 : 13, fontWeight: 600,
+                    color: 'var(--text-primary)',
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                     {selected.label}
                 </span>
-                {/* Credits chip */}
                 <span style={{
-                    display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0,
-                    fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap',
-                    color: open ? 'var(--accent)' : 'var(--text-muted)',
-                    background: open ? 'rgba(99,102,241,0.12)' : 'var(--bg-muted)',
-                    border: `1px solid ${open ? 'rgba(99,102,241,0.25)' : 'var(--border)'}`,
-                    borderRadius: 6, padding: '3px 7px',
+                    display: 'flex', alignItems: 'center', gap: 3,
+                    flexShrink: 0, fontSize: isDock ? 10 : 11, fontWeight: 600,
+                    color: 'var(--text-muted)',
                 }}>
-                    <Zap size={9} fill="currentColor" />
-                    {selected.credits}{selected.creditsSuffix ?? ' credits'}
+                    <Zap size={isDock ? 8 : 9} fill="currentColor" />
+                    {selected.credits}{selected.creditsSuffix ?? ''}
                 </span>
                 <ChevronDown
-                    size={14}
+                    size={isDock ? 13 : 14}
                     color="var(--text-muted)"
-                    style={{ flexShrink: 0, transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none' }}
+                    style={{ flexShrink: 0, transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none' }}
                 />
             </button>
 

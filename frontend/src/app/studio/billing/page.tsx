@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import Sidebar from '@/components/studio/Sidebar';
+import StudioIconRail from '@/components/studio/StudioIconRail';
 import { useUsageSummary } from '@/hooks/useUsageSummary';
 import { billingAPI, usageAPI, type UsageActivityItem } from '@/lib/api';
 import { getUser, setAuth, getToken } from '@/lib/auth';
@@ -31,7 +32,7 @@ const PLANS: Record<string, PlanConfig> = {
     groups: [
       {
         icon: Wand2, label: 'What you can create',
-        items: ['Text → Image', 'Image → Image', 'Image → Video', 'Text → Video'],
+        items: ['Text to Image', 'Image to Image', 'Image to Video', 'Text to Video'],
       },
       {
         icon: Lock, label: 'Limitations',
@@ -40,13 +41,13 @@ const PLANS: Record<string, PlanConfig> = {
     ],
   },
   basic: {
-    icon: Zap, color: '#6366f1',
-    gradient: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.06))',
+    icon: Zap, color: '#0a84ff',
+    gradient: 'linear-gradient(135deg, rgba(10,132,255,0.1), rgba(0,113,227,0.06))',
     display: 'Basic', tagline: 'For individuals', price: '$15', credits: '1,200',
     groups: [
       {
         icon: Wand2, label: 'All generation types',
-        items: ['Text → Image  ·  1–2 ⚡ each', 'Image → Image  ·  1–2 ⚡ each', 'Image → Video  ·  10–55 ⚡', 'Text → Video  ·  10–55 ⚡'],
+        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–55 ⚡'],
       },
       {
         icon: Zap, label: 'Included perks',
@@ -55,13 +56,13 @@ const PLANS: Record<string, PlanConfig> = {
     ],
   },
   pro: {
-    icon: CreditCard, color: '#8b5cf6',
-    gradient: 'linear-gradient(135deg, rgba(139,92,246,0.14), rgba(99,102,241,0.08))',
+    icon: CreditCard, color: '#409cff',
+    gradient: 'linear-gradient(135deg, rgba(64,156,255,0.14), rgba(10,132,255,0.08))',
     display: 'Pro', tagline: 'For power users', price: '$30', credits: '3,200',
     groups: [
       {
         icon: Wand2, label: 'All generation types',
-        items: ['Text → Image  ·  1–2 ⚡ each', 'Image → Image  ·  1–2 ⚡ each', 'Image → Video  ·  10–55 ⚡', 'Text → Video  ·  10–55 ⚡'],
+        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–55 ⚡'],
       },
       {
         icon: Zap, label: 'Pro perks',
@@ -76,7 +77,7 @@ const PLANS: Record<string, PlanConfig> = {
     groups: [
       {
         icon: Wand2, label: 'All generation types',
-        items: ['Text → Image  ·  1–2 ⚡ each', 'Image → Image  ·  1–2 ⚡ each', 'Image → Video  ·  10–55 ⚡', 'Text → Video  ·  10–110 ⚡'],
+        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–110 ⚡'],
       },
       {
         icon: Zap, label: 'Studio perks',
@@ -187,7 +188,8 @@ export default function BillingPage() {
   const vidOver = !!usage && vidCap > 0 && vidUsed > vidCap;
 
   return (
-    <div className="studio-layout">
+    <div className="studio-layout studio-layout--triple">
+      <StudioIconRail />
       <Sidebar />
       <main className="studio-main">
         {/* Header */}
@@ -209,14 +211,14 @@ export default function BillingPage() {
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '14px 20px', borderRadius: 14, marginBottom: 20,
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))',
-            border: '1px solid rgba(99,102,241,0.25)',
+            background: 'linear-gradient(135deg, rgba(10,132,255,0.12), rgba(0,113,227,0.08))',
+            border: '1px solid rgba(10,132,255,0.28)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
               width: 40, height: 40, borderRadius: 10,
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              background: 'linear-gradient(135deg, #0071e3, #0a84ff)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <Zap size={18} color="#fff" fill="#fff" />
@@ -319,7 +321,7 @@ export default function BillingPage() {
                       height: '100%',
                       background: imgOver
                         ? 'linear-gradient(90deg, #f59e0b, #ef4444)'
-                        : 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+                        : 'linear-gradient(90deg, #0a84ff, #409cff)',
                       borderRadius: 99,
                     }}
                   />
@@ -341,7 +343,7 @@ export default function BillingPage() {
                       height: '100%',
                       background: vidOver
                         ? 'linear-gradient(90deg, #f59e0b, #ef4444)'
-                        : 'linear-gradient(90deg, #0ea5e9, #6366f1)',
+                        : 'linear-gradient(90deg, #0ea5e9, #0a84ff)',
                       borderRadius: 99,
                     }}
                   />
@@ -424,11 +426,11 @@ export default function BillingPage() {
                   {isPopular && !isCurrent && (
                     <div style={{
                       position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
-                      background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                      background: 'linear-gradient(135deg, #0071e3, #0a84ff)',
                       color: '#fff', fontSize: 10, fontWeight: 800,
                       padding: '3px 16px', borderRadius: 99, whiteSpace: 'nowrap',
                       letterSpacing: '0.08em',
-                      boxShadow: '0 4px 14px rgba(99,102,241,0.45)',
+                      boxShadow: '0 4px 14px rgba(10,132,255,0.4)',
                     }}>MOST POPULAR</div>
                   )}
                   {isCurrent && (
@@ -536,7 +538,7 @@ export default function BillingPage() {
                           : key === 'free'
                           ? 'transparent'
                           : isPopular
-                          ? `linear-gradient(135deg, #6366f1, #8b5cf6)`
+                          ? `linear-gradient(135deg, #0071e3, #0a84ff)`
                           : `${plan.color}18`,
                         color: isCurrent
                           ? 'var(--text-muted)'
@@ -551,7 +553,7 @@ export default function BillingPage() {
                           ? 'none'
                           : `1.5px solid ${plan.color}`,
                         boxShadow: (!isCurrent && key !== 'free' && isPopular)
-                          ? '0 4px 16px rgba(99,102,241,0.35)'
+                          ? '0 4px 16px rgba(10,132,255,0.32)'
                           : 'none',
                       } as React.CSSProperties}
                     >
@@ -609,7 +611,7 @@ export default function BillingPage() {
                       <td style={{ padding: '14px 20px' }}>
                         <span style={{
                           fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99,
-                          background: 'rgba(99,102,241,0.1)', color: 'var(--accent)',
+                          background: 'rgba(10,132,255,0.12)', color: 'var(--accent)',
                         }}>
                           {(row.task_type || 'unknown').replace(/_/g, ' ')}
                         </span>
@@ -624,7 +626,7 @@ export default function BillingPage() {
                         <span style={{
                           display: 'inline-flex', alignItems: 'center', gap: 4,
                           fontWeight: 800, color: 'var(--accent)',
-                          background: 'rgba(99,102,241,0.1)',
+                          background: 'rgba(10,132,255,0.12)',
                           padding: '3px 10px', borderRadius: 99, fontSize: 12,
                         }}>
                           ⚡ {(row.credits ?? 0).toLocaleString()} {(row.credits ?? 0) === 1 ? 'credit' : 'credits'}

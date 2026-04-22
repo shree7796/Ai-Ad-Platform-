@@ -33,17 +33,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               background: 'var(--bg-card)',
               color: 'var(--text-primary)',
               border: '1px solid var(--border)',
-              borderRadius: '12px',
+              borderRadius: '14px',
               fontFamily: 'Inter, sans-serif',
               fontSize: '13px',
               fontWeight: 500,
               boxShadow: 'var(--shadow-lg)',
             },
             success: {
-              iconTheme: { primary: '#6366f1', secondary: '#eef2ff' },
+              iconTheme: { primary: '#0a84ff', secondary: 'rgba(10,132,255,0.2)' },
             },
             error: {
-              iconTheme: { primary: '#ef4444', secondary: '#fef2f2' },
+              iconTheme: { primary: '#ef4444', secondary: 'rgba(239,68,68,0.15)' },
             },
           }}
         />

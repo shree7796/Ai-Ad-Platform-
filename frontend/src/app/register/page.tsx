@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Zap, Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Loader2, Eye, EyeOff, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authAPI } from '@/lib/api';
 import { setAuth } from '@/lib/auth';
+
+const RIGHT_IMAGE =
+  'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&q=80&w=1200&h=1600';
 
 function registerErrorMessage(err: unknown): string {
   const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
@@ -19,15 +21,32 @@ function registerErrorMessage(err: unknown): string {
   return 'Registration failed';
 }
 
+function LuminaMark() {
+  return (
+    <div
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        background: '#ffffff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      <svg width="13" height="13" viewBox="0 0 15 15" fill="none" aria-hidden>
+        <path d="M7.5 1.5L13.5 13H1.5L7.5 1.5Z" fill="#000000" />
+      </svg>
+    </div>
+  );
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    email: '',
-    username: '',
-    password: '',
-    full_name: '',
-  });
+  const [showPw, setShowPw] = useState(false);
+  const [form, setForm] = useState({ email: '', username: '', password: '', full_name: '' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,271 +65,321 @@ export default function RegisterPage() {
     }
   };
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '12px 16px',
-    borderRadius: 12,
-    background: 'var(--bg-muted)',
-    border: '1px solid var(--border)',
-    color: 'var(--text-primary)',
-    fontSize: 14,
-    outline: 'none',
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: 'block',
-    fontSize: 12,
-    fontWeight: 700,
-    color: 'var(--text-muted)',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-  };
-
   return (
     <div
       style={{
         minHeight: '100vh',
-        background: 'var(--bg-main)',
+        width: '100%',
+        background: '#000000',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: 24,
-        position: 'relative',
-        overflow: 'hidden',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        boxSizing: 'border-box',
       }}
     >
       <div
+        className="auth-krea-modal"
         style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 600,
-          height: 600,
-          background: 'radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        style={{
-          width: '100%',
-          maxWidth: 420,
-          background: 'var(--bg-card)',
-          borderRadius: 24,
-          border: '1px solid var(--border)',
-          padding: '40px 32px',
           position: 'relative',
-          zIndex: 1,
-          boxShadow: 'var(--shadow-lg)',
+          width: '100%',
+          maxWidth: 920,
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          borderRadius: 24,
+          overflow: 'hidden',
+          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.55)',
         }}
       >
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <Link href="/" style={{ textDecoration: 'none', color: 'inherit', display: 'inline-block' }}>
-            <motion.div
-              whileHover={{ scale: 1.05, rotate: 5 }}
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 14,
-                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 16,
-                boxShadow: '0 8px 16px rgba(99, 102, 241, 0.4)',
-              }}
-            >
-              <Zap size={24} color="#fff" fill="#fff" />
-            </motion.div>
+        <Link
+          href="/"
+          aria-label="Close and return home"
+          style={{
+            position: 'absolute',
+            top: 14,
+            right: 14,
+            zIndex: 20,
+            width: 40,
+            height: 40,
+            borderRadius: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            color: '#ffffff',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            textDecoration: 'none',
+            transition: 'background 0.15s, transform 0.15s',
+          }}
+        >
+          <X size={20} strokeWidth={2} />
+        </Link>
+        <div
+          style={{
+            background: '#0d0d0d',
+            padding: '36px 36px 32px',
+            display: 'flex',
+            flexDirection: 'column',
+            minWidth: 0,
+            maxHeight: '90vh',
+            overflowY: 'auto',
+          }}
+        >
+          <Link
+            href="/"
+            style={{
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              marginBottom: 20,
+            }}
+          >
+            <LuminaMark />
+            <span style={{ fontSize: 15, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>Lumina</span>
           </Link>
+
           <h1
             style={{
-              fontSize: 24,
-              fontWeight: 800,
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-display, Montserrat), sans-serif',
-              letterSpacing: '-0.02em',
-              margin: 0,
+              fontSize: 26,
+              fontWeight: 700,
+              color: '#ffffff',
+              textAlign: 'center',
+              letterSpacing: '-0.03em',
+              margin: '0 0 8px',
+              lineHeight: 1.2,
             }}
           >
             Create an account
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 8 }}>
-            Join Lumina and start creating with AI.
+          <p style={{ textAlign: 'center', fontSize: 14, color: '#737373', margin: '0 0 22px' }}>
+            Start creating with AI in minutes
+          </p>
+
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#a3a3a3', marginBottom: 6 }}>
+                Full name <span style={{ fontWeight: 400, color: '#737373' }}>(optional)</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <User
+                  size={17}
+                  style={{
+                    position: 'absolute',
+                    left: 14,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#737373',
+                    pointerEvents: 'none',
+                  }}
+                />
+                <input
+                  id="register-fullname"
+                  type="text"
+                  placeholder="Jane Doe"
+                  autoComplete="name"
+                  value={form.full_name}
+                  onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                  className="auth-form-input"
+                  style={{ paddingLeft: 42 }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#a3a3a3', marginBottom: 6 }}>Username</label>
+              <div style={{ position: 'relative' }}>
+                <User
+                  size={17}
+                  style={{
+                    position: 'absolute',
+                    left: 14,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#737373',
+                    pointerEvents: 'none',
+                  }}
+                />
+                <input
+                  id="register-username"
+                  type="text"
+                  required
+                  minLength={3}
+                  maxLength={100}
+                  placeholder="janedoe"
+                  autoComplete="username"
+                  value={form.username}
+                  onChange={(e) => setForm({ ...form, username: e.target.value })}
+                  className="auth-form-input"
+                  style={{ paddingLeft: 42 }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#a3a3a3', marginBottom: 6 }}>Email</label>
+              <div style={{ position: 'relative' }}>
+                <Mail
+                  size={17}
+                  style={{
+                    position: 'absolute',
+                    left: 14,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#737373',
+                    pointerEvents: 'none',
+                  }}
+                />
+                <input
+                  id="register-email"
+                  type="email"
+                  required
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className="auth-form-input"
+                  style={{ paddingLeft: 42 }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#a3a3a3', marginBottom: 6 }}>Password</label>
+              <div style={{ position: 'relative' }}>
+                <Lock
+                  size={17}
+                  style={{
+                    position: 'absolute',
+                    left: 14,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#737373',
+                    pointerEvents: 'none',
+                  }}
+                />
+                <input
+                  id="register-password"
+                  type={showPw ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  placeholder="At least 6 characters"
+                  autoComplete="new-password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  className="auth-form-input"
+                  style={{ paddingLeft: 42, paddingRight: 44 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#737373',
+                    display: 'flex',
+                    padding: 4,
+                  }}
+                  aria-label={showPw ? 'Hide password' : 'Show password'}
+                >
+                  {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              id="register-submit"
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '13px 16px',
+                borderRadius: 10,
+                background: loading ? '#2a2a2a' : '#1a2b45',
+                color: '#ffffff',
+                fontSize: 14,
+                fontWeight: 600,
+                border: 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                marginTop: 6,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                fontFamily: 'inherit',
+                opacity: loading ? 0.85 : 1,
+              }}
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={17} className="animate-spin" /> Creating account…
+                </>
+              ) : (
+                <>
+                  Continue <ArrowRight size={17} />
+                </>
+              )}
+            </button>
+          </form>
+
+          <p style={{ textAlign: 'center', marginTop: 18, fontSize: 12, color: '#737373', lineHeight: 1.5 }}>
+            By continuing, you agree to Lumina&apos;s{' '}
+            <Link href="#" style={{ color: '#a3a3a3', textDecoration: 'underline' }}>
+              Terms of Use
+            </Link>{' '}
+            &{' '}
+            <Link href="#" style={{ color: '#a3a3a3', textDecoration: 'underline' }}>
+              Privacy Policy
+            </Link>
+            .
+          </p>
+
+          <p style={{ textAlign: 'center', marginTop: 14, fontSize: 14, color: '#a3a3a3' }}>
+            Already have an account?{' '}
+            <Link href="/login" style={{ color: '#ffffff', textDecoration: 'none', fontWeight: 600 }}>
+              Log in
+            </Link>
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <label style={labelStyle}>Full name (optional)</label>
-            <div style={{ position: 'relative' }}>
-              <User
-                size={16}
-                style={{
-                  position: 'absolute',
-                  left: 14,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-muted)',
-                  pointerEvents: 'none',
-                }}
-              />
-              <input
-                id="register-fullname"
-                type="text"
-                placeholder="Jane Doe"
-                autoComplete="name"
-                value={form.full_name}
-                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                style={{ ...inputStyle, paddingLeft: 40 }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={labelStyle}>Username</label>
-            <div style={{ position: 'relative' }}>
-              <User
-                size={16}
-                style={{
-                  position: 'absolute',
-                  left: 14,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-muted)',
-                  pointerEvents: 'none',
-                }}
-              />
-              <input
-                id="register-username"
-                type="text"
-                required
-                minLength={3}
-                maxLength={100}
-                placeholder="janedoe"
-                autoComplete="username"
-                value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-                style={{ ...inputStyle, paddingLeft: 40 }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={labelStyle}>Email</label>
-            <div style={{ position: 'relative' }}>
-              <Mail
-                size={16}
-                style={{
-                  position: 'absolute',
-                  left: 14,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-muted)',
-                  pointerEvents: 'none',
-                }}
-              />
-              <input
-                id="register-email"
-                type="email"
-                required
-                placeholder="name@company.com"
-                autoComplete="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                style={{ ...inputStyle, paddingLeft: 40 }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={labelStyle}>Password</label>
-            <div style={{ position: 'relative' }}>
-              <Lock
-                size={16}
-                style={{
-                  position: 'absolute',
-                  left: 14,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-muted)',
-                  pointerEvents: 'none',
-                }}
-              />
-              <input
-                id="register-password"
-                type="password"
-                required
-                minLength={6}
-                placeholder="••••••••"
-                autoComplete="new-password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                style={{ ...inputStyle, paddingLeft: 40 }}
-              />
-            </div>
-          </div>
-
-          <motion.button
-            type="submit"
-            disabled={loading}
-            whileHover={{ scale: loading ? 1 : 1.02 }}
-            whileTap={{ scale: loading ? 1 : 0.98 }}
-            id="register-submit"
-            style={{
-              width: '100%',
-              padding: '14px',
-              borderRadius: 12,
-              background: loading ? 'var(--bg-muted)' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              color: '#fff',
-              fontSize: 15,
-              fontWeight: 700,
-              border: 'none',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              marginTop: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)',
-            }}
-          >
-            {loading ? (
-              <>
-                <Loader2 size={18} className="animate-spin" />
-                Creating account...
-              </>
-            ) : (
-              <>
-                Create account
-                <ArrowRight size={18} />
-              </>
-            )}
-          </motion.button>
-        </form>
-
         <div
+          className="auth-krea-visual"
           style={{
-            textAlign: 'center',
-            marginTop: 32,
-            fontSize: 14,
-            color: 'var(--text-secondary)',
+            position: 'relative',
+            minHeight: 420,
+            background: `center/cover no-repeat url(${RIGHT_IMAGE})`,
           }}
         >
-          Already have an account?{' '}
-          <Link
-            href="/login"
-            style={{ color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}
-          >
-            Sign in
-          </Link>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(135deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.35) 45%, rgba(0,0,0,0.5) 100%)',
+            }}
+          />
         </div>
-      </motion.div>
+      </div>
+
+      <style>{`
+        @media (max-width: 860px) {
+          .auth-krea-modal {
+            grid-template-columns: 1fr !important;
+          }
+          .auth-krea-visual {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

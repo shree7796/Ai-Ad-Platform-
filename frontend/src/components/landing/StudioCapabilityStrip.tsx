@@ -17,13 +17,13 @@ const fade = {
 const cards = [
     {
         icon: Wand2,
-        title: 'Text → image',
+        title: 'Text to image',
         desc: 'Prompt once, get on-brand stills for ads and social.',
         href: '/studio',
     },
     {
         icon: Images,
-        title: 'Image → image',
+        title: 'Image to image',
         desc: 'Restyle, relight, and iterate without a full reshoot.',
         href: '/studio',
     },
@@ -114,7 +114,7 @@ export default function StudioCapabilityStrip() {
                                 </h3>
                                 <p className="mt-2 flex-1 text-[13px] leading-relaxed text-neutral-600">{c.desc}</p>
                                 <span className="mt-4 text-[12px] font-semibold text-indigo-600 group-hover:text-indigo-500">
-                                    Open workspace →
+                                    Open workspace
                                 </span>
                             </Link>
                         </motion.div>
