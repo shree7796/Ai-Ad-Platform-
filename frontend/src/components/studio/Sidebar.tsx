@@ -261,7 +261,7 @@ export default function Sidebar() {
     return (
         <aside
             className="studio-sidebar"
-            style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}
+            style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}
         >
             <div style={{ padding: '2px 10px 14px', flexShrink: 0 }}>
                 <Link
@@ -335,12 +335,10 @@ export default function Sidebar() {
                 New Session
             </button>
 
-            <div style={{ flex: 1, minHeight: 16 }} aria-hidden />
-
             {/* Account row + floating workspace menu (portal — opens above & to the right of the rail) */}
             <div
                 ref={workspaceRef}
-                style={{ position: 'relative', flexShrink: 0, paddingTop: 4 }}
+                style={{ position: 'relative', flexShrink: 0, paddingTop: 4, marginTop: 'auto' }}
                 onMouseEnter={() => {
                     if (workspaceCloseTimerRef.current) {
                         clearTimeout(workspaceCloseTimerRef.current);

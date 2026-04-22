@@ -300,12 +300,13 @@ const HERO_FADE_PREROLL_MS = 320;
 /** If `canplay` never fires (same-URL reload quirk), unstick the crossfade. */
 const HERO_VIDEO_READY_FALLBACK_MS = 2200;
 
+/* Use % of the clipped hero box — `100vw` overflows horizontally on mobile (scrollbar / rounding). */
 const heroVideoFrame: React.CSSProperties = {
     position: 'absolute',
     left: '50%',
     top: '50%',
-    width: '100vw',
-    height: '100vh',
+    width: '100%',
+    height: '100%',
     minWidth: '100%',
     minHeight: '100%',
     maxWidth: 'none',

@@ -114,16 +114,7 @@ export default function SettingsPage() {
         <div className="studio-layout studio-layout--triple">
             <StudioIconRail />
             <Sidebar />
-            <main
-                className="studio-main"
-                style={{
-                    padding: '28px 32px 48px',
-                    maxWidth: 1100,
-                    margin: '0 auto',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                }}
-            >
+            <main className="studio-main studio-main--document" style={{ paddingBottom: 48 }}>
                 <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}

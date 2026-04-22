@@ -67,7 +67,10 @@
 /* ─── Reset ──────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { -webkit-text-size-adjust: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
+}
 
 /* Auth pages — dark fields, Krea blue focus */
 .auth-form-input {
@@ -127,6 +130,57 @@ body {
   grid-template-columns: var(--rail-width) var(--nav-sidebar-width) minmax(0, 1fr);
   grid-template-rows: 1fr;
   min-height: 0;
+}
+
+/* Generator workspace: one viewport tall; scroll happens inside main / panels only */
+.studio-layout.studio-layout--generator {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  grid-template-rows: 1fr;
+}
+
+/* Billing, settings, history, etc.: grow with content — window scrolls, nothing clipped below fold */
+.studio-layout.studio-layout--triple:not(.studio-layout--generator) {
+  height: auto;
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: visible;
+  grid-template-rows: auto;
+}
+
+/* Fill the full grid row so the rail/sidebar paint matches main height (no black void under the nav). */
+.studio-layout.studio-layout--triple:not(.studio-layout--generator) .studio-icon-rail,
+.studio-layout.studio-layout--triple:not(.studio-layout--generator) .studio-sidebar {
+  position: sticky;
+  top: 0;
+  align-self: stretch;
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Generator: rail + sidebar fill the viewport column */
+.studio-layout.studio-layout--generator .studio-icon-rail,
+.studio-layout.studio-layout--generator .studio-sidebar {
+  height: 100%;
+}
+
+.studio-layout.studio-layout--triple:not(.studio-layout--generator) .studio-main {
+  grid-column: 3;
+  grid-row: 1;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  justify-self: stretch;
+  align-self: start;
+  /* At least one viewport tall so the workspace never looks like a tiny strip beside the nav */
+  min-height: 100dvh;
+  min-height: 100svh;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 .studio-layout--triple .studio-icon-rail,
@@ -564,6 +618,56 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   background: var(--bg-main);
+}
+
+/* Billing, settings, history: full-width column; content uses full cell width. */
+.studio-layout--triple .studio-main.studio-main--document {
+  justify-self: stretch;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 32px clamp(22px, 3.5vw, 44px) 80px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+/* Only grids need min-width:0 — avoid applying to every main child (can interact badly with motion/cards). */
+.studio-billing-plans-grid,
+.billing-usage-stats {
+  min-width: 0;
+}
+
+/* Billing pricing: breathing room + responsive columns (was 4 tight columns + huge empty gutters). */
+.studio-billing-plans-grid {
+  display: grid;
+  width: 100%;
+  gap: clamp(18px, 2.2vw, 28px);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1320px) {
+  .studio-billing-plans-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .studio-billing-plans-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Billing usage: never clip inner meters (global .card uses overflow:hidden). */
+.card.card--billing-usage {
+  overflow: visible !important;
+  min-height: min-content;
+}
+
+@media (max-width: 720px) {
+  .billing-usage-stats {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 .studio-main-canvas {
@@ -1214,10 +1318,32 @@ input[type='range']::-moz-range-thumb {
     display: flex;
     flex-direction: row;
   }
+  .studio-layout.studio-layout--triple:not(.studio-layout--generator) {
+    height: auto;
+    min-height: 100svh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+  .studio-layout.studio-layout--generator {
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+  }
   .studio-layout--triple .studio-sidebar,
   .studio-layout--generator .studio-sidebar {
     width: min(var(--nav-sidebar-width), 44vw);
     flex-shrink: 0;
+  }
+  .studio-layout.studio-layout--triple:not(.studio-layout--generator) .studio-sidebar,
+  .studio-layout.studio-layout--triple:not(.studio-layout--generator) .studio-icon-rail {
+    position: sticky;
+    top: 0;
+    align-self: stretch;
+    min-height: 100svh;
+    min-height: 100dvh;
+    max-height: none;
+    overflow-y: auto;
   }
   .studio-layout--triple .studio-main,
   .studio-layout--generator .studio-main {
@@ -1225,6 +1351,16 @@ input[type='range']::-moz-range-thumb {
     min-width: 0;
     max-width: none;
     justify-self: unset;
+  }
+  .studio-layout.studio-layout--triple:not(.studio-layout--generator) .studio-main {
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+
+  .studio-layout--triple .studio-main.studio-main--document {
+    width: 100%;
+    padding-left: clamp(20px, 4vw, 32px);
+    padding-right: clamp(20px, 4vw, 32px);
   }
   .krea-composer {
     max-height: min(46vh, 480px);

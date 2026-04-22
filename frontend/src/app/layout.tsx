@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Toaster } from 'react-hot-toast';
 import { Inter, Montserrat } from 'next/font/google';
 import './globals.css';
@@ -22,10 +22,17 @@ export const metadata: Metadata = {
   keywords: ['AI', 'image generation', 'video generation', 'text to image', 'text to video'],
 };
 
+/** Ensures proper initial scale and width on phones (avoids “desktop zoomed out” layouts). */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#000000',
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${montserrat.variable}`}>
-      <body className="min-h-screen font-sans antialiased">
+      <body className="min-h-screen overflow-x-clip font-sans antialiased">
         <Toaster
           position="top-right"
           toastOptions={{
@@ -47,7 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             },
           }}
         />
-        <main>{children}</main>
+        {children}
       </body>
     </html>
   );

@@ -44,7 +44,6 @@ export default function StudioIconRail() {
         <aside
             className="studio-icon-rail"
             style={{
-                height: '100%',
                 minHeight: 0,
                 display: 'flex',
                 flexDirection: 'column',
@@ -98,8 +97,6 @@ export default function StudioIconRail() {
                     </Link>
                 );
             })}
-
-            <div style={{ flex: 1, minHeight: 8 }} aria-hidden />
         </aside>
     );
 }

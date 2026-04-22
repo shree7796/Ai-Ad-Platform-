@@ -72,6 +72,11 @@ export const DARK_CARD_DEPTH_POSTER =
 /** CC0 sample from MDN (flower). */
 export const LOCAL_CLIP_FLOWER = '/videos/cc0-flower.mp4';
 
+/** Landing “Studio dock” band: soft botanical loop until a real `/studio` screen capture replaces it. */
+export const STUDIO_UI_PREVIEW_CLIP = LOCAL_CLIP_FLOWER;
+export const STUDIO_UI_PREVIEW_POSTER =
+    `https://images.unsplash.com/photo-1490750967868-88aa4486c946?${u1920}`;
+
 /**
  * Toy / retail‑style B‑roll (studio product motion — **not** pet footage).
  * Single placement on the homepage: promo strip lead. File: `toy-shelf-broll.mp4`.

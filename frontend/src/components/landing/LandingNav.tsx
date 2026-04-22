@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { Menu, X } from 'lucide-react';
 
 /** Krea-style grouped “Generate” menu (sections + items). */
 const GENERATE_GROUPS: { section: string; items: { label: string; desc: string; href: string }[] }[] = [
@@ -273,16 +274,42 @@ interface LandingNavProps {
     leftGutterPx?: number;
 }
 
+const mobileLinkStyle: CSSProperties = {
+    display: 'block',
+    padding: '12px 14px',
+    borderRadius: 12,
+    textDecoration: 'none',
+    color: 'rgba(250,250,250,0.92)',
+    fontSize: 15,
+    fontWeight: 500,
+    transition: 'background 0.15s',
+};
+
 export default function LandingNav({ leftGutterPx = 0 }: LandingNavProps) {
     const [scrolled, setScrolled] = useState(false);
     /** True while the dark hero is behind the nav (Krea-style). */
     const [onDarkHero, setOnDarkHero] = useState(true);
+    const [mobileOpen, setMobileOpen] = useState(false);
+    const [portalReady, setPortalReady] = useState(false);
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 12);
         window.addEventListener('scroll', onScroll, { passive: true });
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
+
+    useEffect(() => {
+        setPortalReady(true);
+    }, []);
+
+    useEffect(() => {
+        if (!mobileOpen) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = prev;
+        };
+    }, [mobileOpen]);
 
     useEffect(() => {
         const el = document.getElementById('krea-hero');
@@ -313,6 +340,177 @@ export default function LandingNav({ leftGutterPx = 0 }: LandingNavProps) {
           ? '1px solid rgba(0,0,0,0.06)'
           : '1px solid transparent';
     const blur = scrolled ? 'blur(20px)' : 'none';
+
+    const mobileMenu =
+        portalReady &&
+        createPortal(
+            <AnimatePresence>
+                {mobileOpen ? (
+                    <>
+                        <motion.div
+                            key="mobile-nav-backdrop"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="md:hidden"
+                            style={{
+                                position: 'fixed',
+                                inset: 0,
+                                zIndex: 10002,
+                                background: 'rgba(0,0,0,0.5)',
+                            }}
+                            onClick={() => setMobileOpen(false)}
+                            aria-hidden={!mobileOpen}
+                        />
+                        <motion.aside
+                            key="mobile-nav-panel"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label="Site menu"
+                            initial={{ x: '100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '100%' }}
+                            transition={{ type: 'tween', duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                            className="md:hidden"
+                            style={{
+                                position: 'fixed',
+                                top: 0,
+                                right: 0,
+                                bottom: 0,
+                                zIndex: 10003,
+                                width: 'min(360px, 92vw)',
+                                background: '#0a0a0a',
+                                color: '#fafafa',
+                                padding: '20px 18px 28px',
+                                boxShadow: '-12px 0 48px rgba(0,0,0,0.45)',
+                                overflowY: 'auto',
+                                borderLeft: '1px solid rgba(255,255,255,0.08)',
+                            }}
+                        >
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    marginBottom: 20,
+                                    paddingBottom: 16,
+                                    borderBottom: '1px solid rgba(255,255,255,0.08)',
+                                }}
+                            >
+                                <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em' }}>Menu</span>
+                                <button
+                                    type="button"
+                                    aria-label="Close menu"
+                                    onClick={() => setMobileOpen(false)}
+                                    style={{
+                                        background: 'rgba(255,255,255,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        borderRadius: 10,
+                                        padding: 8,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        color: '#fff',
+                                    }}
+                                >
+                                    <X size={20} strokeWidth={2} />
+                                </button>
+                            </div>
+                            <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <Link href="/studio" style={mobileLinkStyle} onClick={() => setMobileOpen(false)}>
+                                    App
+                                </Link>
+                                <div
+                                    style={{
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        letterSpacing: '0.14em',
+                                        textTransform: 'uppercase',
+                                        color: 'rgba(255,255,255,0.38)',
+                                        padding: '16px 14px 8px',
+                                    }}
+                                >
+                                    Features
+                                </div>
+                                {GENERATE_GROUPS.flatMap((group) =>
+                                    group.items.map((item) => (
+                                        <Link
+                                            key={`${group.section}-${item.label}`}
+                                            href={item.href}
+                                            style={{ ...mobileLinkStyle, fontSize: 14, padding: '10px 14px 10px 18px' }}
+                                            onClick={() => setMobileOpen(false)}
+                                        >
+                                            {item.label}
+                                        </Link>
+                                    ))
+                                )}
+                                <div
+                                    style={{
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        letterSpacing: '0.14em',
+                                        textTransform: 'uppercase',
+                                        color: 'rgba(255,255,255,0.38)',
+                                        padding: '16px 14px 8px',
+                                    }}
+                                >
+                                    More
+                                </div>
+                                {FLAT_LINKS.map(({ label, href }) => (
+                                    <Link
+                                        key={label}
+                                        href={href}
+                                        style={{ ...mobileLinkStyle, fontSize: 14 }}
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        {label}
+                                    </Link>
+                                ))}
+                                <div
+                                    style={{
+                                        marginTop: 20,
+                                        paddingTop: 20,
+                                        borderTop: '1px solid rgba(255,255,255,0.08)',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 10,
+                                    }}
+                                >
+                                    <Link href="/register" style={{ textDecoration: 'none' }} onClick={() => setMobileOpen(false)}>
+                                        <span
+                                            style={{
+                                                display: 'block',
+                                                textAlign: 'center',
+                                                padding: '12px 16px',
+                                                borderRadius: 9999,
+                                                background: '#ffffff',
+                                                color: '#0a0a0a',
+                                                fontSize: 14,
+                                                fontWeight: 600,
+                                            }}
+                                        >
+                                            Sign up for free
+                                        </span>
+                                    </Link>
+                                    <Link
+                                        href="/login"
+                                        style={{
+                                            ...mobileLinkStyle,
+                                            textAlign: 'center',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                        }}
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        Log in
+                                    </Link>
+                                </div>
+                            </nav>
+                        </motion.aside>
+                    </>
+                ) : null}
+            </AnimatePresence>,
+            document.body
+        );
 
     return (
         <motion.nav
@@ -407,6 +605,26 @@ export default function LandingNav({ leftGutterPx = 0 }: LandingNavProps) {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: dark ? 18 : 12, flexShrink: 0 }}>
+                <button
+                    type="button"
+                    className="md:hidden"
+                    aria-label="Open menu"
+                    aria-expanded={mobileOpen}
+                    onClick={() => setMobileOpen(true)}
+                    style={{
+                        marginRight: 2,
+                        background: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                        border: dark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.12)',
+                        borderRadius: 10,
+                        padding: 8,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}
+                >
+                    <Menu size={20} color={dark ? '#ffffff' : '#0a0a0a'} strokeWidth={2} />
+                </button>
                 <Link href="/register" style={{ textDecoration: 'none' }}>
                     <motion.button
                         type="button"
@@ -473,6 +691,7 @@ export default function LandingNav({ leftGutterPx = 0 }: LandingNavProps) {
                     .generate-mega-cols { grid-template-columns: 1fr !important; }
                 }
             `}</style>
+            {mobileMenu}
         </motion.nav>
     );
 }

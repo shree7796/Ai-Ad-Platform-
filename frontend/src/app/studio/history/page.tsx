@@ -153,7 +153,7 @@ export default function HistoryPage() {
     <div className="studio-layout studio-layout--triple">
       <StudioIconRail />
       <Sidebar />
-      <main className="studio-main">
+      <main className="studio-main studio-main--document">
 
         {/* ── Header ── */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>

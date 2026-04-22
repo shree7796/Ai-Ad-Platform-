@@ -174,11 +174,11 @@ export default function BillingPage() {
   const imgUsed = usage?.image_generations_this_month ?? 0;
   const imgCap =
     usage?.monthly_image_quota ??
-    (usageError ? FALLBACK_FREE_CAPS.img : 0);
+    (usageError || usageLoading ? FALLBACK_FREE_CAPS.img : 0);
   const vidUsed = usage?.video_units_used_this_month ?? usage?.video_generations_this_month ?? 0;
   const vidCap =
     usage?.monthly_video_quota ??
-    (usageError ? FALLBACK_FREE_CAPS.vid : 0);
+    (usageError || usageLoading ? FALLBACK_FREE_CAPS.vid : 0);
   const vidUnitSec = usage?.video_billing_unit_seconds ?? FALLBACK_FREE_CAPS.unit;
   const imgBarPct =
     !usage || imgCap <= 0 ? (imgUsed > 0 ? 100 : 0) : Math.min(100, (imgUsed / Math.max(imgCap, 1)) * 100);
@@ -191,15 +191,15 @@ export default function BillingPage() {
     <div className="studio-layout studio-layout--triple">
       <StudioIconRail />
       <Sidebar />
-      <main className="studio-main">
+      <main className="studio-main studio-main--document">
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 32 }}>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 28 }}>
           <h1 style={{
             fontSize: 24, fontWeight: 800, color: 'var(--text-primary)',
             fontFamily: 'var(--font-display, Montserrat), sans-serif',
-            letterSpacing: '-0.03em', marginBottom: 4,
+            letterSpacing: '-0.03em', marginBottom: 12,
           }}>Billing & Plans</h1>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, fontWeight: 500 }}>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, fontWeight: 500, lineHeight: 1.65, maxWidth: 'min(900px, 100%)' }}>
             Each generation spends ⚡ credits from your wallet. Credits are granted monthly with your subscription and never expire while your account is active.
           </p>
         </motion.div>
@@ -210,7 +210,7 @@ export default function BillingPage() {
           transition={{ delay: 0.05 }}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '14px 20px', borderRadius: 14, marginBottom: 20,
+            padding: '18px 24px', borderRadius: 16, marginBottom: 28,
             background: 'linear-gradient(135deg, rgba(10,132,255,0.12), rgba(0,113,227,0.08))',
             border: '1px solid rgba(10,132,255,0.28)',
           }}
@@ -255,36 +255,63 @@ export default function BillingPage() {
 
         {/* Usage card */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
-          className="card"
-          style={{ padding: 24, marginBottom: 32, background: 'var(--bg-subtle)' }}
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          className="card card--billing-usage"
+          style={{
+            padding: '28px 28px 30px',
+            marginBottom: 44,
+            background: 'var(--bg-subtle)',
+            width: '100%',
+          }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 16,
+            marginBottom: 24,
+            paddingBottom: 22,
+            borderBottom: '1px solid var(--border)',
+          }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, lineHeight: 1.3 }}>
                 {usageLoading ? 'Loading…' : `Current Usage — ${PLANS[currentPlan]?.display || currentPlan} Plan`}
               </div>
               {usage && (
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, lineHeight: 1.45 }}>
                   Resets {new Date(usage.period_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </div>
               )}
             </div>
             <span style={{
               fontSize: 11, fontWeight: 700, color: '#10b981',
-              background: 'rgba(16,185,129,0.1)', padding: '4px 12px',
+              background: 'rgba(16,185,129,0.1)', padding: '6px 14px',
               borderRadius: 99, textTransform: 'uppercase',
+              flexShrink: 0,
+              marginTop: 2,
             }}>
               {usage?.subscription_active ? 'Active' : 'Free'}
             </span>
           </div>
 
-          {usageLoading ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 14 }}>
-              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Loading usage…
+          {usageLoading && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                color: 'var(--text-muted)',
+                fontSize: 13,
+                marginBottom: 16,
+                fontWeight: 500,
+              }}
+            >
+              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+              Syncing usage from the server…
             </div>
-          ) : (
-            <>
+          )}
+          <>
               {usageError && (
                 <div
                   style={{
@@ -302,17 +329,27 @@ export default function BillingPage() {
                   <code style={{ fontSize: 12 }}>/api/v1/usage/summary</code>.
                 </div>
               )}
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 22, lineHeight: 1.55 }}>
                 Monthly generation history — your ⚡ credit balance is shown in the wallet above and the sidebar.
               </div>
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Images this month</span>
-                  <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  columnGap: 16,
+                  rowGap: 6,
+                  marginBottom: 10,
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35, minWidth: 0, paddingRight: 8 }}>
+                    Images this month
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 'auto' }}>
                     {imgUsed} / {imgCap}
                   </span>
                 </div>
-                <div style={{ height: 10, background: 'var(--progress-track)', borderRadius: 99, overflow: 'hidden', marginBottom: 14 }}>
+                <div style={{ height: 12, background: 'var(--progress-track)', borderRadius: 99, overflow: 'hidden', marginBottom: 22 }}>
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${imgBarPct}%` }}
@@ -326,15 +363,28 @@ export default function BillingPage() {
                     }}
                   />
                 </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Video units ({vidUnitSec}s each)
-                  </span>
-                  <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  columnGap: 16,
+                  rowGap: 6,
+                  marginBottom: 10,
+                }}>
+                  <div style={{ minWidth: 0, flex: '1 1 140px', paddingRight: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35 }}>
+                      Video units
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.4 }}>
+                      {vidUnitSec}s per unit
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 'auto', paddingTop: 2 }}>
                     {vidUsed} / {vidCap}
                   </span>
                 </div>
-                <div style={{ height: 10, background: 'var(--progress-track)', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{ height: 12, background: 'var(--progress-track)', borderRadius: 99, overflow: 'hidden' }}>
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${vidBarPct}%` }}
@@ -348,28 +398,41 @@ export default function BillingPage() {
                     }}
                   />
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginTop: 10 }}>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginTop: 14, lineHeight: 1.5 }}>
                   Total completed jobs this month: {usage?.used_this_month ?? 0} · Combined caps:{' '}
-                  {usage?.monthly_quota ?? (usageError ? FALLBACK_FREE_CAPS.combined : 0)}
+                  {usage?.monthly_quota ?? (usageError || usageLoading ? FALLBACK_FREE_CAPS.combined : 0)}
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+              <div
+                className="billing-usage-stats"
+                style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                gap: 'clamp(14px, 2vw, 22px)',
+                marginTop: 24,
+                paddingTop: 24,
+                borderTop: '1px solid var(--border)',
+                width: '100%',
+              }}
+              >
                 {[
                   {
                     label: 'Total jobs',
                     value: usage?.used_this_month ?? 0,
-                    sub: `/ ${usage?.monthly_quota ?? (usageError ? FALLBACK_FREE_CAPS.combined : 0)}`,
+                    sub: `/ ${usage?.monthly_quota ?? (usageError || usageLoading ? FALLBACK_FREE_CAPS.combined : 0)}`,
                     icon: Zap,
                   },
                   { label: 'Images', value: imgUsed, sub: `/ ${imgCap}`, icon: ImageIcon },
                   { label: 'Video units', value: vidUsed, sub: `/ ${vidCap}`, icon: Video },
-                ].map(u => (
+                ].map((u) => {
+                  const StatIcon = u.icon;
+                  return (
                   <div key={u.label} style={{
                     background: 'var(--bg-subtle)', border: '1px solid var(--border)',
-                    borderRadius: 12, padding: '14px 18px',
+                    borderRadius: 12, padding: '16px 18px', minWidth: 0,
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <u.icon size={14} color="var(--text-muted)" />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <StatIcon size={14} color="var(--text-muted)" />
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{u.label}</div>
                     </div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -377,23 +440,30 @@ export default function BillingPage() {
                       <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>{u.sub}</span>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
-            </>
-          )}
+          </>
         </motion.div>
 
         {/* Plans grid */}
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, fontFamily: 'var(--font-display)' }}>
+        <div style={{ marginBottom: 48 }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            gap: 20,
+            marginBottom: 28,
+            flexWrap: 'wrap',
+          }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, fontFamily: 'var(--font-display)', lineHeight: 1.25 }}>
               Choose Your Plan
             </h2>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, lineHeight: 1.45 }}>
               Credits work across all 4 generation types
             </span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          <div className="studio-billing-plans-grid">
             {PLAN_ORDER.map((key, idx) => {
               const plan = PLANS[key];
               const isCurrent = currentPlan === key;
@@ -444,8 +514,8 @@ export default function BillingPage() {
                   )}
 
                   {/* Card header */}
-                  <div style={{ padding: '24px 22px 16px', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                       <div style={{
                         width: 38, height: 38, borderRadius: 10, flexShrink: 0,
                         background: `${plan.color}22`,
@@ -464,7 +534,7 @@ export default function BillingPage() {
                     </div>
 
                     {/* Price */}
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, marginBottom: plan.credits ? 12 : 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, marginBottom: plan.credits ? 14 : 0 }}>
                       <span style={{ fontSize: 34, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
                         {plan.price}
                       </span>
@@ -491,7 +561,7 @@ export default function BillingPage() {
                   </div>
 
                   {/* Feature groups */}
-                  <div style={{ padding: '16px 22px', flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={{ padding: '20px 24px 22px', flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
                     {plan.groups.map((group) => {
                       const GroupIcon = group.icon;
                       return (
@@ -523,13 +593,13 @@ export default function BillingPage() {
                   </div>
 
                   {/* CTA button */}
-                  <div style={{ padding: '0 22px 22px' }}>
+                  <div style={{ padding: '8px 24px 28px' }}>
                     <motion.button
                       whileTap={{ scale: 0.97 }}
                       disabled={isCurrent || upgrading === key || key === 'free'}
                       onClick={() => handleUpgrade(key)}
                       style={{
-                        width: '100%', padding: '11px 16px', borderRadius: 10,
+                        width: '100%', padding: '12px 16px', borderRadius: 10,
                         fontSize: 13, fontWeight: 700, cursor: (isCurrent || key === 'free') ? 'default' : 'pointer',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                         transition: 'all 0.15s',
@@ -577,9 +647,10 @@ export default function BillingPage() {
         {/* Generation activity */}
         <motion.div
           initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-          className="card" style={{ padding: 0, overflow: 'hidden' }}
+          className="card"
+          style={{ padding: 0, overflow: 'hidden', marginBottom: 48 }}
         >
-          <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
             <History size={16} color="var(--text-muted)" />
             <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Recent Activity</h2>
           </div>
