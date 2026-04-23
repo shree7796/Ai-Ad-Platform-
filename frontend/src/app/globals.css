@@ -1,3 +1,6 @@
+/* Inter via Google Fonts — avoids next/font + Turbopack resolution issues (see Next 14.2 + turbo). */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -51,8 +54,10 @@
   --shadow-xl:  0 20px 60px rgba(0,0,0,0.65);
   --shadow-glow:  0 0 24px rgba(10, 132, 255, 0.22);
 
-  --font-sans:    'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: 'Inter', sans-serif;
+  /* Tailwind theme.fontFamily.sans uses var(--font-inter) */
+  --font-inter:   'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans:    var(--font-inter);
+  --font-display: var(--font-inter);
 
   --transition-fast:   all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base:   all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
