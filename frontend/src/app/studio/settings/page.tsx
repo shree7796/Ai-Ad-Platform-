@@ -357,6 +357,28 @@ export default function SettingsPage() {
                                                     <Zap size={12} />
                                                     ~{Math.max(0, wallet)} credits
                                                 </span>
+                                                {user?.plan &&
+                                                    user.plan !== 'free' &&
+                                                    user.plan_expires_at && (
+                                                        <span
+                                                            style={{
+                                                                fontSize: 11,
+                                                                fontWeight: 600,
+                                                                padding: '4px 10px',
+                                                                borderRadius: 99,
+                                                                background: 'rgba(34,197,94,0.1)',
+                                                                color: '#86efac',
+                                                                border: '1px solid rgba(34,197,94,0.28)',
+                                                            }}
+                                                        >
+                                                            Plan renews{' '}
+                                                            {new Date(user.plan_expires_at).toLocaleDateString(undefined, {
+                                                                month: 'short',
+                                                                day: 'numeric',
+                                                                year: 'numeric',
+                                                            })}
+                                                        </span>
+                                                    )}
                                                 {user?.is_admin && (
                                                     <span
                                                         style={{

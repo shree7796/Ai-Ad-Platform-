@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lightbulb, RectangleHorizontal } from 'lucide-react';
+import { Lightbulb } from 'lucide-react';
 import ModelDropdown, { ModelOption } from '@/components/studio/ModelDropdown';
+import AspectRatioSelector from '@/components/studio/AspectRatioSelector';
 import { KreaDockRoot, KreaDockPrompt, KreaDockToolbar, KreaDockChipRow, KreaDockSubmit } from '@/components/studio/KreaDock';
 
 const IMAGE_MODELS: ModelOption[] = [
@@ -17,7 +18,6 @@ const IMAGE_MODELS: ModelOption[] = [
 ];
 
 const STYLES = ['Realistic', 'Anime', 'Cinematic', 'Product', '3D'];
-const RATIOS = ['1:1', '16:9', '9:16'];
 const SUGGESTIONS = [
     'A serene mountain lake at golden hour',
     'Minimalist product shot on white marble',
@@ -89,6 +89,10 @@ export default function TextToImage({ onGenerate, loading }: Props) {
                         </motion.div>
                     )}
                 </AnimatePresence>
+                <div className="section-label" style={{ marginTop: 4 }}>
+                    Aspect ratio
+                </div>
+                <AspectRatioSelector value={ratio} onChange={setRatio} />
                 <KreaDockToolbar>
                     <KreaDockChipRow>
                         <ModelDropdown models={IMAGE_MODELS} value={model} onChange={setModel} label="" variant="dock" />
@@ -99,15 +103,6 @@ export default function TextToImage({ onGenerate, loading }: Props) {
                             onClick={() => setStyle(s => cycle(STYLES, s))}
                         >
                             {style}
-                        </button>
-                        <button
-                            type="button"
-                            className="krea-dock-chip"
-                            title="Aspect ratio"
-                            onClick={() => setRatio(r => cycle(RATIOS, r))}
-                        >
-                            <RectangleHorizontal size={14} strokeWidth={1.75} />
-                            {ratio}
                         </button>
                         <button
                             type="button"

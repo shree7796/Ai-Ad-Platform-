@@ -38,6 +38,7 @@ class UserResponse(BaseModel):
     reserved_balance: int = 0
     bonus_credit_balance: int = 0
     bonus_credits_expire_at: Optional[datetime] = None
+    plan_expires_at: Optional[datetime] = None
     created_at: datetime
 
 

@@ -12,6 +12,8 @@ export interface User {
   reserved_balance?: number;
   bonus_credit_balance?: number;
   bonus_credits_expire_at?: string | null;
+  /** Current paid plan period end from subscription row (ISO), if any. */
+  plan_expires_at?: string | null;
   created_at: string;
 }
 

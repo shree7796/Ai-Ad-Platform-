@@ -32,6 +32,8 @@ class GenerationRequest(BaseModel):
     video_model: Optional[str] = None
     # image model override: "flux-dev" (default) | "nano-banana" | "nano-banana-2"
     image_model: Optional[str] = None
+    # text_to_image / image_to_image: e.g. "1:1", "16:9", "9:16", "4:3"
+    aspect_ratio: Optional[str] = None
     # auto-generate audio via Beatoven AI and attach to video (wan only, $0.10 extra)
     # set generate_audio=True and describe the sound — e.g. "engine roar with dramatic music"
     generate_audio: bool = False

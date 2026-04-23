@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     app_env: str = "development"
     debug: bool = True
     secret_key: str = "change-me"
+    # Comma-separated Host headers allowed (e.g. "api.example.com,localhost"). Empty = disable TrustedHostMiddleware.
+    trusted_hosts: str = ""
+    # When True, rate limiting uses X-Forwarded-For / X-Real-IP (set behind nginx, Traefik, etc.).
+    trust_proxy_headers: bool = False
+    # Extra CORS origins (comma-separated), merged with built-in dev origins. Include your production site URL.
+    cors_extra_origins: str = ""
+    # Global API rate limit (SlowAPI). Disable only for special debugging.
+    rate_limit_enabled: bool = True
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
@@ -118,6 +126,36 @@ class Settings(BaseSettings):
     def admin_email_set(self) -> Set[str]:
         """Return the set of trusted admin emails (lowercased, stripped)."""
         return {e.strip().lower() for e in self.admin_emails.split(",") if e.strip()}
+
+    @property
+    def is_production(self) -> bool:
+        return str(self.app_env).lower() in ("production", "prod")
+
+    @property
+    def trusted_hosts_list(self) -> list[str]:
+        return [h.strip() for h in self.trusted_hosts.split(",") if h.strip()]
+
+    @property
+    def cors_allow_origins(self) -> list[str]:
+        """Origins allowed for browser CORS (deduped, stable order)."""
+        base = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://[::1]:3000",
+            "http://frontend:3000",
+        ]
+        extra = [o.strip().rstrip("/") for o in self.cors_extra_origins.split(",") if o.strip()]
+        pub = self.public_app_url.strip().rstrip("/")
+        merged = [*base, *extra]
+        if pub and pub not in merged:
+            merged.append(pub)
+        seen: set[str] = set()
+        out: list[str] = []
+        for o in merged:
+            if o not in seen:
+                seen.add(o)
+                out.append(o)
+        return out
 
     # ── Credits ──
     # Set to True to enforce the credit-balance gate on generation.

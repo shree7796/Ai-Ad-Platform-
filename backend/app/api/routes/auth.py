@@ -2,7 +2,7 @@
 Auth API Routes — Register, Login, Profile.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload
@@ -13,6 +13,7 @@ from app.models.subscription import Subscription
 from app.schemas.user import UserRegister, UserLogin, UserResponse, TokenResponse, UserProfileUpdate
 from app.api.deps import hash_password, verify_password, create_access_token, get_current_user
 from app.config import get_settings
+from app.security.limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -24,7 +25,8 @@ _USER_LOAD = (
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
+@limiter.limit("8/minute")
+async def register(request: Request, payload: UserRegister, db: AsyncSession = Depends(get_db)):
     """Register a new user account."""
     settings = get_settings()
     email_key = str(payload.email).strip().lower()
@@ -77,7 +79,8 @@ async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(payload: UserLogin, db: AsyncSession = Depends(get_db)):
+@limiter.limit("20/minute")
+async def login(request: Request, payload: UserLogin, db: AsyncSession = Depends(get_db)):
     """Authenticate and receive a JWT token."""
     identifier = str(payload.email).strip().lower()
     result = await db.execute(
@@ -119,9 +122,18 @@ async def login(payload: UserLogin, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Get current authenticated user profile."""
-    return UserResponse.model_validate(current_user)
+    base = UserResponse.model_validate(current_user)
+    sub_r = await db.execute(
+        select(Subscription).where(Subscription.user_id == current_user.id)
+    )
+    sub = sub_r.scalar_one_or_none()
+    exp = sub.expires_at if sub else None
+    return base.model_copy(update={"plan_expires_at": exp})
 
 
 @router.patch("/me", response_model=UserResponse)

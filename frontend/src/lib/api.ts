@@ -104,7 +104,7 @@ export const authAPI = {
   login: (data: { email: string; password: string }) =>
     api.post('/auth/login', data),
 
-  me: () => api.get<User>('/auth/me'),
+  me: () => api.get<User>('/auth/me', { timeout: 12_000 }),
 
   updateMe: (data: { full_name?: string | null }) =>
     api.patch<User>('/auth/me', data),
@@ -146,6 +146,8 @@ export const generationAPI = {
     hero_cinematic_reframe?: boolean;
     video_model?: string;
     image_model?: string;
+    /** Output aspect ratio for image tasks, e.g. "16:9", "1:1". */
+    aspect_ratio?: string;
     /** Second image URL for reference/transition models (e.g. end frame for PixVerse Transition). */
     reference_image_url?: string;
     /** Client-generated UUID — prevents double-reserve on network retries or double-clicks. */

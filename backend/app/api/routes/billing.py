@@ -61,7 +61,7 @@ async def _apply_plan(
     """
     from app.models.credit_transaction import CreditTransaction, TransactionStatus
     import uuid as _uuid_mod
-    from datetime import datetime as _dt
+    from datetime import datetime as _dt, timedelta as _td
 
     result = await db.execute(select(User).where(User.id == _uuid.UUID(user_id)))
     user = result.scalar_one_or_none()
@@ -75,9 +75,19 @@ async def _apply_plan(
 
     sub_r = await db.execute(select(Subscription).where(Subscription.user_id == user.id))
     sub = sub_r.scalar_one_or_none()
+    now = _dt.utcnow()
     if sub:
         sub.plan = plan
         sub.is_active = plan != "free"
+        if plan == "free":
+            sub.expires_at = None
+        else:
+            # Rolling monthly window from the current period end (or from now if new / lapsed).
+            if grant_credits:
+                base = sub.expires_at if (sub.expires_at and sub.expires_at > now) else now
+                sub.expires_at = base + _td(days=30)
+            elif sub.expires_at is None:
+                sub.expires_at = now + _td(days=30)
 
     # Grant credits on payment (new subscription or renewal)
     if grant_credits and plan != "free":

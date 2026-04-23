@@ -43,6 +43,21 @@ logger = logging.getLogger(__name__)
 
 _SCHNELL_MAX_INFERENCE_STEPS = 4
 
+
+def _flux_image_size_from_aspect_ratio(aspect_ratio: Optional[str]) -> str:
+    """Map UI aspect strings (e.g. 16:9) to Fal FLUX `image_size` presets."""
+    if not aspect_ratio:
+        return "square_hd"
+    r = str(aspect_ratio).strip().replace(" ", "")
+    return {
+        "1:1": "square_hd",
+        "16:9": "landscape_16_9",
+        "9:16": "portrait_16_9",
+        "4:3": "landscape_4_3",
+        "3:4": "portrait_4_3",
+        "21:9": "landscape_21_9",
+    }.get(r, "square_hd")
+
 # BAND-FIX-3: Rewritten to forbid black sky bands at top of frame
 _PREMIUM_FIRE_PLATE_SUFFIX = (
     "CRITICAL FRAME FILL: The ENTIRE image from bottom edge to top edge MUST be filled with fire and flames. "
@@ -1282,8 +1297,10 @@ class FalAdapter(BaseAIProvider):
         endpoint = self._T2I_MODELS.get(model_hint, "fal-ai/flux/dev")
         logger.info(f"[{self.name}] text_to_image → {endpoint}  prompt={prompt[:80]}…")
         try:
-            image_size = kwargs.get("image_size", "square_hd")
             aspect_ratio = kwargs.get("aspect_ratio", "1:1")
+            image_size = kwargs.get("image_size") or _flux_image_size_from_aspect_ratio(
+                str(aspect_ratio) if aspect_ratio else None
+            )
 
             if endpoint == "fal-ai/flux/schnell":
                 args: Dict[str, Any] = {
@@ -1744,9 +1761,14 @@ class FalAdapter(BaseAIProvider):
                 gc_default = 4.0
             else:
                 gc_default = 3.5
+            aspect_ratio_kw = kwargs.get("aspect_ratio")
+            img_size = kwargs.get("image_size") or _flux_image_size_from_aspect_ratio(
+                str(aspect_ratio_kw) if aspect_ratio_kw else None
+            )
             fal_args: Dict[str, Any] = {
                 "image_url": image_url,
                 "prompt": full_prompt,
+                "image_size": img_size,
                 "strength": strength,
                 "num_inference_steps": steps,
                 "guidance_scale": float(kwargs.get("guidance_scale", gc_default)),

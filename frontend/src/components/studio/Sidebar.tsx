@@ -20,9 +20,7 @@ import {
 import toast from 'react-hot-toast';
 import { useUsageSummary } from '@/hooks/useUsageSummary';
 import Cookies from 'js-cookie';
-import { getUser, setAuth, getToken } from '@/lib/auth';
-import { authAPI } from '@/lib/api';
-import type { User as UserType } from '@/lib/auth';
+import { useAuth } from '@/context/AuthContext';
 import { STUDIO_MODE_ITEMS, type StudioTab } from '@/lib/studioTabs';
 
 /** Floating menu: bottom-left of panel meets top-right of trigger (Krea-style). */
@@ -98,7 +96,7 @@ export default function Sidebar() {
             : 'text-to-image';
 
     const { data: usage } = useUsageSummary();
-    const [sessionUser, setSessionUser] = useState<UserType | null>(null);
+    const { user: sessionUser, clearSession } = useAuth();
     const [workspaceOpen, setWorkspaceOpen] = useState(false);
     const [popoverPos, setPopoverPos] = useState<{ left: number; bottom: number } | null>(null);
     const workspaceRef = useRef<HTMLDivElement>(null);
@@ -176,21 +174,6 @@ export default function Sidebar() {
     }, [workspaceOpen, updateWorkspacePopoverPosition]);
 
     useEffect(() => {
-        setSessionUser(getUser());
-        const token = getToken();
-        if (token) {
-            authAPI
-                .me()
-                .then((res) => {
-                    const freshUser: UserType = res.data;
-                    setSessionUser(freshUser);
-                    setAuth(token, freshUser);
-                })
-                .catch(() => {});
-        }
-    }, []);
-
-    useEffect(() => {
         function onDocClick(e: MouseEvent) {
             const t = e.target as Node;
             if (workspaceRef.current?.contains(t)) return;
@@ -221,13 +204,14 @@ export default function Sidebar() {
         const t = toast.loading('Signing out...');
         Cookies.remove('token');
         Cookies.remove('user');
+        clearSession();
         setWorkspaceOpen(false);
         setTimeout(() => {
             toast.dismiss(t);
             toast.success('Signed out successfully');
             router.push('/login');
         }, 600);
-    }, [router]);
+    }, [router, clearSession]);
 
     const toolHref = (id: StudioTab) => `/studio?tab=${id}`;
 

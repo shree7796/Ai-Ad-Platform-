@@ -2,12 +2,13 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user
 from app.models.user import User
 from app.services.storage import StorageService, StorageUploadError
+from app.security.limiter import limiter
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 
@@ -21,7 +22,9 @@ class UploadResponse(BaseModel):
 
 @router.post("", response_model=UploadResponse)
 @router.post("/", response_model=UploadResponse)
+@limiter.limit("40/minute")
 async def upload_media(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):

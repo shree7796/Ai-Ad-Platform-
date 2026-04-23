@@ -148,6 +148,10 @@ export default function HomePage() {
             ? payload.videoModel
             : undefined,
         reference_image_url,
+        aspect_ratio:
+          (task_type === 'image_to_image' || task_type === 'text_to_image') && payload?.ratio
+            ? String(payload.ratio)
+            : undefined,
         idempotency_key: idempotencyKeyRef.current,
       });
       idempotencyKeyRef.current = crypto.randomUUID();

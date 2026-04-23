@@ -1,18 +1,12 @@
 import type { Metadata, Viewport } from 'next';
 import { Toaster } from 'react-hot-toast';
-import { Inter, Montserrat } from 'next/font/google';
+import { Inter } from 'next/font/google';
+import { Providers } from '@/components/Providers';
 import './globals.css';
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
-  display: 'swap',
-});
-
-const montserrat = Montserrat({
-  subsets: ['latin'],
-  variable: '--font-display',
-  weight: ['400', '500', '600', '700', '800', '900'],
   display: 'swap',
 });
 
@@ -31,8 +25,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${montserrat.variable}`}>
+    <html lang="en" className={inter.variable}>
       <body className="min-h-screen overflow-x-clip font-sans antialiased">
+        <Providers>
         <Toaster
           position="top-right"
           toastOptions={{
@@ -55,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         {children}
+        </Providers>
       </body>
     </html>
   );

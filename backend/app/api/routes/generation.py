@@ -5,7 +5,7 @@ Generation API Routes — Trigger generation jobs, poll status.
 import uuid
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +27,7 @@ from app.services.billing_quota import (
 )
 from app.services.circuit_breaker import assert_not_in_cooldown
 from app.services.orchestrator import OrchestrationService
+from app.security.limiter import limiter
 
 router = APIRouter(prefix="/generate", tags=["Generation"])
 
@@ -42,7 +43,9 @@ _PROGRESS_MAP = {
 
 @router.post("", response_model=GenerationStatusResponse)
 @router.post("/", response_model=GenerationStatusResponse)
+@limiter.limit("45/minute")
 async def trigger_generation(
+    request: Request,
     payload: GenerationRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -181,6 +184,7 @@ async def trigger_generation(
         image_model=payload.image_model,
         reference_image_url=payload.reference_image_url,
         add_lumina_watermark=add_lumina_watermark,
+        aspect_ratio=payload.aspect_ratio,
     )
 
     scene.celery_task_id = job_id
@@ -197,7 +201,9 @@ async def trigger_generation(
 
 
 @router.get("/{scene_id}/status", response_model=GenerationStatusResponse)
+@limiter.limit("120/minute")
 async def get_generation_status(
+    request: Request,
     scene_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

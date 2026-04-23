@@ -9,6 +9,7 @@ import {
     ImageIcon,
 } from 'lucide-react';
 import ModelDropdown, { ModelOption } from '@/components/studio/ModelDropdown';
+import AspectRatioSelector from '@/components/studio/AspectRatioSelector';
 import { KreaDockRoot, KreaDockPrompt, KreaDockToolbar, KreaDockChipRow, KreaDockSubmit } from '@/components/studio/KreaDock';
 
 const STYLE_OPTIONS = ['None', 'Watercolor', 'Oil Painting', 'Sketch', 'Pixel Art', 'Impressionist', 'Minimalist'];
@@ -38,6 +39,7 @@ interface Props {
         style: string;
         heroCinematic: boolean;
         model: string;
+        ratio: string;
     }) => void;
     loading: boolean;
 }
@@ -56,6 +58,7 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
     const [style, setStyle] = useState('None');
     const [heroCinematic, setHeroCinematic] = useState(true);
     const [model, setModel] = useState('flux-dev');
+    const [ratio, setRatio] = useState('1:1');
     const [comparePos, setComparePos] = useState(50);
 
     const toggleMap: Record<string, [boolean, (v: boolean) => void]> = {
@@ -90,7 +93,7 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
     const credits = useMemo(() => IMAGE_MODELS.find(m => m.value === model)?.credits ?? 8, [model]);
 
     const runGenerate = () => {
-        if (image) onGenerate({ image, prompt, enhance, bgRemove, style, heroCinematic, model });
+        if (image) onGenerate({ image, prompt, enhance, bgRemove, style, heroCinematic, model, ratio });
     };
 
     const sourceChipLabel = image
@@ -158,6 +161,10 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
                         }
                     }}
                 />
+                <div className="section-label" style={{ marginTop: 4 }}>
+                    Aspect ratio
+                </div>
+                <AspectRatioSelector value={ratio} onChange={setRatio} />
                 <KreaDockToolbar>
                     <KreaDockChipRow>
                         <div

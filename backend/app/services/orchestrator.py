@@ -40,6 +40,7 @@ class OrchestrationService:
         image_model: Optional[str] = None,
         reference_image_url: Optional[str] = None,
         add_lumina_watermark: bool = False,
+        aspect_ratio: Optional[str] = None,
     ) -> str:
         """
         Dispatch a generation job to the appropriate worker queue.
@@ -79,6 +80,7 @@ class OrchestrationService:
                 "image_model": image_model,
                 "reference_image_url": reference_image_url,
                 "add_lumina_watermark": add_lumina_watermark,
+                "aspect_ratio": aspect_ratio,
             },
             queue=queue,
         )

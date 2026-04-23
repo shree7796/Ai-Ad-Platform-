@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { Menu, X } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { clearAuth, getToken } from '@/lib/auth';
 
 /** Krea-style grouped “Generate” menu (sections + items). */
 const GENERATE_GROUPS: { section: string; items: { label: string; desc: string; href: string }[] }[] = [
@@ -274,6 +276,178 @@ interface LandingNavProps {
     leftGutterPx?: number;
 }
 
+function planLabelFromKey(plan: string | undefined): string {
+    if (!plan) return 'Free';
+    const p = plan.toLowerCase();
+    return p.charAt(0).toUpperCase() + p.slice(1);
+}
+
+function LandingNavAccount({ dark }: { dark: boolean }) {
+    const { user, isSessionPending, clearSession } = useAuth();
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+
+    const showSkeleton = mounted && !!getToken() && isSessionPending && !user;
+    const credits = user
+        ? Math.max(
+              0,
+              (user.credit_balance ?? 0) + (user.bonus_credit_balance ?? 0) - (user.reserved_balance ?? 0)
+          )
+        : 0;
+    const displayName = user?.full_name || user?.username || user?.email?.split('@')[0] || '';
+    const planLbl = planLabelFromKey(user?.plan);
+
+    const muted = dark ? 'rgba(255,255,255,0.55)' : 'rgba(23,23,23,0.55)';
+    const fg = dark ? '#fafafa' : '#0a0a0a';
+
+    if (!mounted || (!user && !getToken())) {
+        return (
+            <>
+                <Link href="/register" style={{ textDecoration: 'none' }}>
+                    <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        style={{
+                            padding: '9px 20px',
+                            borderRadius: 9999,
+                            background: '#ffffff',
+                            color: '#0a0a0a',
+                            fontSize: 14,
+                            fontWeight: 600,
+                            border: dark ? 'none' : '1px solid #0a0a0a',
+                            cursor: 'pointer',
+                            letterSpacing: '-0.01em',
+                            fontFamily: 'inherit',
+                        }}
+                    >
+                        Sign up for free
+                    </motion.button>
+                </Link>
+                {dark ? (
+                    <Link
+                        href="/login"
+                        style={{
+                            textDecoration: 'none',
+                            fontSize: 15,
+                            fontWeight: 500,
+                            color: 'rgba(255,255,255,0.9)',
+                            padding: '8px 6px',
+                            transition: 'color 0.15s',
+                        }}
+                        onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = '#ffffff')}
+                        onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.9)')}
+                    >
+                        Log in
+                    </Link>
+                ) : (
+                    <Link href="/login" style={{ textDecoration: 'none' }} className="hidden sm:block">
+                        <motion.button
+                            type="button"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            style={{
+                                padding: '8px 18px',
+                                borderRadius: 9999,
+                                background: '#0a0a0a',
+                                color: '#ffffff',
+                                fontSize: 13,
+                                fontWeight: 600,
+                                border: 'none',
+                                cursor: 'pointer',
+                                letterSpacing: '-0.01em',
+                                fontFamily: 'inherit',
+                            }}
+                        >
+                            Log in
+                        </motion.button>
+                    </Link>
+                )}
+            </>
+        );
+    }
+
+    if (showSkeleton) {
+        return (
+            <div
+                aria-hidden
+                style={{
+                    width: 220,
+                    height: 40,
+                    borderRadius: 9999,
+                    background: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                    border: dark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                }}
+            />
+        );
+    }
+
+    if (user) {
+        return (
+            <>
+                <Link
+                    href="/studio"
+                    prefetch
+                    style={{
+                        textDecoration: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '8px 14px',
+                        borderRadius: 9999,
+                        background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                        border: dark ? '1px solid rgba(255,255,255,0.14)' : '1px solid rgba(0,0,0,0.08)',
+                        maxWidth: 'min(92vw, 340px)',
+                    }}
+                    title="Open studio"
+                >
+                    <span
+                        style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: fg,
+                            letterSpacing: '-0.02em',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
+                        {displayName}
+                    </span>
+                    <span style={{ color: muted, fontWeight: 500, fontSize: 13 }}>|</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: fg }}>{planLbl}</span>
+                    <span style={{ color: muted, fontWeight: 500, fontSize: 13 }}>|</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: fg, whiteSpace: 'nowrap' }}>
+                        {credits} ⚡
+                    </span>
+                </Link>
+                <button
+                    type="button"
+                    onClick={() => {
+                        clearAuth();
+                        clearSession();
+                        window.location.href = '/';
+                    }}
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: muted,
+                        padding: '8px 4px',
+                        fontFamily: 'inherit',
+                    }}
+                >
+                    Log out
+                </button>
+            </>
+        );
+    }
+
+    return null;
+}
+
 const mobileLinkStyle: CSSProperties = {
     display: 'block',
     padding: '12px 14px',
@@ -284,6 +458,102 @@ const mobileLinkStyle: CSSProperties = {
     fontWeight: 500,
     transition: 'background 0.15s',
 };
+
+function MobileMenuAuthFooter({ onClose }: { onClose: () => void }) {
+    const { user, clearSession } = useAuth();
+    const credits = user
+        ? Math.max(
+              0,
+              (user.credit_balance ?? 0) + (user.bonus_credit_balance ?? 0) - (user.reserved_balance ?? 0)
+          )
+        : 0;
+    const displayName = user?.full_name || user?.username || user?.email?.split('@')[0] || '';
+    const planLbl = planLabelFromKey(user?.plan);
+
+    if (user) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div
+                    style={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: 'rgba(250,250,250,0.8)',
+                        padding: '4px 14px 0',
+                        lineHeight: 1.45,
+                    }}
+                >
+                    {displayName} · {planLbl} · {credits} ⚡
+                </div>
+                <Link href="/studio" prefetch style={{ textDecoration: 'none' }} onClick={onClose}>
+                    <span
+                        style={{
+                            display: 'block',
+                            textAlign: 'center',
+                            padding: '12px 16px',
+                            borderRadius: 9999,
+                            background: '#ffffff',
+                            color: '#0a0a0a',
+                            fontSize: 14,
+                            fontWeight: 600,
+                        }}
+                    >
+                        Open studio
+                    </span>
+                </Link>
+                <button
+                    type="button"
+                    onClick={() => {
+                        clearAuth();
+                        clearSession();
+                        onClose();
+                        window.location.href = '/';
+                    }}
+                    style={{
+                        ...mobileLinkStyle,
+                        textAlign: 'center',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                    }}
+                >
+                    Log out
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <Link href="/register" style={{ textDecoration: 'none' }} onClick={onClose}>
+                <span
+                    style={{
+                        display: 'block',
+                        textAlign: 'center',
+                        padding: '12px 16px',
+                        borderRadius: 9999,
+                        background: '#ffffff',
+                        color: '#0a0a0a',
+                        fontSize: 14,
+                        fontWeight: 600,
+                    }}
+                >
+                    Sign up for free
+                </span>
+            </Link>
+            <Link
+                href="/login"
+                style={{
+                    ...mobileLinkStyle,
+                    textAlign: 'center',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                }}
+                onClick={onClose}
+            >
+                Log in
+            </Link>
+        </>
+    );
+}
 
 export default function LandingNav({ leftGutterPx = 0 }: LandingNavProps) {
     const [scrolled, setScrolled] = useState(false);
@@ -476,33 +746,7 @@ export default function LandingNav({ leftGutterPx = 0 }: LandingNavProps) {
                                         gap: 10,
                                     }}
                                 >
-                                    <Link href="/register" style={{ textDecoration: 'none' }} onClick={() => setMobileOpen(false)}>
-                                        <span
-                                            style={{
-                                                display: 'block',
-                                                textAlign: 'center',
-                                                padding: '12px 16px',
-                                                borderRadius: 9999,
-                                                background: '#ffffff',
-                                                color: '#0a0a0a',
-                                                fontSize: 14,
-                                                fontWeight: 600,
-                                            }}
-                                        >
-                                            Sign up for free
-                                        </span>
-                                    </Link>
-                                    <Link
-                                        href="/login"
-                                        style={{
-                                            ...mobileLinkStyle,
-                                            textAlign: 'center',
-                                            border: '1px solid rgba(255,255,255,0.2)',
-                                        }}
-                                        onClick={() => setMobileOpen(false)}
-                                    >
-                                        Log in
-                                    </Link>
+                                    <MobileMenuAuthFooter onClose={() => setMobileOpen(false)} />
                                 </div>
                             </nav>
                         </motion.aside>
@@ -566,6 +810,7 @@ export default function LandingNav({ leftGutterPx = 0 }: LandingNavProps) {
             <div className="hidden md:flex" style={{ alignItems: 'center', gap: 4, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
                 <Link
                     href="/studio"
+                    prefetch
                     style={{
                         textDecoration: 'none',
                         color: muted,
@@ -625,66 +870,9 @@ export default function LandingNav({ leftGutterPx = 0 }: LandingNavProps) {
                 >
                     <Menu size={20} color={dark ? '#ffffff' : '#0a0a0a'} strokeWidth={2} />
                 </button>
-                <Link href="/register" style={{ textDecoration: 'none' }}>
-                    <motion.button
-                        type="button"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        style={{
-                            padding: '9px 20px',
-                            borderRadius: 9999,
-                            background: '#ffffff',
-                            color: '#0a0a0a',
-                            fontSize: 14,
-                            fontWeight: 600,
-                            border: dark ? 'none' : '1px solid #0a0a0a',
-                            cursor: 'pointer',
-                            letterSpacing: '-0.01em',
-                            fontFamily: 'inherit',
-                        }}
-                    >
-                        Sign up for free
-                    </motion.button>
-                </Link>
-                {dark ? (
-                    <Link
-                        href="/login"
-                        style={{
-                            textDecoration: 'none',
-                            fontSize: 15,
-                            fontWeight: 500,
-                            color: 'rgba(255,255,255,0.9)',
-                            padding: '8px 6px',
-                            transition: 'color 0.15s',
-                        }}
-                        onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = '#ffffff')}
-                        onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.9)')}
-                    >
-                        Log in
-                    </Link>
-                ) : (
-                    <Link href="/login" style={{ textDecoration: 'none' }} className="hidden sm:block">
-                        <motion.button
-                            type="button"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            style={{
-                                padding: '8px 18px',
-                                borderRadius: 9999,
-                                background: '#0a0a0a',
-                                color: '#ffffff',
-                                fontSize: 13,
-                                fontWeight: 600,
-                                border: 'none',
-                                cursor: 'pointer',
-                                letterSpacing: '-0.01em',
-                                fontFamily: 'inherit',
-                            }}
-                        >
-                            Log in
-                        </motion.button>
-                    </Link>
-                )}
+                <div className="hidden md:flex" style={{ alignItems: 'center', gap: dark ? 14 : 10 }}>
+                    <LandingNavAccount dark={dark} />
+                </div>
             </div>
             <style>{`
                 @media (max-width: 640px) {
