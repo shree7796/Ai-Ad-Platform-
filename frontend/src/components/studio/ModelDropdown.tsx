@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronDown, Check, Zap } from 'lucide-react';
+import { ChevronDown, Check, Zap, Lock } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { StudioModelIcon } from '@/lib/studioModelIcon';
 
@@ -14,6 +14,8 @@ export interface ModelOption {
     credits: number;
     /** e.g. "/5s" for video models */
     creditsSuffix?: string;
+    /** If true, row is shown but not selectable (e.g. requires a paid plan). */
+    disabled?: boolean;
 }
 
 /** Fixed viewport position: panel opens above trigger (`bottom` = px from viewport bottom to panel's bottom edge). */
@@ -62,7 +64,10 @@ export default function ModelDropdown({ models, value, onChange, label = 'AI Mod
     const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const selected = models.find(m => m.value === value) ?? models[0];
+    const selected =
+        models.find(m => m.value === value && !m.disabled) ??
+        models.find(m => !m.disabled) ??
+        models[0];
 
     const clearOpenTimer = () => {
         if (openTimerRef.current) {
@@ -202,22 +207,41 @@ export default function ModelDropdown({ models, value, onChange, label = 'AI Mod
             }}
         >
             {models.map((m) => {
-                const active = value === m.value;
+                const active = value === m.value && !m.disabled;
+                const locked = Boolean(m.disabled);
                 return (
                     <button
                         key={m.value}
                         type="button"
-                        onClick={() => { onChange(m.value); clearAllTimers(); closeDropdown(); }}
+                        title={
+                            locked
+                                ? 'Included on paid plans — open Billing to upgrade and unlock this model.'
+                                : undefined
+                        }
+                        aria-disabled={locked}
+                        onClick={() => {
+                            if (locked) return;
+                            onChange(m.value);
+                            clearAllTimers();
+                            closeDropdown();
+                        }}
                         style={{
                             width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                            padding: '9px 12px', cursor: 'pointer', textAlign: 'left',
+                            padding: '9px 12px', cursor: locked ? 'not-allowed' : 'pointer', textAlign: 'left',
                             background: active ? 'var(--bg-subtle)' : 'transparent',
                             border: 'none', fontFamily: 'inherit',
                             borderRadius: 'var(--radius-sm)',
                             transition: 'background 0.1s',
+                            opacity: locked ? 0.55 : 1,
                         }}
-                        onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--bg-subtle)'; }}
-                        onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                        onMouseEnter={e => {
+                            if (locked || active) return;
+                            (e.currentTarget as HTMLElement).style.background = 'var(--bg-subtle)';
+                        }}
+                        onMouseLeave={e => {
+                            if (locked || active) return;
+                            (e.currentTarget as HTMLElement).style.background = 'transparent';
+                        }}
                     >
                         <div style={{ width: 16, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
                             {active && <Check size={12} color="#0a84ff" strokeWidth={2.5} />}
@@ -248,16 +272,29 @@ export default function ModelDropdown({ models, value, onChange, label = 'AI Mod
                                 </span>
                             </div>
                             <div style={{ fontSize: 11.5, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {m.desc}
+                                {locked ? `${m.desc} · Paid plans` : m.desc}
                             </div>
                         </div>
                         <div style={{
-                            display: 'flex', alignItems: 'center', gap: 3,
+                            display: 'flex', alignItems: 'center', gap: 6,
                             flexShrink: 0, fontSize: 11, fontWeight: 700,
                             color: 'var(--text-muted)',
                         }}>
-                            <Zap size={9} fill="currentColor" />
-                            {m.credits}{m.creditsSuffix ?? ''}
+                            {locked ? (
+                                <span style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                                    fontSize: 10, fontWeight: 700, letterSpacing: '0.03em',
+                                    textTransform: 'uppercase', color: '#a3a3a3',
+                                }}>
+                                    <Lock size={11} strokeWidth={2.2} aria-hidden />
+                                    Upgrade
+                                </span>
+                            ) : (
+                                <>
+                                    <Zap size={9} fill="currentColor" />
+                                    {m.credits}{m.creditsSuffix ?? ''}
+                                </>
+                            )}
                         </div>
                     </button>
                 );

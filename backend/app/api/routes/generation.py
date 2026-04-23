@@ -21,6 +21,7 @@ from app.services.billing_quota import (
     check_velocity_limit,
     compute_credit_cost,
     enforce_generation_allowed,
+    enforce_plan_image_model,
     get_model_credit_cost,
     is_video_task,
     max_video_duration_for_plan,
@@ -120,6 +121,10 @@ async def trigger_generation(
         payload.task_type,
         duration_seconds=payload.duration_seconds,
     )
+
+    task_norm = (payload.task_type or "").strip().lower()
+    if task_norm in ("text_to_image", "image_to_image"):
+        enforce_plan_image_model(plan_key, payload.image_model)
 
     # ── Plan tier access (model tier: basic / pro / premium) ──
     enforce_plan_access(current_user, payload.tier)

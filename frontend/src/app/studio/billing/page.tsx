@@ -90,7 +90,7 @@ const PLANS: Record<string, PlanConfig> = {
 const PLAN_ORDER = ['free', 'basic', 'pro', 'premium'];
 
 /** Shown when API fails so the dual-meter layout still renders with sane defaults. */
-const FALLBACK_FREE_CAPS = { img: 8, vid: 2, unit: 15, combined: 10 };
+const FALLBACK_FREE_CAPS = { img: 2, vid: 0, unit: 15, combined: 2 };
 
 export default function BillingPage() {
   const { data: usage, loading: usageLoading, error: usageError, refresh: refreshUsage } = useUsageSummary();

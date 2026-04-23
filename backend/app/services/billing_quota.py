@@ -39,7 +39,7 @@ MARGIN_MULTIPLIER: Decimal = Decimal("2.2")
 VIDEO_TASK_TYPES = frozenset({"text_to_video", "image_to_video", "video_to_video"})
 
 _DEFAULT_IMAGE_VIDEO: dict[str, Tuple[int, int]] = {
-    "free": (8, 2),
+    "free": (2, 0),
     "basic": (90, 12),
     "pro": (240, 32),
     "premium": (520, 72),
@@ -249,6 +249,50 @@ async def enforce_generation_allowed(
                     "Monthly image generation limit reached. Upgrade your plan or wait until your quota resets (UTC)."
                 ),
             )
+
+
+def normalize_image_model_key(raw: Optional[str]) -> str:
+    """Normalize client image model ids to internal keys (matches credits.yaml / fal hints)."""
+    if raw is None or not str(raw).strip():
+        return "flux_dev"
+    return str(raw).strip().lower().replace("-", "_").replace(".", "_")
+
+
+def allowed_image_models_for_plan(plan_key: str) -> Optional[frozenset[str]]:
+    """
+    If the plan defines `allowed_image_models` in plans.yaml features, only those
+    normalized keys may be used for text_to_image / image_to_image. None = no restriction.
+    """
+    plan_key = (plan_key or "free").lower()
+    plans = get_plans_config() or {}
+    block = (plans.get("plans") or {}).get(plan_key)
+    if not block or not isinstance(block, dict):
+        return None
+    feat = block.get("features") or {}
+    if not isinstance(feat, dict):
+        return None
+    allowed = feat.get("allowed_image_models")
+    if not allowed or not isinstance(allowed, (list, tuple)):
+        return None
+    keys = frozenset(
+        str(x).strip().lower().replace("-", "_").replace(".", "_")
+        for x in allowed
+        if x is not None and str(x).strip()
+    )
+    return keys if keys else None
+
+
+def enforce_plan_image_model(plan_key: str, image_model: Optional[str]) -> None:
+    allowed = allowed_image_models_for_plan(plan_key)
+    if allowed is None:
+        return
+    key = normalize_image_model_key(image_model)
+    if key not in allowed:
+        pretty = ", ".join(sorted(s.replace("_", " ").title() for s in allowed))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Your plan includes these image models only: {pretty}. Upgrade for full model access.",
+        )
 
 
 # ---------------------------------------------------------------------------

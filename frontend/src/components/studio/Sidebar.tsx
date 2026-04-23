@@ -298,7 +298,7 @@ export default function Sidebar() {
                                 <Icon size={15} strokeWidth={isActive ? 2.2 : 1.85} />
                             </SidebarIconTile>
                             {label}
-                            </Link>
+                        </Link>
                     );
                 })}
             </nav>

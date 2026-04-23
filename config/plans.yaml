@@ -15,14 +15,18 @@ plans:
     stripe_price_id: null
     credit_grant: 0          # Zero-free: no credits on signup; first payment required
     features:
-      max_image_generations_per_month: 8
-      max_video_generations_per_month: 2
+      max_image_generations_per_month: 2
+      max_video_generations_per_month: 0   # no video on free — upgrade required
       max_upload_size_mb: 10
       available_tiers:
         - basic
       max_video_duration: 10
       watermark: true
       priority: low
+      # Normalized keys (hyphens → underscores). Only these image models for free users.
+      allowed_image_models:
+        - flux_dev
+        - nano_banana
 
   basic:
     display_name: "Basic"

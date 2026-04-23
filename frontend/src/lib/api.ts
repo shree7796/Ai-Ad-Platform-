@@ -79,6 +79,43 @@ export function formatApiError(err: unknown, fallback: string): string {
   return fallback;
 }
 
+/** True when the API response should open the subscription / upgrade modal instead of only a toast. */
+export function isUpgradePromptError(err: unknown): boolean {
+  const ax = err as {
+    response?: { status?: number; data?: { detail?: unknown } };
+  };
+  const status = ax.response?.status;
+  const raw = ax.response?.data?.detail;
+  let detail = '';
+  if (typeof raw === 'string') detail = raw;
+  else if (Array.isArray(raw) && raw.length > 0) detail = formatApiError(err, '');
+  detail = detail.toLowerCase();
+
+  if (status === 402) return true;
+
+  if (status === 403) {
+    const hints = [
+      'subscribe',
+      'subscription',
+      'billing',
+      'upgrade',
+      'paid plan',
+      'payment required',
+      'insufficient credit',
+      'monthly',
+      'quota',
+      'limit reached',
+      'allowance',
+      'video allowance',
+      'plan does not',
+      'does not include',
+    ];
+    return hints.some((h) => detail.includes(h));
+  }
+
+  return false;
+}
+
 // Attach JWT token; never force application/json on FormData (breaks multipart + causes 422 on /projects).
 api.interceptors.request.use((config) => {
   const token = Cookies.get('token');

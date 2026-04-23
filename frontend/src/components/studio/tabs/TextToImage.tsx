@@ -1,15 +1,18 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lightbulb } from 'lucide-react';
 import ModelDropdown, { ModelOption } from '@/components/studio/ModelDropdown';
 import AspectRatioSelector from '@/components/studio/AspectRatioSelector';
 import { KreaDockRoot, KreaDockPrompt, KreaDockToolbar, KreaDockChipRow, KreaDockSubmit } from '@/components/studio/KreaDock';
+import { useAuth } from '@/context/AuthContext';
+import { imageModelsWithLocksForPlan } from '@/lib/studioPlan';
 
-const IMAGE_MODELS: ModelOption[] = [
+const IMAGE_MODELS_ALL: ModelOption[] = [
     { value: 'flux-schnell',    label: 'FLUX Schnell',    badge: 'FAST',     badgeColor: '#10b981', desc: 'Fastest generation · great for drafts',                credits: 4  },
     { value: 'flux-dev',        label: 'FLUX Dev',         badge: 'DEFAULT',  badgeColor: '#0a84ff', desc: 'Best quality · product & scene preservation',          credits: 8  },
+    { value: 'nano-banana',     label: 'Nano Banana',      badge: 'FAST',     badgeColor: '#10b981', desc: 'Quick & affordable · Google Imagen diffusion',         credits: 8  },
     { value: 'flux-pro',        label: 'FLUX Pro 1.1',     badge: 'PREMIUM',  badgeColor: '#f59e0b', desc: 'Ultra-detailed · photorealistic output',                credits: 11 },
     { value: 'flux-2-pro',      label: 'FLUX 2 Pro',       badge: 'NEWEST',   badgeColor: '#a855f7', desc: 'Latest FLUX generation · state of the art',            credits: 15 },
     { value: 'nano-banana-pro', label: 'Nano Banana Pro',  badge: 'PRO',      badgeColor: '#f97316', desc: 'Google Imagen Pro · highest nano quality',              credits: 10 },
@@ -37,13 +40,30 @@ function cycle<T>(arr: T[], current: T): T {
 }
 
 export default function TextToImage({ onGenerate, loading }: Props) {
+    const { user } = useAuth();
     const [prompt, setPrompt] = useState('');
     const [style, setStyle] = useState('Realistic');
     const [ratio, setRatio] = useState('1:1');
     const [model, setModel] = useState('flux-dev');
     const [showSuggestions, setShowSuggestions] = useState(false);
 
-    const selectedModel = useMemo(() => IMAGE_MODELS.find(m => m.value === model) ?? IMAGE_MODELS[0], [model]);
+    const imageModels = useMemo(() => imageModelsWithLocksForPlan(user?.plan, IMAGE_MODELS_ALL), [user?.plan]);
+
+    useEffect(() => {
+        const cur = imageModels.find((m) => m.value === model);
+        if (!cur || cur.disabled) {
+            const first = imageModels.find((m) => !m.disabled);
+            if (first) setModel(first.value);
+        }
+    }, [imageModels, model]);
+
+    const selectedModel = useMemo(
+        () =>
+            imageModels.find((m) => m.value === model && !m.disabled) ??
+            imageModels.find((m) => !m.disabled) ??
+            imageModels[0],
+        [imageModels, model],
+    );
 
     const runGenerate = () => {
         const p = prompt.trim();
@@ -95,7 +115,7 @@ export default function TextToImage({ onGenerate, loading }: Props) {
                 <AspectRatioSelector value={ratio} onChange={setRatio} />
                 <KreaDockToolbar>
                     <KreaDockChipRow>
-                        <ModelDropdown models={IMAGE_MODELS} value={model} onChange={setModel} label="" variant="dock" />
+                        <ModelDropdown models={imageModels} value={model} onChange={setModel} label="" variant="dock" />
                         <button
                             type="button"
                             className="krea-dock-chip"

@@ -12,7 +12,11 @@ import TextToImage from '@/components/studio/tabs/TextToImage';
 import ImageToImage from '@/components/studio/tabs/ImageToImage';
 import ImageToVideo from '@/components/studio/tabs/ImageToVideo';
 import TextToVideo from '@/components/studio/tabs/TextToVideo';
-import { projectsAPI, generationAPI, uploadAPI, formatApiError } from '@/lib/api';
+import { projectsAPI, generationAPI, uploadAPI, formatApiError, isUpgradePromptError } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
+import { isFreeStudioPlan } from '@/lib/studioPlan';
+import { useUsageSummary } from '@/hooks/useUsageSummary';
+import UpgradePlanModal, { type UpgradeModalReason } from '@/components/studio/UpgradePlanModal';
 
 function isStudioTab(v: string | null): v is StudioTab {
   return (
@@ -26,11 +30,16 @@ function isStudioTab(v: string | null): v is StudioTab {
 export default function HomePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const { data: usage, loading: usageLoading } = useUsageSummary();
   const [activeTab, setActiveTab] = useState<StudioTab>('text-to-image');
   const [loading, setLoading] = useState(false);
   const [outputSrc, setOutputSrc] = useState<string | null>(null);
   const [outputType, setOutputType] = useState<OutputType>('none');
   const [lastPayload, setLastPayload] = useState<any>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<UpgradeModalReason>('generic');
+  const [upgradeDetail, setUpgradeDetail] = useState<string | undefined>(undefined);
   const idempotencyKeyRef = useRef<string>(crypto.randomUUID());
 
   useEffect(() => {
@@ -41,6 +50,13 @@ export default function HomePage() {
       router.replace('/studio?tab=text-to-image', { scroll: false });
     }
   }, [searchParams, router]);
+
+  const openUpgradeModal = (reason: UpgradeModalReason, detail?: string) => {
+    setUpgradeReason(reason);
+    setUpgradeDetail(detail);
+    setUpgradeOpen(true);
+    setLoading(false);
+  };
 
   /** Poll until completed/failed. Without a max, loading never stops if the Celery worker is down or the task hangs. */
   const pollStatus = (sceneId: string, type: OutputType) => {
@@ -82,8 +98,25 @@ export default function HomePage() {
 
   const handleGenerate = async (payload: any, type: OutputType) => {
     setLastPayload(payload);
-    setLoading(true);
     setOutputType(type);
+
+    const videoTab = activeTab === 'image-to-video' || activeTab === 'text-to-video';
+
+    if (isFreeStudioPlan(user?.plan) && videoTab) {
+      openUpgradeModal('video_free');
+      return;
+    }
+
+    if (!videoTab && usage && !usageLoading) {
+      const cap = usage.monthly_image_quota ?? 0;
+      const used = usage.image_generations_this_month ?? 0;
+      if (cap > 0 && used >= cap) {
+        openUpgradeModal('quota');
+        return;
+      }
+    }
+
+    setLoading(true);
     setOutputSrc(null);
 
     try {
@@ -163,6 +196,22 @@ export default function HomePage() {
 
     } catch (err: unknown) {
       console.error('Generation Error:', err);
+      if (isUpgradePromptError(err)) {
+        const msg = formatApiError(err, '');
+        const low = msg.toLowerCase();
+        let reason: UpgradeModalReason = 'generic';
+        if (low.includes('credit')) reason = 'credits';
+        else if (
+          low.includes('monthly') ||
+          low.includes('quota') ||
+          low.includes('limit reached') ||
+          low.includes('allowance')
+        ) {
+          reason = 'quota';
+        }
+        openUpgradeModal(reason, msg);
+        return;
+      }
       toast.error(formatApiError(err, 'Generation failed to start.'));
       setLoading(false);
     }
@@ -199,6 +248,12 @@ export default function HomePage() {
 
   return (
     <div className="studio-layout studio-layout--generator">
+      <UpgradePlanModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        reason={upgradeReason}
+        detailMessage={upgradeDetail}
+      />
       <StudioIconRail />
       <Sidebar />
 

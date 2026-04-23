@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { useDropzone } from 'react-dropzone';
 import {
@@ -11,10 +11,12 @@ import {
 import ModelDropdown, { ModelOption } from '@/components/studio/ModelDropdown';
 import AspectRatioSelector from '@/components/studio/AspectRatioSelector';
 import { KreaDockRoot, KreaDockPrompt, KreaDockToolbar, KreaDockChipRow, KreaDockSubmit } from '@/components/studio/KreaDock';
+import { useAuth } from '@/context/AuthContext';
+import { imageModelsWithLocksForPlan } from '@/lib/studioPlan';
 
 const STYLE_OPTIONS = ['None', 'Watercolor', 'Oil Painting', 'Sketch', 'Pixel Art', 'Impressionist', 'Minimalist'];
 
-const IMAGE_MODELS: ModelOption[] = [
+const IMAGE_MODELS_ALL: ModelOption[] = [
     { value: 'flux-dev',         label: 'FLUX Dev',          badge: 'DEFAULT',  badgeColor: '#0a84ff', desc: 'Best product identity & fire scene preservation',  credits: 8  },
     { value: 'flux-kontext',     label: 'FLUX Kontext',       badge: 'ADVANCED', badgeColor: '#f59e0b', desc: 'Context-aware editing · strong identity lock',     credits: 8  },
     { value: 'flux-2-pro-edit',  label: 'FLUX 2 Pro Edit',    badge: 'NEWEST',   badgeColor: '#a855f7', desc: 'Latest FLUX editing · highest quality edits',      credits: 11 },
@@ -50,6 +52,7 @@ function cycleStr(arr: string[], current: string): string {
 }
 
 export default function ImageToImage({ onGenerate, loading }: Props) {
+    const { user } = useAuth();
     const [image, setImage] = useState<File | null>(null);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [prompt, setPrompt] = useState('');
@@ -89,8 +92,21 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
         setImageUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
     };
 
+    const imageModels = useMemo(() => imageModelsWithLocksForPlan(user?.plan, IMAGE_MODELS_ALL), [user?.plan]);
+
+    useEffect(() => {
+        const cur = imageModels.find((m) => m.value === model);
+        if (!cur || cur.disabled) {
+            const first = imageModels.find((m) => !m.disabled);
+            if (first) setModel(first.value);
+        }
+    }, [imageModels, model]);
+
     const canGenerate = !loading && !!image;
-    const credits = useMemo(() => IMAGE_MODELS.find(m => m.value === model)?.credits ?? 8, [model]);
+    const credits = useMemo(() => {
+        const m = imageModels.find((row) => row.value === model && !row.disabled);
+        return m?.credits ?? imageModels.find((row) => !row.disabled)?.credits ?? 8;
+    }, [imageModels, model]);
 
     const runGenerate = () => {
         if (image) onGenerate({ image, prompt, enhance, bgRemove, style, heroCinematic, model, ratio });
@@ -177,7 +193,7 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
                             {isDragActive ? <Upload size={14} /> : <ImageIcon size={14} strokeWidth={1.75} />}
                             {sourceChipLabel}
                         </div>
-                        <ModelDropdown models={IMAGE_MODELS} value={model} onChange={setModel} label="" variant="dock" />
+                        <ModelDropdown models={imageModels} value={model} onChange={setModel} label="" variant="dock" />
                         <button
                             type="button"
                             className="krea-dock-chip"
