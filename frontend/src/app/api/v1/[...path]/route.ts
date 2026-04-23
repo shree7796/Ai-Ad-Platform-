@@ -43,13 +43,17 @@ async function proxy(req: NextRequest, pathSegments: string[]) {
     body = await req.arrayBuffer();
   }
 
+  const ac = new AbortController();
+  const timeoutMs = 120_000;
+  const timeoutId = setTimeout(() => ac.abort(), timeoutMs);
+
   try {
     const upstream = await fetch(dest, {
       method: req.method,
       headers,
       body,
       cache: 'no-store',
-      signal: AbortSignal.timeout(120_000),
+      signal: ac.signal,
     });
 
     const outHeaders = new Headers();
@@ -73,15 +77,18 @@ async function proxy(req: NextRequest, pathSegments: string[]) {
       error: e,
     });
     const usesDockerHost = /:\/\/api(:\d+)?(\/|$)/.test(BACKEND_ORIGIN);
+    const isLoopback = /:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(BACKEND_ORIGIN);
     const hint = usesDockerHost
       ? ' The hostname `api` only works inside Docker Compose. If you run `npm run dev` on your computer, use BACKEND_INTERNAL_URL=http://127.0.0.1:8000 (see frontend/.env.development). If you use Docker, start the API: `docker compose up api` (or full stack) and wait until it is healthy.'
-      : ' Start the API (e.g. `cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`) or set BACKEND_INTERNAL_URL to the correct origin.';
+      : ` Start the API (e.g. \`cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000\`) or run \`docker compose up -d --build api\` if the container image is stale. Set BACKEND_INTERNAL_URL to the correct origin.${isLoopback ? ' On Docker Desktop, try http://host.docker.internal:8000 if needed.' : ''}`;
     return NextResponse.json(
       {
         detail: `Cannot reach the API backend at ${BACKEND_ORIGIN}.${hint} (${message})`,
       },
       { status: 502 }
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

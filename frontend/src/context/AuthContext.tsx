@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -50,9 +51,18 @@ async function fetchMeOnce(): Promise<User | null> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const [user, setUser] = useState<User | null>(() => (typeof window !== 'undefined' ? getUser() : null));
+  // Must match SSR: never read cookies in useState initializer (server has no window).
+  // Client-only user is applied in useLayoutEffect after hydration so markup matches the server.
+  const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<AuthStatus>('idle');
   const mounted = useRef(true);
+
+  useLayoutEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    const cookieUser = getUser();
+    if (cookieUser) setUser(cookieUser);
+  }, []);
 
   useEffect(() => {
     mounted.current = true;

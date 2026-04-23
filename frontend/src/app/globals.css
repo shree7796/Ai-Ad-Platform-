@@ -72,7 +72,13 @@
 
 html {
   -webkit-text-size-adjust: 100%;
-  overflow-x: clip;
+  overflow-x: hidden;
+}
+
+@supports (overflow: clip) {
+  html {
+    overflow-x: clip;
+  }
 }
 
 /* Auth pages — dark fields, Krea blue focus */

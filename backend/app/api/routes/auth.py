@@ -3,6 +3,7 @@ Auth API Routes — Register, Login, Profile.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from starlette.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload
@@ -26,7 +27,12 @@ _USER_LOAD = (
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("8/minute")
-async def register(request: Request, payload: UserRegister, db: AsyncSession = Depends(get_db)):
+async def register(
+    request: Request,
+    payload: UserRegister,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
     """Register a new user account."""
     settings = get_settings()
     email_key = str(payload.email).strip().lower()
@@ -80,7 +86,12 @@ async def register(request: Request, payload: UserRegister, db: AsyncSession = D
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("20/minute")
-async def login(request: Request, payload: UserLogin, db: AsyncSession = Depends(get_db)):
+async def login(
+    request: Request,
+    payload: UserLogin,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
     """Authenticate and receive a JWT token."""
     identifier = str(payload.email).strip().lower()
     result = await db.execute(

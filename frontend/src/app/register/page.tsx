@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Mail, Lock, User, ArrowRight, Loader2, Eye, EyeOff, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authAPI } from '@/lib/api';
@@ -43,7 +42,6 @@ function LuminaMark() {
 }
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [form, setForm] = useState({ email: '', username: '', password: '', full_name: '' });
@@ -57,7 +55,7 @@ export default function RegisterPage() {
       const res = await authAPI.register(form);
       setAuth(res.data.access_token, res.data.user);
       toast.success('Welcome to Lumina!', { id: toastId });
-      router.push('/studio');
+      window.location.assign('/studio');
     } catch (err: unknown) {
       toast.error(registerErrorMessage(err), { id: toastId });
     } finally {

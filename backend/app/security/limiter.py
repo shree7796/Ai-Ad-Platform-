@@ -24,6 +24,8 @@ def _make_key_func(trust_proxy: bool):
 
 
 def build_limiter(*, trust_proxy_headers: bool, enabled: bool) -> Limiter:
+    # Per-route @limiter.limit handlers that return a Pydantic model must declare
+    # `response: Response` so SlowAPI can inject X-RateLimit-* headers (see slowapi docs).
     return Limiter(
         key_func=_make_key_func(trust_proxy_headers),
         default_limits=["400/minute"] if enabled else [],

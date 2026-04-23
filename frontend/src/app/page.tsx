@@ -4,14 +4,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import LandingNav from '@/components/landing/LandingNav';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import {
-    LUMINA_HERO_PLAYABLE_CLIPS,
-    LUMINA_HERO_PLAYABLE,
-    LUMINA_SLIDER_SHOWCASE_VIDEO_CHAIN,
-    AI_HERO_VIDEO_POSTER,
-    AI_ADS_SOCIAL_MOTION_CHAIN,
-    AI_ADS_CAMPAIGN_HERO_CHAIN,
+    HOMEPAGE_HERO_PLAYABLE,
+    HOMEPAGE_HERO_CLIPS,
+    HOMEPAGE_HERO_POSTER,
+    HOMEPAGE_SLIDER_VIDEO_CHAIN,
+    HOMEPAGE_SLIDER_VIDEO_POSTERS,
+    HOMEPAGE_USE_CASE_VIDEO_CHAIN,
+    HOMEPAGE_USE_CASE_VIDEO_POSTERS,
+    STOCK_FOOTAGE_BROWSE_TILES,
+    STOCK_FOOTAGE_LICENSE,
+    MIXKIT_FREE_VIDEO_HUB,
+    type StockBrowseTile,
 } from '@/lib/landingVideoSources';
 
 // ─── Unsplash helpers ─────────────────────────────────────────────────────────
@@ -31,9 +36,9 @@ const PROMPT_CARDS = [
     {
         type: 'video' as const,
         modelTag: 'Lumina Vid 2',
-        prompt:
-            'One reel: movie-style fights (blades, no boxing), nature, bunny & cartoon stock, deep ocean, gaming, car — no fire',
-        srcs: LUMINA_SLIDER_SHOWCASE_VIDEO_CHAIN,
+        prompt: 'Cinematic motion from your prompts — carousel uses eight Mixkit clips not used in the hero (Mixkit License)',
+        srcs: HOMEPAGE_SLIDER_VIDEO_CHAIN,
+        posters: HOMEPAGE_SLIDER_VIDEO_POSTERS,
         href: '/studio?tab=text-to-video',
     },
     {
@@ -54,7 +59,7 @@ const PROMPT_CARDS = [
         type: 'image' as const,
         modelTag: 'Hailuo',
         prompt: 'Macro product splash — citrus burst, studio strobes',
-        src: US('photo-1547514701-427821017808', 960, 1080),
+        src: US('photo-1620916566398-39f1143ab7be', 960, 1080),
         href: '/studio?tab=text-to-image',
     },
     {
@@ -170,7 +175,8 @@ const USE_CASES = [
         desc: 'Access Runway Gen-4, Kling 2.0, Hailuo, Wan, and Luma in one interface. Generate viral video ads, animate stills, or add motion to existing creatives.',
         cta: 'Try AI Video Generation',
         href: '/studio',
-        srcs: AI_ADS_SOCIAL_MOTION_CHAIN,
+        srcs: HOMEPAGE_USE_CASE_VIDEO_CHAIN,
+        videoPosters: HOMEPAGE_USE_CASE_VIDEO_POSTERS,
     },
     {
         title: 'Brand Fine-tuning',
@@ -184,7 +190,8 @@ const USE_CASES = [
         desc: 'Upscale videos up to 4K and interpolate frames for smoother motion. Turn phone footage into broadcast-quality ad material.',
         cta: 'Try Video Upscaling',
         href: '/studio',
-        srcs: AI_ADS_CAMPAIGN_HERO_CHAIN,
+        srcs: HOMEPAGE_USE_CASE_VIDEO_CHAIN,
+        videoPosters: HOMEPAGE_USE_CASE_VIDEO_POSTERS,
     },
     {
         title: 'Generative Editing',
@@ -319,10 +326,21 @@ const heroVideoFrame: React.CSSProperties = {
 };
 
 /** Muted loop; stable element — `onLoadedData` + `useEffect` so clip 2+ always kicks `play()` after src change. */
-function AutoVideo({ srcs, style }: { srcs: readonly string[]; style?: React.CSSProperties }) {
+function AutoVideo({
+    srcs,
+    posters,
+    style,
+}: {
+    srcs: readonly string[];
+    /** Optional still per `srcs` slot (e.g. gradient poster) — avoids empty grey until MP4 decodes. */
+    posters?: readonly string[];
+    style?: React.CSSProperties;
+}) {
     const [idx, setIdx] = useState(0);
     const vRef = useRef<HTMLVideoElement>(null);
     const src = srcs[idx] ?? srcs[0];
+    const poster =
+        posters && posters.length > 0 ? posters[Math.min(idx, posters.length - 1)] : undefined;
 
     useEffect(() => {
         const v = vRef.current;
@@ -334,11 +352,12 @@ function AutoVideo({ srcs, style }: { srcs: readonly string[]; style?: React.CSS
         <video
             ref={vRef}
             src={src}
+            poster={poster}
             autoPlay
             muted
             loop
             playsInline
-            preload="auto"
+            preload="metadata"
             onError={() => setIdx((i) => Math.min(i + 1, srcs.length - 1))}
             onLoadedData={() => void vRef.current?.play().catch(() => {})}
             style={{
@@ -351,11 +370,10 @@ function AutoVideo({ srcs, style }: { srcs: readonly string[]; style?: React.CSS
 }
 
 /**
- * Two stacked videos + opacity crossfade — avoids hard `key` remounts and advances only through
- * `LUMINA_HERO_PLAYABLE_CLIPS` (all HTTPS) for smooth playback.
+ * Two stacked videos + opacity crossfade — Mixkit on homepage (see HOMEPAGE_* in landingVideoSources).
  */
 function HeroVideoBackdrop() {
-    const clips = LUMINA_HERO_PLAYABLE_CLIPS;
+    const clips = HOMEPAGE_HERO_CLIPS;
     const n = clips.length;
     const [ia, setIa] = useState(0);
     const [ib, setIb] = useState(() => (n > 1 ? 1 % n : 0));
@@ -379,7 +397,16 @@ function HeroVideoBackdrop() {
 
     useEffect(() => {
         void rA.current?.play().catch(() => {});
+        void rB.current?.play().catch(() => {});
     }, []);
+
+    useEffect(() => {
+        void rA.current?.play().catch(() => {});
+    }, [ia]);
+
+    useEffect(() => {
+        void rB.current?.play().catch(() => {});
+    }, [ib]);
 
     useEffect(() => {
         if (n < 2) return undefined;
@@ -483,27 +510,28 @@ function HeroVideoBackdrop() {
                     style={{
                         position: 'absolute',
                         inset: 0,
-                        backgroundImage: `url(${AI_HERO_VIDEO_POSTER})`,
+                        backgroundImage: `url(${HOMEPAGE_HERO_POSTER})`,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                     }}
                 />
                 <video
                     src={clips[0]}
-                    poster={AI_HERO_VIDEO_POSTER}
+                    poster={HOMEPAGE_HERO_POSTER}
                     autoPlay
                     muted
                     loop
-                playsInline
-                preload="metadata"
-                style={heroVideoFrame}
+                    playsInline
+                    preload="auto"
+                    onLoadedData={(e) => void (e.target as HTMLVideoElement).play().catch(() => {})}
+                    style={heroVideoFrame}
                 />
             </div>
         );
     }
 
     const ease = `opacity ${HERO_CROSSFADE_MS}ms ${HERO_CROSSFADE_EASE}`;
-    const heroLabel = LUMINA_HERO_PLAYABLE[aOnTop ? ia : ib]?.label ?? '';
+    const heroLabel = HOMEPAGE_HERO_PLAYABLE[aOnTop ? ia : ib]?.label ?? '';
 
     return (
         <>
@@ -512,7 +540,7 @@ function HeroVideoBackdrop() {
                     style={{
                         position: 'absolute',
                         inset: 0,
-                        backgroundImage: `url(${AI_HERO_VIDEO_POSTER})`,
+                        backgroundImage: `url(${HOMEPAGE_HERO_POSTER})`,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                     }}
@@ -520,12 +548,14 @@ function HeroVideoBackdrop() {
                 <video
                     ref={rA}
                     src={clips[ia]}
-                    poster={AI_HERO_VIDEO_POSTER}
+                    poster={HOMEPAGE_HERO_POSTER}
                     autoPlay
                     muted
                     loop
                     playsInline
                     preload="auto"
+                    onLoadedData={() => void rA.current?.play().catch(() => {})}
+                    onCanPlay={() => void rA.current?.play().catch(() => {})}
                     style={{
                         ...heroVideoFrame,
                         zIndex: aOnTop ? 2 : 1,
@@ -536,12 +566,14 @@ function HeroVideoBackdrop() {
                 <video
                     ref={rB}
                     src={clips[ib]}
-                    poster={AI_HERO_VIDEO_POSTER}
+                    poster={HOMEPAGE_HERO_POSTER}
                     autoPlay
                     muted
                     loop
                     playsInline
                     preload="auto"
+                    onLoadedData={() => void rB.current?.play().catch(() => {})}
+                    onCanPlay={() => void rB.current?.play().catch(() => {})}
                     style={{
                         ...heroVideoFrame,
                         zIndex: aOnTop ? 1 : 2,
@@ -584,6 +616,147 @@ function HeroVideoBackdrop() {
                 </span>
             </div>
         </>
+    );
+}
+
+/** Hover-to-preview tile — Mixkit MP4 + poster; opens Mixkit free-video browse. */
+function StockBrowseTileCard({ tile }: { tile: StockBrowseTile }) {
+    const vRef = useRef<HTMLVideoElement>(null);
+    const [hover, setHover] = useState(false);
+
+    const onEnter = () => {
+        setHover(true);
+        const v = vRef.current;
+        if (v) {
+            v.preload = 'auto';
+            v.load();
+            void v.play().catch(() => {});
+        }
+    };
+    const onLeave = () => {
+        setHover(false);
+        const v = vRef.current;
+        if (!v) return;
+        v.pause();
+        try {
+            v.currentTime = 0;
+        } catch {
+            /* ignore */
+        }
+    };
+
+    return (
+        <a
+            href={tile.moreUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${tile.title} — browse royalty-free stock video (${tile.tag})`}
+            onMouseEnter={onEnter}
+            onMouseLeave={onLeave}
+            style={{
+                display: 'block',
+                position: 'relative',
+                width: '100%',
+                height: '100%',
+                minHeight: 0,
+                textDecoration: 'none',
+                color: 'inherit',
+            }}
+        >
+            <video
+                ref={vRef}
+                src={tile.mp4}
+                poster={tile.poster}
+                muted
+                loop
+                playsInline
+                preload="none"
+                aria-hidden
+                style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    opacity: hover ? 1 : 0,
+                    transition: 'opacity 0.35s ease',
+                }}
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src={tile.poster}
+                alt=""
+                aria-hidden
+                loading="eager"
+                decoding="async"
+                style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    opacity: hover ? 0 : 1,
+                    transition: 'opacity 0.35s ease',
+                }}
+            />
+            <div
+                style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'linear-gradient(180deg, transparent 35%, rgba(0,0,0,0.78) 100%)',
+                    pointerEvents: 'none',
+                }}
+            />
+            <div
+                style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    pointerEvents: 'none',
+                    opacity: hover ? 0 : 1,
+                    transition: 'opacity 0.28s ease',
+                }}
+                aria-hidden
+            >
+                <div
+                    style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: '50%',
+                        background: 'rgba(0,0,0,0.5)',
+                        border: '1px solid rgba(255,255,255,0.35)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                    }}
+                >
+                    <Play size={22} fill="rgba(255,255,255,0.95)" color="rgba(255,255,255,0.95)" style={{ marginLeft: 3 }} strokeWidth={0} />
+                </div>
+            </div>
+            <div style={{ position: 'absolute', left: 14, right: 14, bottom: 14, pointerEvents: 'none' }}>
+                <div
+                    style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                        color: 'rgba(255,255,255,0.78)',
+                        marginBottom: 6,
+                    }}
+                >
+                    {tile.tag}
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#ffffff', letterSpacing: '-0.02em', lineHeight: 1.25 }}>
+                    {tile.title}
+                </div>
+                <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.88)' }}>
+                    More free clips →
+                </div>
+            </div>
+        </a>
     );
 }
 
@@ -787,7 +960,11 @@ export default function HomePage() {
                                 >
                                     <div style={{ position: 'relative', height: 400, background: '#e5e5e5', overflow: 'hidden' }}>
                                         {card.type === 'video' && 'srcs' in card ? (
-                                            <AutoVideo srcs={card.srcs!} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                            <AutoVideo
+                                                srcs={card.srcs!}
+                                                posters={'posters' in card ? (card as { posters?: readonly string[] }).posters : undefined}
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                            />
                                         ) : (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img src={(card as { src: string }).src} alt={card.prompt} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} loading="eager" />
@@ -811,7 +988,16 @@ export default function HomePage() {
                                                 letterSpacing: '0.01em',
                                             }}
                                         >
-                                            <span style={{ width: 7, height: 7, borderRadius: 99, background: '#4ade80', flexShrink: 0 }} />
+                                            <span
+                                                style={{
+                                                    width: 8,
+                                                    height: 8,
+                                                    borderRadius: 99,
+                                                    flexShrink: 0,
+                                                    background: 'rgba(255,255,255,0.9)',
+                                                    boxShadow: '0 0 0 1px rgba(255,255,255,0.35)',
+                                                }}
+                                            />
                                             {card.modelTag}
                                         </div>
                                         <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
@@ -876,6 +1062,126 @@ export default function HomePage() {
                         </button>
                     </div>
                 </motion.div>
+            </section>
+
+            {/* Free stock video — Mixkit hover grid (disjoint from hero / carousel / use-case) */}
+            <section
+                style={{
+                    background: 'linear-gradient(180deg, #ffffff 0%, #f4f4f5 100%)',
+                    padding: '72px max(24px, 4vw) 64px',
+                    borderTop: '1px solid rgba(0,0,0,0.06)',
+                }}
+            >
+                <div style={{ maxWidth: 1160, margin: '0 auto' }}>
+                    <p
+                        style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            letterSpacing: '0.18em',
+                            color: '#9ca3af',
+                            textTransform: 'uppercase',
+                            margin: '0 0 12px',
+                            textAlign: 'center',
+                        }}
+                    >
+                        Free stock footage
+                    </p>
+                    <h2
+                        style={{
+                            fontSize: 'clamp(1.5rem, 3vw, 2.25rem)',
+                            fontWeight: 700,
+                            letterSpacing: '-0.03em',
+                            margin: '0 0 12px',
+                            textAlign: 'center',
+                            color: '#0a0a0a',
+                            lineHeight: 1.15,
+                        }}
+                    >
+                        Royalty-free stock video
+                    </h2>
+                    <p
+                        style={{
+                            fontSize: 15,
+                            color: '#6b7280',
+                            margin: '0 auto 10px',
+                            maxWidth: 640,
+                            textAlign: 'center',
+                            lineHeight: 1.6,
+                        }}
+                    >
+                        Hover for a muted Mixkit loop; stills are preview photos (Unsplash) so tiles stay readable before video loads. Open a tile for{' '}
+                        <a href={MIXKIT_FREE_VIDEO_HUB} target="_blank" rel="noopener noreferrer" style={{ color: '#0a0a0a', fontWeight: 600 }}>
+                            Mixkit&apos;s free library
+                        </a>
+                        . Video files stream from Mixkit&apos;s CDN (720p/1080p MP4).{' '}
+                        <a href={STOCK_FOOTAGE_LICENSE.mixkit} target="_blank" rel="noopener noreferrer" style={{ color: '#0a0a0a', fontWeight: 600 }}>
+                            Mixkit License
+                        </a>
+                        ; preview stills{' '}
+                        <a href={STOCK_FOOTAGE_LICENSE.unsplash} target="_blank" rel="noopener noreferrer" style={{ color: '#0a0a0a', fontWeight: 600 }}>
+                            Unsplash
+                        </a>
+                        .
+                    </p>
+                    <p
+                        style={{
+                            fontSize: 13,
+                            color: '#9ca3af',
+                            margin: '0 auto 32px',
+                            maxWidth: 640,
+                            textAlign: 'center',
+                            lineHeight: 1.55,
+                        }}
+                    >
+                        These six files are only used here — the hero, carousel, and use-case blocks each use their own clips so nothing repeats across the page.
+                    </p>
+                    <div
+                        style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                            gap: 14,
+                            marginBottom: 28,
+                        }}
+                    >
+                        {STOCK_FOOTAGE_BROWSE_TILES.map((tile) => (
+                            <div
+                                key={tile.mp4}
+                                style={{
+                                    aspectRatio: '16 / 9',
+                                    borderRadius: 18,
+                                    overflow: 'hidden',
+                                    border: '1px solid rgba(0,0,0,0.08)',
+                                    background: '#e5e5e5',
+                                    boxShadow: '0 8px 28px rgba(0,0,0,0.06)',
+                                }}
+                            >
+                                <StockBrowseTileCard tile={tile} />
+                            </div>
+                        ))}
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                        <a
+                            href={MIXKIT_FREE_VIDEO_HUB}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 15,
+                                fontWeight: 600,
+                                color: '#0a0a0a',
+                                textDecoration: 'none',
+                                padding: '12px 22px',
+                                borderRadius: 9999,
+                                border: '1px solid rgba(0,0,0,0.12)',
+                                background: '#ffffff',
+                            }}
+                        >
+                            Browse free video on Mixkit
+                        </a>
+                    </div>
+                </div>
             </section>
 
             {/* ════════════════════════════════════
@@ -1089,6 +1395,7 @@ export default function HomePage() {
                                 {'srcs' in uc && uc.srcs ? (
                                     <AutoVideo
                                         srcs={uc.srcs}
+                                        posters={'videoPosters' in uc ? uc.videoPosters : undefined}
                                         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                                     />
                                 ) : (

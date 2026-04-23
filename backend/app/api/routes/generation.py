@@ -6,6 +6,7 @@ import uuid
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from starlette.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,6 +48,7 @@ _PROGRESS_MAP = {
 async def trigger_generation(
     request: Request,
     payload: GenerationRequest,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -205,6 +207,7 @@ async def trigger_generation(
 async def get_generation_status(
     request: Request,
     scene_id: uuid.UUID,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

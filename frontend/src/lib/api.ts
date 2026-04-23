@@ -1,12 +1,31 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import type { User } from '@/lib/auth';
+import { clearAuth } from '@/lib/auth';
 
-// Use NEXT_PUBLIC_API_URL: `/api/v1` (same-origin + Next rewrite) when running frontend in Docker, or full URL for host-only dev.
-const API_BASE = process.env.NEXT_PUBLIC_API_URL?.trim() || 'http://127.0.0.1:8000/api/v1';
+/**
+ * API origin:
+ * - Browser: default `/api/v1` (Next.js BFF proxy) so we avoid CORS and localhost vs 127.0.0.1 mismatches (Chrome/Safari).
+ * - Override with NEXT_PUBLIC_API_URL when you intentionally call the backend directly.
+ * - Server (SSR): BACKEND_INTERNAL_URL / API_PROXY_TARGET or localhost fallback.
+ */
+function getApiBase(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (fromEnv) return fromEnv;
+
+  if (typeof window !== 'undefined') {
+    return '/api/v1';
+  }
+
+  const internal = process.env.BACKEND_INTERNAL_URL || process.env.API_PROXY_TARGET;
+  if (internal) {
+    return `${String(internal).replace(/\/$/, '')}/api/v1`;
+  }
+  return 'http://127.0.0.1:8000/api/v1';
+}
 
 const api = axios.create({
-  baseURL: API_BASE,
+  baseURL: getApiBase(),
 });
 
 /** Use real API `detail` when present; surface network errors instead of a generic auth message. */
@@ -85,8 +104,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      Cookies.remove('token');
-      Cookies.remove('user');
+      clearAuth();
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }

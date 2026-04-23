@@ -3,6 +3,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from starlette.responses import Response
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user
@@ -25,6 +26,7 @@ class UploadResponse(BaseModel):
 @limiter.limit("40/minute")
 async def upload_media(
     request: Request,
+    response: Response,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):

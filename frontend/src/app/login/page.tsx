@@ -1,11 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Github, Globe, Shield, Mail, ArrowRight, Eye, EyeOff, X } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { authAPI } from '@/lib/api';
+import { authAPI, formatApiError } from '@/lib/api';
 import { setAuth } from '@/lib/auth';
 
 const RIGHT_IMAGE =
@@ -33,7 +32,6 @@ function LuminaMark() {
 }
 
 export default function LoginPage() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
 
@@ -52,12 +50,10 @@ export default function LoginPage() {
 
       setAuth(access_token, user);
       toast.success('Successfully logged in', { id: toastId });
-      router.push('/studio');
+      // Full navigation so middleware and all browsers reliably see auth cookies (Next + Chrome).
+      window.location.assign('/studio');
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Invalid email or password';
-      toast.error(typeof msg === 'string' ? msg : 'Invalid email or password', { id: toastId });
+      toast.error(formatApiError(err, 'Invalid email or password'), { id: toastId });
     } finally {
       setIsLoading(false);
     }

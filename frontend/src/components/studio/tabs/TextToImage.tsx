@@ -89,7 +89,7 @@ export default function TextToImage({ onGenerate, loading }: Props) {
                         </motion.div>
                     )}
                 </AnimatePresence>
-                <div className="section-label" style={{ marginTop: 4 }}>
+                <div className="section-label" style={{ marginTop: 2, marginBottom: 6 }}>
                     Aspect ratio
                 </div>
                 <AspectRatioSelector value={ratio} onChange={setRatio} />

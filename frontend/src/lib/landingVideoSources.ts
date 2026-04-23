@@ -10,7 +10,7 @@ const u1920 = 'auto=format&fit=crop&w=1920&q=85';
  * Mixkit serves `-1080.mp4` for many (not all) clips. IDs verified against CDN; others stay 720p.
  */
 const MIXKIT_HAS_1080 = new Set<number>([
-    43120, 39714, 51612, 43535, 65, 3919, 31411, 3009, 3045,
+    43120, 39714, 51612, 43535, 65, 31411, 3009, 3045, 40946, 52067,
 ]);
 
 export function mixkitMp4(id: number): string {
@@ -22,8 +22,8 @@ export function mixkitMp4(id: number): string {
  * Royalty-free abstract / neon / futuristic loops (Mixkit). 1080p where CDN allows.
  */
 export const AI_CREATIVE_REMOTE_CLIPS = [
-    mixkitMp4(30599),
-    mixkitMp4(3919),
+    mixkitMp4(40946),
+    mixkitMp4(52067),
     mixkitMp4(31411),
     mixkitMp4(31619),
     mixkitMp4(30202),
@@ -264,3 +264,123 @@ export const AI_ADS_CAMPAIGN_HERO_CHAIN = [
     LOCAL_KIDS_TOY_CLIP,
     ...REMOTE_VIDEO_FALLBACKS,
 ];
+
+/**
+ * ─── Marketing homepage only (/) — Mixkit clips, disjoint slices ────────────
+ * Video: `assets.mixkit.co` (Mixkit License). Hero/carousel/use-case use gradient SVG posters; browse grid uses Unsplash stills so tiles read as real thumbnails.
+ * @see https://mixkit.co/license/
+ */
+export const MIXKIT_FREE_VIDEO_HUB = 'https://mixkit.co/free-stock-video/';
+
+/** Unsplash stills for stock grid idle state (Mixkit MP4 plays on hover). */
+const stockBrowseThumb = (photoId: string) => `https://images.unsplash.com/${photoId}?${u1920}`;
+
+const STOCK_GRID_UNSPLASH_THUMBS: readonly string[] = [
+    stockBrowseThumb('photo-1558618666-fcd25c85cd64'),
+    stockBrowseThumb('photo-1469854523086-cc02fe5d8800'),
+    stockBrowseThumb('photo-1507525428034-b723cf961d3e'),
+    stockBrowseThumb('photo-1514565131-fce0801e5785'),
+    stockBrowseThumb('photo-1618005182384-a83a8bd57fbe'),
+    stockBrowseThumb('photo-1472214103451-9374bd1c798e'),
+];
+
+type HomeMixClip = {
+    readonly mixkitId: number;
+    readonly slugTitle: string;
+    readonly mp4: string;
+    readonly poster: string;
+    readonly moreUrl: string;
+};
+
+function homeMixClip(id: number, slugTitle: string, hueA: number, hueB: number): HomeMixClip {
+    return {
+        mixkitId: id,
+        slugTitle,
+        mp4: mixkitMp4(id),
+        poster: gradientPoster(hueA, hueB),
+        moreUrl: MIXKIT_FREE_VIDEO_HUB,
+    };
+}
+
+/**
+ * Thirty distinct Mixkit files. Slices are **disjoint**:
+ * hero 0–9, carousel 10–17, use-case 18–23, browse grid 24–29.
+ */
+const HOME_MIX_POOL: readonly HomeMixClip[] = [
+    homeMixClip(40946, 'Coastal sunset', 24, 52),
+    homeMixClip(52067, 'Particle waves', 248, 278),
+    homeMixClip(31411, 'Data drift', 328, 12),
+    homeMixClip(31619, 'Purple mist', 285, 320),
+    homeMixClip(30202, 'Blue pulse', 210, 250),
+    homeMixClip(30197, 'Soft aurora', 175, 220),
+    homeMixClip(30590, 'Gold dust', 38, 72),
+    homeMixClip(30584, 'Mesh glow', 230, 265),
+    homeMixClip(3009, 'Red sparks', 350, 20),
+    homeMixClip(3045, 'Deep gradient', 240, 275),
+    homeMixClip(30595, 'Star field', 255, 290),
+    homeMixClip(48783, 'Sword duel', 15, 48),
+    homeMixClip(13029, 'Blade combat', 22, 55),
+    homeMixClip(36754, 'Fencing', 28, 62),
+    homeMixClip(43120, 'Mountains aerial', 200, 235),
+    homeMixClip(39714, 'Landscape flyover', 185, 218),
+    homeMixClip(25187, 'Bunny play', 158, 192),
+    homeMixClip(14371, 'Meadow rabbit', 145, 178),
+    homeMixClip(24323, 'Cartoon desk', 310, 345),
+    homeMixClip(26312, 'Deep ocean', 195, 225),
+    homeMixClip(9668, 'Underwater', 175, 205),
+    homeMixClip(51612, 'Gaming win', 265, 300),
+    homeMixClip(43535, 'Squad session', 278, 312),
+    homeMixClip(35164, 'Race vs plane', 8, 42),
+    homeMixClip(65, 'Engine detail', 12, 38),
+    homeMixClip(3175, 'On the road', 25, 58),
+    homeMixClip(44249, 'Coastal breeze', 188, 218),
+    homeMixClip(49421, 'City pulse', 235, 268),
+    homeMixClip(30208, 'Abstract flow', 300, 335),
+    homeMixClip(30499, 'Nature beat', 140, 168),
+];
+
+/** Hero crossfade — first ten pool clips only (no overlap with carousel / grid). */
+export const HOMEPAGE_HERO_PLAYABLE: readonly HeroBackdropClip[] = HOME_MIX_POOL.slice(0, 10).map((c) => ({
+    src: c.mp4,
+    label: `Free clip · ${c.slugTitle} (Mixkit #${c.mixkitId})`,
+}));
+
+export const HOMEPAGE_HERO_CLIPS: string[] = HOMEPAGE_HERO_PLAYABLE.map((c) => c.src);
+
+/** Under hero MP4s: neutral cinematic still (pool gradients can read as muddy green on load). */
+export const HOMEPAGE_HERO_POSTER =
+    `https://images.unsplash.com/photo-1534438327276-14e5300c3a48?${u1920}`;
+
+/** Carousel — eight clips from pool slots 10–17 (disjoint from hero). */
+export const HOMEPAGE_SLIDER_VIDEO_CHAIN: readonly string[] = HOME_MIX_POOL.slice(10, 18).map((c) => c.mp4);
+
+/** Gradient posters until each Mixkit MP4 is ready (instant paint, no external stills). */
+export const HOMEPAGE_SLIDER_VIDEO_POSTERS: readonly string[] = HOME_MIX_POOL.slice(10, 18).map((c) => c.poster);
+
+/** Use-case panel — six clips from pool slots 18–23. */
+export const HOMEPAGE_USE_CASE_VIDEO_CHAIN: readonly string[] = HOME_MIX_POOL.slice(18, 24).map((c) => c.mp4);
+
+export const HOMEPAGE_USE_CASE_VIDEO_POSTERS: readonly string[] = HOME_MIX_POOL.slice(18, 24).map((c) => c.poster);
+
+export type StockBrowseTile = {
+    readonly title: string;
+    readonly tag: string;
+    readonly moreUrl: string;
+    readonly poster: string;
+    readonly mp4: string;
+    readonly span?: 'normal' | 'tall';
+};
+
+export const STOCK_FOOTAGE_LICENSE = {
+    mixkit: 'https://mixkit.co/license/',
+    unsplash: 'https://unsplash.com/license',
+} as const;
+
+/** Hover grid — six clips from pool slots 24–29 (disjoint from hero, carousel, and use-case). */
+export const STOCK_FOOTAGE_BROWSE_TILES: readonly StockBrowseTile[] = HOME_MIX_POOL.slice(24, 30).map((c, i) => ({
+    title: c.slugTitle,
+    tag: 'Mixkit · HD',
+    moreUrl: c.moreUrl,
+    poster: STOCK_GRID_UNSPLASH_THUMBS[i] ?? c.poster,
+    mp4: c.mp4,
+}));

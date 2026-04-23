@@ -161,7 +161,7 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
                         }
                     }}
                 />
-                <div className="section-label" style={{ marginTop: 4 }}>
+                <div className="section-label" style={{ marginTop: 2, marginBottom: 6 }}>
                     Aspect ratio
                 </div>
                 <AspectRatioSelector value={ratio} onChange={setRatio} />
