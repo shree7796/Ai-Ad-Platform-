@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Lightbulb, Users, MicVocal, Music2, Clock, Timer } from 'lucide-react';
+import { Lightbulb, MicVocal, Music2, Clock } from 'lucide-react';
 import ModelDropdown, { type ModelOption } from '@/components/studio/ModelDropdown';
 import ChipDropdown, { type ChipOption } from '@/components/studio/ChipDropdown';
 import {
@@ -43,18 +43,19 @@ const MUSIC_OPTIONS: ChipOption[] = [
     { value: 'no_music',  label: 'No Music',  desc: 'Narration only, no background track' },
 ];
 
-const SCENE_OPTIONS: ChipOption[] = [
-    { value: '3',  label: '3 scenes',  desc: '~15–30s · quick story'           },
-    { value: '5',  label: '5 scenes',  desc: '~25–50s · short YouTube video'   },
-    { value: '8',  label: '8 scenes',  desc: '~40s–1.3min · standard story'    },
-    { value: '12', label: '12 scenes', desc: '~1–2 min · long-form narrative'  },
-    { value: '16', label: '16 scenes', desc: '~1.3–2.7 min · extended video'   },
-    { value: '20', label: '20 scenes', desc: '~1.7–3.3 min · epic story'       },
-];
-
-const DURATION_OPTIONS: ChipOption[] = [
-    { value: '5',  label: '5s / scene',  desc: 'Fast generation · shorter clips' },
-    { value: '10', label: '10s / scene', desc: 'Longer clips · more cinematic'   },
+// value encodes "scenes_secPerScene" — parsed by the component
+const LENGTH_OPTIONS: ChipOption[] = [
+    { value: '3_5',   label: '~15s',     desc: '3 scenes · 5s each · quick story'          },
+    { value: '5_5',   label: '~25s',     desc: '5 scenes · 5s each · short YouTube video'  },
+    { value: '8_5',   label: '~40s',     desc: '8 scenes · 5s each · standard story'       },
+    { value: '12_5',  label: '~1 min',   desc: '12 scenes · 5s each · long-form narrative' },
+    { value: '16_5',  label: '~1.3 min', desc: '16 scenes · 5s each · extended video'      },
+    { value: '20_5',  label: '~1.7 min', desc: '20 scenes · 5s each · epic story'          },
+    { value: '5_10',  label: '~50s',     desc: '5 scenes · 10s each · cinematic clips'     },
+    { value: '8_10',  label: '~1.3 min', desc: '8 scenes · 10s each · immersive story'     },
+    { value: '12_10', label: '~2 min',   desc: '12 scenes · 10s each · full short film'    },
+    { value: '16_10', label: '~2.7 min', desc: '16 scenes · 10s each · extended film'      },
+    { value: '20_10', label: '~3.3 min', desc: '20 scenes · 10s each · epic film'          },
 ];
 
 const SUGGESTIONS = [
@@ -65,11 +66,9 @@ const SUGGESTIONS = [
     'A girl finds a door that opens to a parallel world where she never existed.',
 ];
 
-function fmtDuration(scenes: number, secPerScene: number): string {
-    const total = scenes * secPerScene;
-    if (total < 60) return `~${total}s`;
-    const mins = (total / 60).toFixed(1);
-    return `~${mins} min`;
+function parseLength(val: string): { scenes: number; dur: number } {
+    const [s, d] = val.split('_').map(Number);
+    return { scenes: s || 5, dur: d || 5 };
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -87,17 +86,14 @@ interface Props {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function TextToStory({ onGenerate, loading }: Props) {
-    const [prompt, setPrompt]               = useState('');
-    const [sceneCount, setSceneCount]       = useState('5');
-    const [sceneDuration, setSceneDuration] = useState('5');
-    const [voice, setVoice]                 = useState('fable');
-    const [music, setMusic]                 = useState('cinematic');
-    const [videoModel, setVideoModel]       = useState('kling_21_pro');
+    const [prompt, setPrompt]         = useState('');
+    const [length, setLength]         = useState('5_5');
+    const [voice, setVoice]           = useState('fable');
+    const [music, setMusic]           = useState('cinematic');
+    const [videoModel, setVideoModel] = useState('kling_21_pro');
     const [showSuggestions, setShowSuggestions] = useState(false);
 
-    const sceneNum   = parseInt(sceneCount, 10);
-    const durNum     = parseInt(sceneDuration, 10);
-    const durLabel   = fmtDuration(sceneNum, durNum);
+    const { scenes: sceneNum, dur: durNum } = parseLength(length);
 
     const credits = useMemo(() => {
         const base = STORY_MODELS.find(m => m.value === videoModel)?.credits ?? 98;
@@ -158,29 +154,14 @@ export default function TextToStory({ onGenerate, loading }: Props) {
                             variant="dock"
                         />
 
-                        {/* Scenes - ChipDropdown (3 → 5 → 8 → 12 → 16 → 20) */}
+                        {/* Video length — one dropdown replaces scene count + clip duration + total */}
                         <ChipDropdown
-                            icon={<Users size={14} strokeWidth={1.75} />}
-                            value={sceneCount}
-                            options={SCENE_OPTIONS}
-                            onChange={setSceneCount}
+                            icon={<Clock size={14} strokeWidth={1.75} />}
+                            value={length}
+                            options={LENGTH_OPTIONS}
+                            onChange={setLength}
                             disabled={loading}
                         />
-
-                        {/* Clip duration per scene */}
-                        <ChipDropdown
-                            icon={<Timer size={14} strokeWidth={1.75} />}
-                            value={sceneDuration}
-                            options={DURATION_OPTIONS}
-                            onChange={setSceneDuration}
-                            disabled={loading}
-                        />
-
-                        {/* Total duration - read-only */}
-                        <span className="krea-dock-chip" style={{ pointerEvents: 'none', opacity: 0.6 }}>
-                            <Clock size={14} strokeWidth={1.75} />
-                            {durLabel}
-                        </span>
 
                         {/* Voice - ChipDropdown (proper portal dropdown) */}
                         <ChipDropdown
