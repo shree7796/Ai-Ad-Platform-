@@ -1,165 +1,302 @@
-# 🚀 AdGen AI - AI-Powered Video Ad Generator
+# KreaDock — AI Creative Studio
 
-> Transform product images into stunning cinematic marketing videos in seconds.
+> Full-stack AI platform for text-to-video, story videos, image generation, 3D assets, iGaming assets, and more.
+
+---
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Frontend   │────▶│   FastAPI     │────▶│   Celery     │
-│  (Next.js)   │     │   (API GW)   │     │  (Workers)   │
-└─────────────┘     └──────┬───────┘     └──────┬──────┘
+┌─────────────┐     ┌──────────────┐     ┌──────────────┐
+│  Frontend   │────▶│   FastAPI    │────▶│    Celery    │
+│  (Next.js)  │     │   (API GW)   │     │  (Workers)   │
+└─────────────┘     └──────┬───────┘     └──────┬───────┘
                            │                     │
-                    ┌──────┴───────┐     ┌──────┴──────┐
-                    │  PostgreSQL   │     │  AI Models   │
-                    │  (Database)   │     │ (Mock/Pika/  │
-                    └──────────────┘     │  Runway)     │
-                    ┌──────────────┐     └─────────────┘
-                    │    Redis      │
-                    │   (Queue)     │     ┌─────────────┐
-                    └──────────────┘     │    MinIO      │
+                    ┌──────┴───────┐     ┌──────┴───────┐
+                    │  PostgreSQL  │     │  AI Models   │
+                    │  (Database)  │     │  Fal/OpenAI  │
+                    └──────────────┘     │  Kling/Luma  │
+                    ┌──────────────┐     └──────────────┘
+                    │    Redis     │
+                    │   (Queue)    │     ┌──────────────┐
+                    └──────────────┘     │    MinIO     │
                                          │  (Storage)   │
-                                         └─────────────┘
+                                         └──────────────┘
 ```
 
-## Quick Start
-
-### Prerequisites
-- Docker & Docker Compose
-- Git
-
-### 1. Clone & Configure
-
-```bash
-# Copy environment file
-cp .env.example .env
-
-# Edit .env with your settings (optional - works with defaults)
-```
-
-### 2. Start All Services
-
-```bash
-docker-compose up --build
-```
-
-### 3. Access
-
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 |
-| API Docs | http://localhost:8000/docs |
-| MinIO Console | http://localhost:9001 |
-
-### 4. Default Flow
-1. Register at http://localhost:3000/register
-2. Upload a product image
-3. Enter a prompt describing your desired ad
-4. Watch AI generate your video!
+---
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|-----------|
-| Backend | FastAPI (Python 3.11) |
-| Frontend | Next.js 14 + Tailwind v3 |
-| Database | PostgreSQL 16 |
-| Queue | Redis 7 + Celery |
-| Storage | MinIO (S3-compatible) |
-| Processing | FFmpeg |
-| Auth | JWT |
+| Component  | Technology                        |
+|------------|-----------------------------------|
+| Backend    | FastAPI + Celery (Python 3.10)    |
+| Frontend   | Next.js 14 (App Router, TypeScript) |
+| Database   | PostgreSQL 16                     |
+| Queue      | Redis 7 + Celery                  |
+| Storage    | MinIO (S3-compatible)             |
+| Processing | FFmpeg                            |
+| Auth       | JWT + Google OAuth                |
+| Payments   | Stripe                            |
 
-## AI Models (Pluggable)
+---
 
-Models are configured in `config/models.yaml`:
+## Prerequisites
 
-| Model | Status | Tier |
-|-------|--------|------|
-| Mock | ✅ Active | Basic |
-| Pika | 🔌 Ready | Basic |
-| Runway | 🔌 Stubbed | Premium |
+- **Docker** & **Docker Compose** (recommended — runs everything)
+- OR: Python 3.10+, Node.js 18+, PostgreSQL, Redis, MinIO, FFmpeg
 
-To enable a real model:
-1. Set `enabled: true` in `config/models.yaml`
-2. Add your API key to `.env`
-3. Set `VIDEO_MODEL_PROVIDER=pika` in `.env`
+---
+
+## Quick Start (Docker)
+
+```bash
+# 1. Clone the repo
+git clone <your-repo-url>
+cd Ai-Ad-Platform-
+
+# 2. Copy the environment file and fill in your keys (see section below)
+cp .env .env.local   # or just edit .env directly
+
+# 3. Build and start all services
+docker compose up --build -d
+
+# 4. Run database migrations (first time only)
+docker compose exec api alembic upgrade head
+
+# 5. Seed AI model definitions (first time only)
+docker compose exec api python seed_models.py
+```
+
+| Service        | URL                          |
+|----------------|------------------------------|
+| App (Frontend) | http://localhost:3000        |
+| API Docs       | http://localhost:8000/docs   |
+| MinIO Console  | http://localhost:9001        |
+
+---
+
+## Environment Variables — What You Must Set
+
+Open `.env` and fill in **every value marked below**. The others have working defaults for local dev.
+
+### 🔑 Required — App Security
+
+```env
+SECRET_KEY=<generate a random 64-char string>
+JWT_SECRET=<generate a different random 64-char string>
+```
+
+Generate them with:
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+---
+
+### 🗄️ Database (PostgreSQL)
+
+```env
+POSTGRES_USER=adgen
+POSTGRES_PASSWORD=adgen_secret      # change in production
+POSTGRES_DB=adgen_db
+POSTGRES_HOST=127.0.0.1
+POSTGRES_PORT=5455
+DATABASE_URL=postgresql+asyncpg://adgen:adgen_secret@127.0.0.1:5455/adgen_db
+```
+
+---
+
+### 📦 Object Storage (MinIO / S3)
+
+```env
+STORAGE_ENDPOINT=http://127.0.0.1:9000
+STORAGE_ACCESS_KEY=minioadmin
+STORAGE_SECRET_KEY=minioadmin        # change in production
+STORAGE_BUCKET=adgen-media
+STORAGE_PUBLIC_URL=http://localhost:9000
+```
+
+---
+
+### 🤖 AI APIs — Required for real generation
+
+```env
+# OpenAI (used for GPT story scripts + TTS narration)
+OPENAI_API_KEY=sk-...
+
+# Fal.ai  (used for Text-to-Video, Image-to-Video, 3D, iGaming assets)
+FAL_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+Get keys from:
+- OpenAI → https://platform.openai.com/api-keys
+- Fal.ai  → https://fal.ai/dashboard
+
+---
+
+### 💳 Stripe (Payments)
+
+```env
+STRIPE_SECRET_KEY=sk_test_...          # or sk_live_... in production
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Recurring price IDs — create these in Stripe Dashboard → Products
+STRIPE_PRICE_BASIC=price_...
+STRIPE_PRICE_PRO=price_...
+STRIPE_PRICE_PREMIUM=price_...
+```
+
+**How to set up Stripe:**
+1. Go to https://dashboard.stripe.com
+2. Create 3 products: **Basic ($12/mo)**, **Pro ($29/mo)**, **Studio ($59/mo)**
+3. Copy each product's **Price ID** (`price_xxx`) into `.env`
+4. Create a webhook endpoint pointing to `https://yourdomain.com/api/v1/billing/webhook`
+5. Copy the **Webhook Signing Secret** (`whsec_xxx`) into `.env`
+
+For local testing use [Stripe CLI](https://stripe.com/docs/stripe-cli):
+```bash
+stripe listen --forward-to localhost:8000/api/v1/billing/webhook
+```
+
+---
+
+### 🔐 Google OAuth (Sign in with Google)
+
+```env
+GOOGLE_CLIENT_ID=xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxxx
+GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
+# Production: https://api.yourdomain.com/api/v1/auth/google/callback
+```
+
+**How to create Google OAuth credentials:**
+1. Go to https://console.cloud.google.com
+2. Create a new project (or select an existing one)
+3. Navigate to **APIs & Services → OAuth consent screen**
+   - Choose **External**
+   - Fill in App name, support email, developer email → Save
+4. Navigate to **APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client ID**
+   - Application type: **Web application**
+   - Authorized redirect URIs — add:
+     - `http://localhost:8000/api/v1/auth/google/callback` (local dev)
+     - `https://api.yourdomain.com/api/v1/auth/google/callback` (production)
+5. Copy the **Client ID** and **Client Secret** into `.env`
+6. Under **OAuth consent screen → Test users**, add your email while the app is in testing mode
+
+---
+
+### 🌐 Public URLs
+
+```env
+PUBLIC_APP_URL=http://localhost:3000      # where users access the frontend
+NEXT_PUBLIC_API_URL=/api/v1               # keep this as-is for Docker
+BACKEND_INTERNAL_URL=http://localhost:8000
+```
+
+In production change `PUBLIC_APP_URL` to your real domain, e.g. `https://kreadock.ai`.
+
+---
+
+## Running Database Migrations
+
+```bash
+# Apply all pending migrations
+docker compose exec api alembic upgrade head
+
+# Create a new migration after changing a model
+docker compose exec api alembic revision --autogenerate -m "describe_change"
+```
+
+---
 
 ## Project Structure
 
 ```
-├── backend/           # FastAPI + Celery
+├── backend/
 │   ├── app/
-│   │   ├── ai_models/    # Pluggable model adapters
-│   │   ├── api/routes/    # REST endpoints
-│   │   ├── models/        # SQLAlchemy ORM
-│   │   ├── schemas/       # Pydantic validation
-│   │   ├── services/      # Business logic
-│   │   └── workers/       # Celery tasks
+│   │   ├── ai_models/       # Pluggable model adapters (Fal, Kling, Luma…)
+│   │   ├── api/routes/      # REST endpoints (auth, generation, billing…)
+│   │   ├── models/          # SQLAlchemy ORM models
+│   │   ├── schemas/         # Pydantic request/response schemas
+│   │   ├── services/        # Business logic (orchestrator, billing, storage…)
+│   │   └── workers/         # Celery tasks (video, story, 3D, iGaming…)
+│   ├── alembic/             # DB migration scripts
 │   └── Dockerfile
-├── frontend/          # Next.js
-│   ├── src/app/           # Pages (App Router)
-│   ├── src/lib/           # API client, auth
-│   └── Dockerfile
-├── config/            # YAML configs
-│   ├── models.yaml        # AI model definitions
-│   └── plans.yaml         # Subscription plans
+├── frontend/
+│   ├── src/app/             # Next.js pages (App Router)
+│   ├── src/components/      # UI components (Studio, Landing…)
+│   └── src/lib/             # API client, auth helpers
+├── config/
+│   ├── models.yaml          # AI model definitions
+│   ├── plans.yaml           # Subscription plan limits
+│   └── credits.yaml         # Credit costs per generation type
 ├── docker-compose.yml
-└── .env.example
+└── .env
 ```
 
-## Environment Variables
+---
 
-See `.env.example` for all configuration options.
-
-Key variables:
-- `VIDEO_MODEL_PROVIDER`- `mock` | `pika` | `runway`
-- `LLM_PROVIDER`- `openai` | `mock`
-- `LLM_MODEL`- `gpt-4o` | `gpt-4`
-- `OPENAI_API_KEY`- Your OpenAI key (for prompt enhancement)
-
-## Development
+## Useful Docker Commands
 
 ```bash
-# Backend only
-cd backend && pip install -r requirements.txt
-uvicorn app.main:app --reload
+# Start everything (detached)
+docker compose up -d
 
-# Frontend only
-cd frontend && npm install && npm run dev
+# Rebuild after code changes
+docker compose up --build -d
 
-# Full stack
-docker-compose up --build
+# Stop all containers
+docker compose down
+
+# Live logs (all services)
+docker compose logs -f
+
+# Logs for a single service
+docker compose logs -f frontend
+docker compose logs -f api
+docker compose logs -f worker
+
+# Open a shell inside the API container
+docker compose exec api bash
 ```
+
+---
+
+## Development (without Docker)
+
+```bash
+# Backend
+cd backend
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
+
+# Celery worker (separate terminal)
+cd backend
+celery -A app.celery_app worker --loglevel=info
+
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev
+```
+
+---
+
+## Subscription Plans
+
+Plans are defined in `config/plans.yaml`. Credit costs per generation are in `config/credits.yaml`.
+
+| Plan   | Price   | Monthly Credits | Features                          |
+|--------|---------|-----------------|-----------------------------------|
+| Free   | $0      | 500             | Basic generations                 |
+| Basic  | $12/mo  | 5,000           | + Story Studio, higher limits     |
+| Pro    | $29/mo  | 15,000          | + Priority queue, all models      |
+| Studio | $59/mo  | 50,000          | + All features, max scene counts  |
+
+---
 
 ## License
 
-Private- All rights reserved.
-
-
-
-## To start all the containers, you should run the following command from your project's root folder (e:\Shivam Project Work\ai video agent):
-
-```bash
-docker compose up -d
-```
-
-## Additional helpful commands:
-# To start and force a rebuild of the images (useful if you install new npm packages or change a Dockerfile):
-```bash
-docker compose up --build -d
-```
-
-# To stop all running containers:
-```bash
-docker compose down
-```
-
-# To view the live logs of all containers:
-```bash
-docker compose logs -f
-```
-
-# To view logs of a specific container (e.g., the NextJS frontend):
-```bash
-docker compose logs -f frontend
-```
+Private — All rights reserved.

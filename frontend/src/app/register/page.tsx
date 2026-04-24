@@ -159,6 +159,33 @@ export default function RegisterPage() {
             Start creating with AI in minutes
           </p>
 
+          {/* Google sign-up */}
+          <button
+            type="button"
+            onClick={() => window.location.assign('/api/v1/auth/google')}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              width: '100%', padding: '12px 16px', borderRadius: 9999,
+              background: '#ffffff', border: 'none', color: '#0a0a0a',
+              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              fontFamily: 'inherit', marginBottom: 18,
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+              <path fill="#4285F4" d="M46.145 24.503c0-1.6-.144-3.14-.41-4.618H24v8.737h12.44c-.537 2.892-2.168 5.342-4.62 6.988v5.81h7.48c4.376-4.03 6.845-9.97 6.845-16.917z"/>
+              <path fill="#34A853" d="M24 47c6.27 0 11.532-2.08 15.376-5.63l-7.48-5.81c-2.075 1.392-4.726 2.214-7.896 2.214-6.07 0-11.21-4.1-13.047-9.608H3.2v6.003C7.027 42.538 15.002 47 24 47z"/>
+              <path fill="#FBBC05" d="M10.953 28.166A14.904 14.904 0 0 1 10.14 24c0-1.44.247-2.838.813-4.166v-6.003H3.2A23.97 23.97 0 0 0 .023 24c0 3.877.93 7.544 2.577 10.769l8.353-6.603z"/>
+              <path fill="#EA4335" d="M24 9.226c3.42 0 6.487 1.176 8.902 3.487l6.676-6.676C35.527 2.346 30.265 0 24 0 15.002 0 7.027 4.462 3.2 10.832l8.353 6.003C13.39 13.327 17.93 9.226 24 9.226z"/>
+            </svg>
+            Continue with Google
+          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
+            <span style={{ fontSize: 12, color: '#737373', fontWeight: 600, letterSpacing: '0.1em' }}>OR</span>
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
+          </div>
+
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#a3a3a3', marginBottom: 6 }}>

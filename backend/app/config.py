@@ -157,6 +157,14 @@ class Settings(BaseSettings):
                 out.append(o)
         return out
 
+    # ── Google OAuth ──
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    # Redirect URI registered in Google Cloud Console
+    # Dev:  http://localhost:8000/api/v1/auth/google/callback
+    # Prod: https://api.yourdomain.com/api/v1/auth/google/callback
+    google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
+
     # ── Credits ──
     # Set to True to enforce the credit-balance gate on generation.
     # Keep False during the migration rollout so existing quota-based users

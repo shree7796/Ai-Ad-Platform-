@@ -159,7 +159,10 @@ export const authAPI = {
   login: (data: { email: string; password: string }) =>
     api.post('/auth/login', data),
 
-  me: () => api.get<User>('/auth/me', { timeout: 12_000 }),
+  me: (token?: string) => api.get<User>('/auth/me', {
+    timeout: 12_000,
+    ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+  }),
 
   updateMe: (data: { full_name?: string | null }) =>
     api.patch<User>('/auth/me', data),

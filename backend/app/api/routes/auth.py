@@ -1,9 +1,14 @@
 """
-Auth API Routes- Register, Login, Profile.
+Auth API Routes- Register, Login, Google OAuth, Profile.
 """
 
+import re
+import secrets
+import urllib.parse
+
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from starlette.responses import Response
+from starlette.responses import Response, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload
@@ -160,3 +165,132 @@ async def update_me(
     await db.commit()
     await db.refresh(current_user)
     return UserResponse.model_validate(current_user)
+
+
+# ── Google OAuth ──────────────────────────────────────────────────────────────
+
+_GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+_GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+_GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
+
+
+def _slugify_username(raw: str) -> str:
+    """Turn an email prefix into a valid username (alphanum + underscore, max 30)."""
+    base = re.sub(r"[^a-z0-9]", "_", raw.lower())[:24].strip("_") or "user"
+    return base
+
+
+@router.get("/google")
+async def google_login(request: Request):
+    """Redirect the browser to Google's OAuth consent screen."""
+    settings = get_settings()
+    if not settings.google_client_id:
+        raise HTTPException(status_code=501, detail="Google OAuth not configured. Set GOOGLE_CLIENT_ID.")
+
+    state = secrets.token_urlsafe(16)
+    params = {
+        "client_id": settings.google_client_id,
+        "redirect_uri": settings.google_redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "access_type": "offline",
+        "prompt": "select_account",
+    }
+    url = _GOOGLE_AUTH_URL + "?" + urllib.parse.urlencode(params)
+    return RedirectResponse(url, status_code=302)
+
+
+@router.get("/google/callback")
+async def google_callback(
+    request: Request,
+    code: str = "",
+    error: str = "",
+    db: AsyncSession = Depends(get_db),
+):
+    """Handle Google OAuth callback: exchange code, find/create user, issue JWT."""
+    settings = get_settings()
+    frontend_url = settings.public_app_url.rstrip("/")
+
+    if error or not code:
+        return RedirectResponse(f"{frontend_url}/login?error=google_denied", status_code=302)
+
+    if not settings.google_client_id or not settings.google_client_secret:
+        return RedirectResponse(f"{frontend_url}/login?error=not_configured", status_code=302)
+
+    # Exchange auth code for tokens
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            token_resp = await client.post(
+                _GOOGLE_TOKEN_URL,
+                data={
+                    "code": code,
+                    "client_id": settings.google_client_id,
+                    "client_secret": settings.google_client_secret,
+                    "redirect_uri": settings.google_redirect_uri,
+                    "grant_type": "authorization_code",
+                },
+            )
+            token_resp.raise_for_status()
+            tokens = token_resp.json()
+
+            # Fetch user profile
+            info_resp = await client.get(
+                _GOOGLE_USERINFO_URL,
+                headers={"Authorization": f"Bearer {tokens['access_token']}"},
+            )
+            info_resp.raise_for_status()
+            info = info_resp.json()
+    except Exception:
+        return RedirectResponse(f"{frontend_url}/login?error=google_failed", status_code=302)
+
+    email = (info.get("email") or "").strip().lower()
+    if not email:
+        return RedirectResponse(f"{frontend_url}/login?error=no_email", status_code=302)
+
+    # Find existing user by email
+    result = await db.execute(
+        select(User).options(*_USER_LOAD).where(func.lower(User.email) == email)
+    )
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        # Create new user from Google profile
+        base_username = _slugify_username(email.split("@")[0])
+        username = base_username
+        suffix = 1
+        while True:
+            existing = await db.execute(
+                select(User).where(func.lower(User.username) == username)
+            )
+            if not existing.scalar_one_or_none():
+                break
+            username = f"{base_username}_{suffix}"
+            suffix += 1
+
+        user = User(
+            email=email,
+            username=username,
+            password_hash=hash_password(secrets.token_hex(32)),  # unusable random hash
+            full_name=info.get("name") or info.get("given_name") or username,
+            plan="free",
+            is_admin=email in settings.admin_email_set,
+            credit_balance=settings.new_user_credit_grant,
+            reserved_balance=0,
+        )
+        db.add(user)
+        await db.flush()
+        db.add(Subscription(user_id=user.id, plan="free"))
+        await db.flush()
+
+    if not user.is_active:
+        return RedirectResponse(f"{frontend_url}/login?error=deactivated", status_code=302)
+
+    token = create_access_token(str(user.id))
+    await db.commit()
+
+    # Redirect frontend to /auth/callback with the JWT
+    return RedirectResponse(
+        f"{frontend_url}/auth/callback?token={urllib.parse.quote(token)}",
+        status_code=302,
+    )
