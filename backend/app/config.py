@@ -157,6 +157,14 @@ class Settings(BaseSettings):
                 out.append(o)
         return out
 
+    # ── SendGrid Email ──
+    sendgrid_api_key: Optional[str] = None
+    # Verified sender address in your SendGrid account
+    email_from_address: str = "noreply@yourdomain.com"
+    email_from_name: str = "KreaDock"
+    # Set False to skip email verification (useful for local dev / testing)
+    email_verification_required: bool = False
+
     # ── Google OAuth ──
     google_client_id: Optional[str] = None
     google_client_secret: Optional[str] = None

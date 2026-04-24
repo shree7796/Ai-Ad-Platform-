@@ -34,6 +34,7 @@ class UserResponse(BaseModel):
     plan: str
     is_admin: bool = False
     is_active: bool
+    email_verified: bool = False
     credit_balance: int = 0
     reserved_balance: int = 0
     bonus_credit_balance: int = 0

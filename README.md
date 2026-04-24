@@ -161,6 +161,29 @@ stripe listen --forward-to localhost:8000/api/v1/billing/webhook
 
 ---
 
+### 📧 SendGrid (Email Verification)
+
+```env
+SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+EMAIL_FROM_ADDRESS=noreply@yourdomain.com   # must be a verified sender in SendGrid
+EMAIL_FROM_NAME=KreaDock
+EMAIL_VERIFICATION_REQUIRED=false           # set to true to enforce email verification
+```
+
+**How to set up SendGrid:**
+1. Sign up at https://sendgrid.com (free — 100 emails/day forever)
+2. Go to **Settings → API Keys → Create API Key**
+   - Permission: **Restricted Access → Mail Send** (Full Access)
+   - Copy the key into `.env` as `SENDGRID_API_KEY`
+3. Go to **Settings → Sender Authentication**
+   - Either verify a **Single Sender** (quick, good for testing) or set up **Domain Authentication** (production recommended)
+   - Set the verified address as `EMAIL_FROM_ADDRESS`
+4. Set `EMAIL_VERIFICATION_REQUIRED=true` when you want to enforce it
+
+> **Local dev tip:** Leave `SENDGRID_API_KEY` empty and `EMAIL_VERIFICATION_REQUIRED=false`. The backend will print the verification link to the console logs so you can click it without any email setup.
+
+---
+
 ### 🔐 Google OAuth (Sign in with Google)
 
 ```env

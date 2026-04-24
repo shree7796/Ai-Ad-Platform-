@@ -20,6 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import { isFreeStudioPlan } from '@/lib/studioPlan';
 import { useUsageSummary } from '@/hooks/useUsageSummary';
 import UpgradePlanModal, { type UpgradeModalReason } from '@/components/studio/UpgradePlanModal';
+import EmailVerificationBanner from '@/components/studio/EmailVerificationBanner';
 
 function isStudioTab(v: string | null): v is StudioTab {
   return (
@@ -315,6 +316,11 @@ export default function HomePage() {
       <Sidebar />
 
       <main className="studio-main studio-workspace-main">
+        {user && user.email_verified === false && (
+          <div style={{ padding: '14px 20px 0' }}>
+            <EmailVerificationBanner email={user.email} />
+          </div>
+        )}
         <div className="studio-workspace-stack">
           <div className="studio-main-canvas studio-workspace-canvas">
             <OutputPanel

@@ -15,6 +15,7 @@ export interface User {
   /** Current paid plan period end from subscription row (ISO), if any. */
   plan_expires_at?: string | null;
   created_at: string;
+  email_verified?: boolean;
 }
 
 export function getToken(): string | undefined {

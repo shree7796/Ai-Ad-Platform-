@@ -5,6 +5,7 @@ Auth API Routes- Register, Login, Google OAuth, Profile.
 import re
 import secrets
 import urllib.parse
+from datetime import datetime, timedelta
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -20,6 +21,7 @@ from app.schemas.user import UserRegister, UserLogin, UserResponse, TokenRespons
 from app.api.deps import hash_password, verify_password, create_access_token, get_current_user
 from app.config import get_settings
 from app.security.limiter import limiter
+from app.services.email_service import send_verification_email
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -64,6 +66,10 @@ async def register(
 
     is_admin = email_key in settings.admin_email_set
 
+    # Generate email verification token
+    verify_token = secrets.token_urlsafe(32)
+    verify_expires = datetime.utcnow() + timedelta(hours=24)
+
     user = User(
         email=email_key,
         username=payload.username,
@@ -73,13 +79,32 @@ async def register(
         is_admin=is_admin,
         credit_balance=settings.new_user_credit_grant,
         reserved_balance=0,
+        # email verified immediately when verification is disabled
+        email_verified=not settings.email_verification_required,
+        email_verify_token=verify_token if settings.email_verification_required else None,
+        email_verify_expires_at=verify_expires if settings.email_verification_required else None,
     )
     db.add(user)
     await db.flush()
 
     subscription = Subscription(user_id=user.id, plan="free")
     db.add(subscription)
-    await db.flush()
+    await db.commit()
+
+    # Send verification email (non-blocking — failure doesn't break registration)
+    if settings.email_verification_required:
+        verify_url = (
+            f"{settings.public_app_url.rstrip('/')}/auth/verify-email"
+            f"?token={urllib.parse.quote(verify_token)}"
+        )
+        send_verification_email(
+            to_email=email_key,
+            username=payload.username,
+            verify_url=verify_url,
+            from_address=settings.email_from_address,
+            from_name=settings.email_from_name,
+            sendgrid_api_key=settings.sendgrid_api_key,
+        )
 
     token = create_access_token(str(user.id))
 
@@ -277,6 +302,7 @@ async def google_callback(
             is_admin=email in settings.admin_email_set,
             credit_balance=settings.new_user_credit_grant,
             reserved_balance=0,
+            email_verified=True,  # Google already verified this email
         )
         db.add(user)
         await db.flush()
@@ -294,3 +320,74 @@ async def google_callback(
         f"{frontend_url}/auth/callback?token={urllib.parse.quote(token)}",
         status_code=302,
     )
+
+
+# ── Email Verification ────────────────────────────────────────────────────────
+
+@router.get("/verify-email")
+@limiter.limit("10/minute")
+async def verify_email(
+    request: Request,
+    token: str = "",
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify the user's email using the token sent to them on registration."""
+    if not token:
+        raise HTTPException(status_code=400, detail="Verification token is required")
+
+    result = await db.execute(
+        select(User).options(*_USER_LOAD).where(User.email_verify_token == token)
+    )
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+
+    if user.email_verify_expires_at and user.email_verify_expires_at < datetime.utcnow():
+        raise HTTPException(
+            status_code=400,
+            detail="Verification link has expired. Please request a new one.",
+        )
+
+    user.email_verified = True
+    user.email_verify_token = None
+    user.email_verify_expires_at = None
+    await db.commit()
+
+    return {"message": "Email verified successfully"}
+
+
+@router.post("/resend-verification")
+@limiter.limit("3/minute")
+async def resend_verification(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Re-send the email verification link to the current user."""
+    settings = get_settings()
+
+    if current_user.email_verified:
+        return {"message": "Email is already verified"}
+
+    verify_token = secrets.token_urlsafe(32)
+    verify_expires = datetime.utcnow() + timedelta(hours=24)
+
+    current_user.email_verify_token = verify_token
+    current_user.email_verify_expires_at = verify_expires
+    await db.commit()
+
+    verify_url = (
+        f"{settings.public_app_url.rstrip('/')}/auth/verify-email"
+        f"?token={urllib.parse.quote(verify_token)}"
+    )
+    send_verification_email(
+        to_email=current_user.email,
+        username=current_user.username,
+        verify_url=verify_url,
+        from_address=settings.email_from_address,
+        from_name=settings.email_from_name,
+        sendgrid_api_key=settings.sendgrid_api_key,
+    )
+
+    return {"message": "Verification email sent"}

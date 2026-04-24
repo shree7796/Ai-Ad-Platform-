@@ -44,6 +44,11 @@ class User(Base):
     bonus_credit_balance: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     bonus_credits_expire_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
+    # ── Email Verification ──
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    email_verify_token: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True)
+    email_verify_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
     )

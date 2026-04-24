@@ -45,6 +45,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [form, setForm] = useState({ email: '', username: '', password: '', full_name: '' });
+  const [pendingEmail, setPendingEmail] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,14 +55,65 @@ export default function RegisterPage() {
     try {
       const res = await authAPI.register(form);
       setAuth(res.data.access_token, res.data.user);
-      toast.success('Welcome to Lumina!', { id: toastId });
-      window.location.assign('/studio');
+      toast.dismiss(toastId);
+
+      if (res.data.user?.email_verified === false) {
+        // Verification required — show the "check your email" screen
+        setPendingEmail(form.email);
+      } else {
+        toast.success('Welcome to KreaDock!', { id: toastId });
+        window.location.assign('/studio');
+      }
     } catch (err: unknown) {
       toast.error(registerErrorMessage(err), { id: toastId });
     } finally {
       setLoading(false);
     }
   };
+
+  // ── Check-your-email screen ──
+  if (pendingEmail) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 16px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <div style={{ width: '100%', maxWidth: 440, background: '#141414', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '40px 40px 36px', textAlign: 'center' }}>
+          {/* Email icon */}
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" style={{ color: '#fff' }}>
+              <rect x="2" y="4" width="20" height="16" rx="2"/>
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+            </svg>
+          </div>
+          <h1 style={{ margin: '0 0 10px', fontSize: 22, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>Check your email</h1>
+          <p style={{ margin: '0 0 24px', fontSize: 14, color: '#a3a3a3', lineHeight: 1.6 }}>
+            We sent a verification link to<br />
+            <strong style={{ color: '#fff' }}>{pendingEmail}</strong>.<br />
+            Click the link to activate your account.
+          </p>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await fetch('/api/v1/auth/resend-verification', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` } });
+                toast.success('Verification email resent!');
+              } catch {
+                toast.error('Could not resend — try again shortly.');
+              }
+            }}
+            style={{ width: '100%', padding: '12px', borderRadius: 9999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12 }}
+          >
+            Resend verification email
+          </button>
+          <button
+            type="button"
+            onClick={() => window.location.assign('/studio')}
+            style={{ background: 'none', border: 'none', color: '#737373', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            Continue to studio anyway →
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
