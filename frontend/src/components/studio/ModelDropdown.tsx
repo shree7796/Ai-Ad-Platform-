@@ -271,7 +271,7 @@ export default function ModelDropdown({ models, value, onChange, label = 'AI Mod
                                     {m.badge}
                                 </span>
                             </div>
-                            <div style={{ fontSize: 11.5, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <div style={{ fontSize: 11.5, color: 'var(--text-muted)', whiteSpace: 'normal', lineHeight: 1.4 }}>
                                 {locked ? `${m.desc} · Paid plans` : m.desc}
                             </div>
                         </div>
@@ -308,7 +308,7 @@ export default function ModelDropdown({ models, value, onChange, label = 'AI Mod
     return (
         <div
             className={isDock ? 'krea-model-dd-wrap' : undefined}
-            style={isDock ? { minWidth: 0 } : undefined}
+            style={isDock ? { flex: '0 0 auto', minWidth: 'max-content' } : undefined}
             onMouseEnter={onTriggerMouseEnter}
             onMouseLeave={onTriggerMouseLeave}
         >
@@ -335,7 +335,7 @@ export default function ModelDropdown({ models, value, onChange, label = 'AI Mod
                     display: 'flex',
                     alignItems: 'center',
                     gap: isDock ? 8 : 10,
-                    padding: isDock ? '8px 14px' : '9px 12px',
+                    padding: isDock ? '7px 10px' : '9px 12px',
                     borderRadius: isDock ? 9999 : 'var(--radius-md)',
                     cursor: 'pointer',
                     border: open
@@ -367,7 +367,7 @@ export default function ModelDropdown({ models, value, onChange, label = 'AI Mod
                 <span style={{
                     flex: 1, minWidth: 0, fontSize: isDock ? 12 : 13, fontWeight: 600,
                     color: 'var(--text-primary)',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap', overflow: 'hidden',
                 }}>
                     {selected.label}
                 </span>

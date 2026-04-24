@@ -178,7 +178,7 @@ export default function HomePage() {
         project_id,
         prompt: payload.prompt,
         task_type,
-        duration_seconds: task_type === 'text_to_story' ? 5 : duration_seconds,
+        duration_seconds: task_type === 'text_to_story' ? (payload.sceneDuration ?? 5) : duration_seconds,
         enhance_prompt:
           task_type === 'image_to_3d' || task_type === 'text_to_story'
             ? false
@@ -191,7 +191,7 @@ export default function HomePage() {
           task_type === 'image_to_image' && 'heroCinematic' in payload ? !!payload.heroCinematic : undefined,
         image_model:
           task_type === 'text_to_story'
-            ? `text_to_story_${payload.sceneCount ?? 5}`
+            ? `text_to_story_${payload.sceneCount ?? 5}${(payload.sceneDuration ?? 5) > 5 ? '_10s' : ''}`
             : (task_type === 'image_to_image' ||
                 task_type === 'text_to_image' ||
                 task_type === 'image_to_3d') &&
@@ -216,6 +216,7 @@ export default function HomePage() {
           generate_audio: payload.generateMusic ?? true,
           audio_prompt: payload.musicPrompt || undefined,
           audio_type: 'music',
+          story_scene_duration: payload.sceneDuration ?? 5,
         }),
         // iGaming Asset Generator fields
         ...(task_type === 'igaming_assets' && {

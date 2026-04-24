@@ -54,12 +54,22 @@ image_credit_costs:
   trellis_2:         36    # Trellis 2- higher quality
   reconviagen:       40    # ReconViaGen 0.5- multi-view friendly GLB
   # ── Story Studio (text_to_story pipeline, flat per-story rate) ───────────────
-  # 3 scenes: 3×kling_21_pro(98) + 30 TTS + 14 music ≈ 340   provider ~$1.55 → margin ~55%
-  # 5 scenes: 5×kling_21_pro(98) + 30 TTS + 20 music ≈ 540   provider ~$2.55 → margin ~53%
-  # 8 scenes: 8×kling_21_pro(98) + 30 TTS + 14 music ≈ 830   provider ~$4.00 → margin ~52%
-  text_to_story_3:   340
-  text_to_story_5:   540
-  text_to_story_8:   830
+  # Cost formula (5s clips): N×kling_21_pro(98) + 50 TTS/music overhead
+  # Cost formula (10s clips): N×kling_21_pro(196) + 50 overhead  (10s ≈ 2× clip cost)
+  # 5s/scene entries
+  text_to_story_3:    340     # 3×98  + 46
+  text_to_story_5:    540     # 5×98  + 50
+  text_to_story_8:    830     # 8×98  + 46
+  text_to_story_12:   1226    # 12×98 + 50
+  text_to_story_16:   1618    # 16×98 + 50
+  text_to_story_20:   2010    # 20×98 + 50
+  # 10s/scene entries (2× clip cost)
+  text_to_story_3_10s:    638     # 3×196  + 50
+  text_to_story_5_10s:    1030    # 5×196  + 50
+  text_to_story_8_10s:    1618    # 8×196  + 50
+  text_to_story_12_10s:   2402    # 12×196 + 50
+  text_to_story_16_10s:   3186    # 16×196 + 50
+  text_to_story_20_10s:   3970    # 20×196 + 50
   # ── iGaming Asset Generator (igaming_assets, 4 parallel img2img calls) ─────────
   # Flat per-pack rate covering all 4 views (front + 2 angles + promo scene).
   # Keys match what the frontend sends as image_model for credit lookup.

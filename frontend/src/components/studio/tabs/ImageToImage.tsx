@@ -6,15 +6,24 @@ import { useDropzone } from 'react-dropzone';
 import {
     Upload, X, ArrowLeftRight,
     Sparkles, Scissors, Camera,
-    ImageIcon,
+    ImageIcon, Palette,
 } from 'lucide-react';
 import ModelDropdown, { ModelOption } from '@/components/studio/ModelDropdown';
+import ChipDropdown, { type ChipOption } from '@/components/studio/ChipDropdown';
 import AspectRatioSelector from '@/components/studio/AspectRatioSelector';
 import { KreaDockRoot, KreaDockPrompt, KreaDockToolbar, KreaDockChipRow, KreaDockSubmit } from '@/components/studio/KreaDock';
 import { useAuth } from '@/context/AuthContext';
 import { imageModelsWithLocksForPlan } from '@/lib/studioPlan';
 
-const STYLE_OPTIONS = ['None', 'Watercolor', 'Oil Painting', 'Sketch', 'Pixel Art', 'Impressionist', 'Minimalist'];
+const STYLE_OPTIONS: ChipOption[] = [
+    { value: 'None',         label: 'Style',        desc: 'No style transfer · keep original look'     },
+    { value: 'Watercolor',   label: 'Watercolor',   desc: 'Soft washes · painterly watercolor effect'  },
+    { value: 'Oil Painting', label: 'Oil Painting', desc: 'Rich textures · classic oil paint strokes'  },
+    { value: 'Sketch',       label: 'Sketch',       desc: 'Pencil line drawing · monochrome sketch'     },
+    { value: 'Pixel Art',    label: 'Pixel Art',    desc: 'Retro pixel grid · 8-bit game aesthetic'    },
+    { value: 'Impressionist',label: 'Impressionist',desc: 'Loose brushwork · vibrant impressionism'    },
+    { value: 'Minimalist',   label: 'Minimalist',   desc: 'Clean, simple shapes · minimal detail'      },
+];
 
 const IMAGE_MODELS_ALL: ModelOption[] = [
     { value: 'flux-dev',         label: 'FLUX Dev',          badge: 'DEFAULT',  badgeColor: '#0a84ff', desc: 'Best product identity & fire scene preservation',  credits: 8  },
@@ -46,10 +55,6 @@ interface Props {
     loading: boolean;
 }
 
-function cycleStr(arr: string[], current: string): string {
-    const i = arr.indexOf(current);
-    return arr[(i + 1) % arr.length];
-}
 
 export default function ImageToImage({ onGenerate, loading }: Props) {
     const { user } = useAuth();
@@ -194,14 +199,12 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
                             {sourceChipLabel}
                         </div>
                         <ModelDropdown models={imageModels} value={model} onChange={setModel} label="" variant="dock" />
-                        <button
-                            type="button"
-                            className="krea-dock-chip"
-                            title="Style transfer"
-                            onClick={() => setStyle(s => cycleStr(STYLE_OPTIONS, s))}
-                        >
-                            {style === 'None' ? 'Style' : style}
-                        </button>
+                        <ChipDropdown
+                            icon={<Palette size={14} strokeWidth={1.75} />}
+                            value={style}
+                            options={STYLE_OPTIONS}
+                            onChange={setStyle}
+                        />
                         {TOGGLES.map(t => {
                             const [val, setVal] = toggleMap[t.key];
                             return (

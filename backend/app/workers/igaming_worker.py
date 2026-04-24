@@ -2,10 +2,10 @@
 iGaming Asset Generator Worker.
 
 Pipeline (all views run in parallel):
-  1. PRIMARY   — img2img with template + style prompt
-  2. ANGLE_L   — img2img with left-angle prompt
-  3. ANGLE_R   — img2img with right-angle prompt
-  4. PROMO     — img2img with promotional scene prompt
+  1. PRIMARY   - img2img with template + style prompt
+  2. ANGLE_L   - img2img with left-angle prompt
+  3. ANGLE_R   - img2img with right-angle prompt
+  4. PROMO     - img2img with promotional scene prompt
 
 All 4 results are stored as JSON in output_video_url so the frontend can
 render an asset grid without any schema changes.

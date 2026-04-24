@@ -407,9 +407,8 @@ function LandingNavAccount({ dark }: { dark: boolean }) {
                             fontWeight: 600,
                             color: fg,
                             letterSpacing: '-0.02em',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
+                            whiteSpace: 'normal',
+                            wordBreak: 'break-word',
                         }}
                     >
                         {displayName}

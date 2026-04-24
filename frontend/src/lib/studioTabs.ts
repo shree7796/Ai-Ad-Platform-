@@ -11,7 +11,7 @@ export type StudioTab =
     | 'igaming-assets';
 
 /** Group key for sidebar subsection dividers. */
-export type StudioTabGroup = 'image' | 'video' | '3d' | 'story' | 'igaming';
+export type StudioTabGroup = 'image' | 'video' | '3d';
 
 export interface StudioModeItem {
     id: StudioTab;
@@ -80,17 +80,17 @@ export const STUDIO_MODE_ITEMS: StudioModeItem[] = [
         description: 'Script → narrated YouTube video',
         icon: Film,
         sidebarTileBg: 'linear-gradient(145deg,#7c2d12,#dc2626)',
-        group: 'story',
+        group: 'video',
         isNew: true,
         requiresPaidPlan: true,
     },
     {
         id: 'igaming-assets',
         label: 'iGaming Assets',
-        description: 'Slot icons · promo banners · multi-angle',
+        description: 'Slot icons · promos · multi-angle',
         icon: Gamepad2,
         sidebarTileBg: 'linear-gradient(145deg,#064e3b,#059669)',
-        group: 'igaming',
+        group: 'image',
         isNew: true,
         requiresPaidPlan: true,
     },
@@ -101,6 +101,4 @@ export const STUDIO_TAB_GROUPS: Record<StudioTabGroup, { label: string }> = {
     image: { label: 'Images' },
     video: { label: 'Video' },
     '3d': { label: '3D' },
-    story: { label: 'Story' },
-    igaming: { label: 'iGaming' },
 };

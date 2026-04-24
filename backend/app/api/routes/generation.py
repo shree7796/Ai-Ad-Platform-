@@ -215,6 +215,7 @@ async def trigger_generation(
         story_scene_count=payload.story_scene_count,
         story_narrator_voice=payload.story_narrator_voice,
         story_video_model=payload.story_video_model,
+        story_scene_duration=payload.story_scene_duration,
         igaming_template=payload.igaming_template,
         igaming_style=payload.igaming_style,
         igaming_quality=payload.igaming_quality,

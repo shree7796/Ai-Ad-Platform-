@@ -45,6 +45,7 @@ class OrchestrationService:
         story_scene_count: int = 5,
         story_narrator_voice: str = "alloy",
         story_video_model: Optional[str] = None,
+        story_scene_duration: int = 5,
         # iGaming Asset Generator extras
         igaming_template: str = "slot_icon",
         igaming_style: str = "gold",
@@ -98,6 +99,7 @@ class OrchestrationService:
                 "story_scene_count": story_scene_count,
                 "story_narrator_voice": story_narrator_voice,
                 "story_video_model": story_video_model,
+                "story_scene_duration": story_scene_duration,
                 "igaming_template": igaming_template,
                 "igaming_style": igaming_style,
                 "igaming_quality": igaming_quality,

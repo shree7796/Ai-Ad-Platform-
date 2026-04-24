@@ -48,9 +48,10 @@ class GenerationRequest(BaseModel):
     idempotency_key: Optional[str] = Field(default=None, max_length=100)
 
     # ── Story Studio (text_to_story) ─────────────────────────────────────────
-    story_scene_count: int = Field(default=5, ge=3, le=8)
+    story_scene_count: int = Field(default=5, ge=3, le=20)
     story_narrator_voice: str = Field(default="alloy")
     story_video_model: Optional[str] = None
+    story_scene_duration: int = Field(default=5, ge=5, le=10)   # seconds per clip
 
     # ── iGaming Asset Generator (igaming_assets) ─────────────────────────────
     igaming_template: str = Field(default="slot_icon")   # slot_icon|bonus_item|promo_banner|card|symbol|custom

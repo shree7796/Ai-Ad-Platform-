@@ -390,9 +390,7 @@ export default function Sidebar() {
                                         color: isActive ? 'rgba(255,255,255,0.52)' : 'rgba(255,255,255,0.3)',
                                         lineHeight: 1.35,
                                         fontWeight: 400,
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
+                                        whiteSpace: 'normal',
                                     }}>
                                         {description}
                                     </span>
@@ -706,9 +704,8 @@ export default function Sidebar() {
                                 fontSize: 12,
                                 fontWeight: 600,
                                 color: '#fafafa',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
+                                whiteSpace: 'normal',
+                                wordBreak: 'break-word',
                             }}
                         >
                             {usernameShort}

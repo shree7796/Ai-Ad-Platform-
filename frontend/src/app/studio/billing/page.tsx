@@ -688,10 +688,10 @@ export default function BillingPage() {
                         </span>
                       </td>
                       <td style={{ padding: '14px 20px', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                        {row.model_used || '—'}
+                        {row.model_used || '-'}
                       </td>
                       <td style={{ padding: '14px 20px', color: 'var(--text-muted)', fontWeight: 500 }}>
-                        {row.tier || '—'}
+                        {row.tier || '-'}
                       </td>
                       <td style={{ padding: '14px 20px' }}>
                         <span style={{

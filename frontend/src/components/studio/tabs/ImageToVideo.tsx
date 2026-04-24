@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, Video, X, ArrowRight, Lock, Unlock, Clock } from 'lucide-react';
 import ModelDropdown, { ModelOption } from '@/components/studio/ModelDropdown';
+import ChipDropdown, { type ChipOption } from '@/components/studio/ChipDropdown';
 import { KreaDockRoot, KreaDockPrompt, KreaDockToolbar, KreaDockChipRow, KreaDockSubmit } from '@/components/studio/KreaDock';
 
 const MODEL_BASE_CREDITS: Record<string, number> = {
@@ -32,7 +33,17 @@ function estimateVideoCredits(durationStr: string, modelValue: string): number {
     return base * clips;
 }
 
-const DURATIONS = ['3s', '5s', '10s'];
+const DURATION_OPTIONS: ChipOption[] = [
+    { value: '3s',  label: '3s',  desc: 'Short clip · fast generation' },
+    { value: '5s',  label: '5s',  desc: 'Standard length clip'         },
+    { value: '10s', label: '10s', desc: 'Longer clip · more action'    },
+];
+
+const MOTION_OPTIONS: ChipOption[] = [
+    { value: '15',  label: 'Subtle',  desc: 'Gentle, minimal movement'     },
+    { value: '50',  label: 'Medium',  desc: 'Balanced natural motion'      },
+    { value: '85',  label: 'Dynamic', desc: 'High energy, strong movement' },
+];
 
 const VIDEO_MODELS: ModelOption[] = [
     { value: 'kling_pro',         label: 'Kling v1.6 Pro',      badge: 'STANDARD',  badgeColor: '#0a84ff', desc: 'Reliable quality · 720p output',               credits: MODEL_BASE_CREDITS.kling_pro,         creditsSuffix: '/5s' },
@@ -102,11 +113,8 @@ export default function ImageToVideo({ onGenerate, loading }: Props) {
     const { getRootProps: getRefRootProps, getInputProps: getRefInputProps, isDragActive: isRefDragActive } = useDropzone({ onDrop: onRefDrop, accept: { 'image/*': [] }, maxFiles: 1 });
 
     const isRefModel = _REFERENCE_MODEL_VALUES.has(videoModel);
-    const motionLabel = motion < 30 ? 'Subtle' : motion < 65 ? 'Medium' : 'Dynamic';
-
-    const cycleMotion = () => {
-        setMotion(m => (m < 30 ? 50 : m < 65 ? 85 : 15));
-    };
+    const motionValue = motion < 30 ? '15' : motion < 65 ? '50' : '85';
+    const handleMotionChange = (v: string) => setMotion(Number(v));
 
     const dropZoneBase = {
         height: 140, display: 'flex', flexDirection: 'column' as const,
@@ -237,22 +245,18 @@ export default function ImageToVideo({ onGenerate, loading }: Props) {
                 <KreaDockToolbar>
                     <KreaDockChipRow>
                         <ModelDropdown models={allModels} value={videoModel} onChange={setVideoModel} label="" variant="dock" />
-                        <button
-                            type="button"
-                            className="krea-dock-chip"
-                            title="Duration"
-                            onClick={() => setDuration(d => {
-                                const i = DURATIONS.indexOf(d);
-                                return DURATIONS[(i + 1) % DURATIONS.length];
-                            })}
-                        >
-                            <Clock size={14} strokeWidth={1.75} />
-                            {duration}
-                        </button>
-                        <button type="button" className="krea-dock-chip" title="Motion intensity" onClick={cycleMotion}>
-                            <Video size={14} strokeWidth={1.75} />
-                            {motionLabel}
-                        </button>
+                        <ChipDropdown
+                            icon={<Clock size={14} strokeWidth={1.75} />}
+                            value={duration}
+                            options={DURATION_OPTIONS}
+                            onChange={setDuration}
+                        />
+                        <ChipDropdown
+                            icon={<Video size={14} strokeWidth={1.75} />}
+                            value={motionValue}
+                            options={MOTION_OPTIONS}
+                            onChange={handleMotionChange}
+                        />
                     </KreaDockChipRow>
                     <KreaDockSubmit
                         disabled={!image || (_REFERENCE_MODEL_VALUES.has(videoModel) && !refImage)}

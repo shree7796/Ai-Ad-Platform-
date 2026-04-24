@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lightbulb } from 'lucide-react';
+import { Lightbulb, Wand2 } from 'lucide-react';
 import ModelDropdown, { ModelOption } from '@/components/studio/ModelDropdown';
+import ChipDropdown, { type ChipOption } from '@/components/studio/ChipDropdown';
 import AspectRatioSelector from '@/components/studio/AspectRatioSelector';
 import { KreaDockRoot, KreaDockPrompt, KreaDockToolbar, KreaDockChipRow, KreaDockSubmit } from '@/components/studio/KreaDock';
 import { useAuth } from '@/context/AuthContext';
@@ -20,7 +21,13 @@ const IMAGE_MODELS_ALL: ModelOption[] = [
     { value: 'ideogram-v3',     label: 'Ideogram V3',      badge: 'TEXT',     badgeColor: '#06b6d4', desc: 'Best for text in images · typography · logos',          credits: 10 },
 ];
 
-const STYLES = ['Realistic', 'Anime', 'Cinematic', 'Product', '3D'];
+const STYLE_OPTIONS: ChipOption[] = [
+    { value: 'Realistic',  label: 'Realistic',  desc: 'True-to-life · natural colors & light' },
+    { value: 'Anime',      label: 'Anime',      desc: 'Japanese animation art style'           },
+    { value: 'Cinematic',  label: 'Cinematic',  desc: 'Film-quality · dramatic lighting'       },
+    { value: 'Product',    label: 'Product',    desc: 'Clean studio shoot · white background'  },
+    { value: '3D',         label: '3D',         desc: 'Three-dimensional rendered look'        },
+];
 const SUGGESTIONS = [
     'A serene mountain lake at golden hour',
     'Minimalist product shot on white marble',
@@ -34,10 +41,6 @@ interface Props {
     loading: boolean;
 }
 
-function cycle<T>(arr: T[], current: T): T {
-    const i = arr.indexOf(current);
-    return arr[(i + 1) % arr.length];
-}
 
 export default function TextToImage({ onGenerate, loading }: Props) {
     const { user } = useAuth();
@@ -116,14 +119,12 @@ export default function TextToImage({ onGenerate, loading }: Props) {
                 <KreaDockToolbar>
                     <KreaDockChipRow>
                         <ModelDropdown models={imageModels} value={model} onChange={setModel} label="" variant="dock" />
-                        <button
-                            type="button"
-                            className="krea-dock-chip"
-                            title="Style"
-                            onClick={() => setStyle(s => cycle(STYLES, s))}
-                        >
-                            {style}
-                        </button>
+                        <ChipDropdown
+                            icon={<Wand2 size={14} strokeWidth={1.75} />}
+                            value={style}
+                            options={STYLE_OPTIONS}
+                            onChange={setStyle}
+                        />
                         <button
                             type="button"
                             className="krea-dock-chip"

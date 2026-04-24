@@ -73,13 +73,15 @@ async def _parse_story_to_scenes(
         if not cfg.openai_api_key or cfg.llm_provider in ("mock", "mock_llm"):
             raise ValueError("OpenAI not configured")
 
+        # More scenes → more tokens needed (each scene needs ~100 tokens)
+        max_tokens = min(4000, max(900, scene_count * 180))
         body = {
             "model": getattr(cfg, "llm_model", "gpt-4o-mini"),
             "messages": [
                 {"role": "system", "content": _SCENE_SYSTEM.format(count=scene_count)},
-                {"role": "user", "content": prompt[:3000]},
+                {"role": "user", "content": prompt[:4000]},
             ],
-            "max_tokens": 900,
+            "max_tokens": max_tokens,
             "temperature": 0.75,
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -236,6 +238,7 @@ async def _stitch_story(
     clips: List[bytes],
     narrations: List[Optional[bytes]],
     music: Optional[bytes],
+    clip_duration: int = 5,
 ) -> bytes:
     with tempfile.TemporaryDirectory() as tmp:
         # ── Write clip files ────────────────────────────────────────────────
@@ -275,7 +278,7 @@ async def _stitch_story(
                     "ffmpeg", "-y",
                     "-i", cp,
                     "-i", np,
-                    "-filter_complex", "[1:a]apad[padded];[padded]atrim=duration=6[ta]",
+                    "-filter_complex", f"[1:a]apad[padded];[padded]atrim=duration={clip_duration}[ta]",
                     "-map", "0:v:0", "-map", "[ta]",
                     "-c:v", "libx264", "-crf", "22", "-preset", "fast",
                     "-c:a", "aac", "-b:a", "128k", "-shortest", out,
@@ -353,8 +356,8 @@ async def _stitch_story(
     name="app.workers.story_worker.generate_story",
     bind=True,
     max_retries=1,
-    soft_time_limit=1200,
-    time_limit=1500,
+    soft_time_limit=3600,   # 1 h - long stories (20 scenes × 10s) may take 45–55 min
+    time_limit=4200,        # 70 min hard limit
 )
 def generate_story(
     self,
@@ -384,7 +387,7 @@ def generate_story(
     from app.models.scene import Scene
     from app.models.usage_log import UsageLog
 
-    story_scene_count = max(3, min(8, int(kwargs.get("story_scene_count", 5))))
+    story_scene_count = max(3, min(20, int(kwargs.get("story_scene_count", 5))))
     story_voice = str(kwargs.get("story_narrator_voice", "alloy"))
     story_video_model = str(kwargs.get("story_video_model") or video_model or "kling_21_pro")
 
@@ -414,18 +417,23 @@ def generate_story(
             )
         logger.info(f"[StoryWorker] Adapter: {adapter.name}")
 
-        # ── 3. Generate video clips ────────────────────────────────────────
+        # ── 3. Generate video clips (parallel, max 4 concurrent) ──────────
         clip_dur = max(3, min(10, duration_seconds))
-        clips: List[Optional[bytes]] = []
-        for i, sc in enumerate(scenes):
-            logger.info(f"[StoryWorker] Clip {i+1}/{len(scenes)}: {sc.get('title','')}")
-            clip = await _generate_clip(
-                adapter,
-                sc.get("video_prompt", sc.get("narration", prompt)),
-                story_video_model,
-                clip_dur,
-            )
-            clips.append(clip)
+        semaphore = asyncio.Semaphore(4)
+
+        async def _bounded_clip(i: int, sc: Dict) -> Optional[bytes]:
+            async with semaphore:
+                logger.info(f"[StoryWorker] Clip {i+1}/{len(scenes)}: {sc.get('title','')}")
+                return await _generate_clip(
+                    adapter,
+                    sc.get("video_prompt", sc.get("narration", prompt)),
+                    story_video_model,
+                    clip_dur,
+                )
+
+        clips: List[Optional[bytes]] = list(
+            await asyncio.gather(*[_bounded_clip(i, sc) for i, sc in enumerate(scenes)])
+        )
 
         valid_pairs = [(clips[i], scenes[i]) for i in range(len(clips)) if clips[i]]
         if not valid_pairs:
@@ -450,7 +458,7 @@ def generate_story(
             music_prompt = (
                 audio_prompt or "cinematic background music, emotional storytelling, orchestral, subtle"
             )
-            total_dur = min(len(valid_clips) * clip_dur + 5, 90)
+            total_dur = min(len(valid_clips) * clip_dur + 10, 300)  # up to 5 min music
             logger.info(f"[StoryWorker] Generating music ({total_dur}s)…")
             try:
                 mres = await adapter.text_to_audio(
@@ -469,7 +477,7 @@ def generate_story(
 
         # ── 6. FFmpeg stitch ───────────────────────────────────────────────
         logger.info(f"[StoryWorker] Stitching {len(valid_clips)} clips…")
-        final_bytes = await _stitch_story(valid_clips, narrations, music_bytes)
+        final_bytes = await _stitch_story(valid_clips, narrations, music_bytes, clip_duration=clip_dur)
         logger.info(f"[StoryWorker] Stitch done: {len(final_bytes)//1024} KB")
 
         # ── 7. Upload ──────────────────────────────────────────────────────

@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Lightbulb, Clock, RectangleHorizontal, Video } from 'lucide-react';
+import { Lightbulb, Clock, Video, Clapperboard } from 'lucide-react';
 import ModelDropdown, { ModelOption } from '@/components/studio/ModelDropdown';
+import ChipDropdown, { type ChipOption } from '@/components/studio/ChipDropdown';
+import AspectRatioSelector from '@/components/studio/AspectRatioSelector';
 import { KreaDockRoot, KreaDockPrompt, KreaDockToolbar, KreaDockChipRow, KreaDockSubmit } from '@/components/studio/KreaDock';
 
 const MODEL_BASE_CREDITS: Record<string, number> = {
@@ -28,10 +30,26 @@ function estimateCredits(durationStr: string, modelValue: string): number {
     return base * clips;
 }
 
-const STYLES   = ['Cinematic', 'Realistic', 'Animation', 'Product Ad'];
-const CAMERA   = ['Static', 'Pan', 'Zoom', 'Dolly'];
-const DURATIONS = ['3s', '5s', '10s'];
-const RATIOS   = ['16:9', '9:16', '1:1'];
+const STYLE_OPTIONS: ChipOption[] = [
+    { value: 'Cinematic',   label: 'Cinematic',   desc: 'Film-quality look · dramatic lighting'  },
+    { value: 'Realistic',   label: 'Realistic',   desc: 'True-to-life · natural colors'          },
+    { value: 'Animation',   label: 'Animation',   desc: 'Animated look · stylized motion'        },
+    { value: 'Product Ad',  label: 'Product Ad',  desc: 'Clean product showcase · studio light'  },
+];
+
+const CAMERA_OPTIONS: ChipOption[] = [
+    { value: 'Static', label: 'Static', desc: 'Fixed camera · no movement'         },
+    { value: 'Pan',    label: 'Pan',    desc: 'Horizontal sweep across scene'       },
+    { value: 'Zoom',   label: 'Zoom',   desc: 'Push in or pull out slowly'          },
+    { value: 'Dolly',  label: 'Dolly',  desc: 'Camera tracks forward through scene' },
+];
+
+const DURATION_OPTIONS: ChipOption[] = [
+    { value: '3s',  label: '3s',  desc: 'Short clip · fast generation' },
+    { value: '5s',  label: '5s',  desc: 'Standard length clip'         },
+    { value: '10s', label: '10s', desc: 'Longer clip · more action'    },
+];
+
 
 const VIDEO_MODELS: ModelOption[] = [
     { value: 'kling_pro',         label: 'Kling v1.6 Pro',      badge: 'STANDARD',  badgeColor: '#0a84ff', desc: 'Reliable quality · 720p output',               credits: MODEL_BASE_CREDITS.kling_pro,         creditsSuffix: '/5s' },
@@ -60,10 +78,6 @@ interface Props {
     loading: boolean;
 }
 
-function cycle<T>(arr: T[], current: T): T {
-    const i = arr.indexOf(current);
-    return arr[(i + 1) % arr.length];
-}
 
 export default function TextToVideo({ onGenerate, loading }: Props) {
     const [prompt, setPrompt] = useState('');
@@ -80,6 +94,7 @@ export default function TextToVideo({ onGenerate, loading }: Props) {
         const p = prompt.trim();
         if (p) onGenerate({ prompt: p, style, camera, duration, ratio, videoModel });
     };
+
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -111,44 +126,31 @@ export default function TextToVideo({ onGenerate, loading }: Props) {
                         ))}
                     </div>
                 )}
+                <div className="section-label" style={{ marginTop: 2, marginBottom: 6 }}>
+                    Aspect ratio
+                </div>
+                <AspectRatioSelector value={ratio} onChange={setRatio} />
                 <KreaDockToolbar>
                     <KreaDockChipRow>
                         <ModelDropdown models={VIDEO_MODELS} value={videoModel} onChange={setVideoModel} label="" variant="dock" />
-                        <button
-                            type="button"
-                            className="krea-dock-chip"
-                            title="Click to change look"
-                            onClick={() => setStyle(s => cycle(STYLES, s))}
-                        >
-                            {style}
-                        </button>
-                        <button
-                            type="button"
-                            className="krea-dock-chip"
-                            title="Camera motion"
-                            onClick={() => setCamera(c => cycle(CAMERA, c))}
-                        >
-                            <Video size={14} strokeWidth={1.75} />
-                            {camera}
-                        </button>
-                        <button
-                            type="button"
-                            className="krea-dock-chip"
-                            title="Duration"
-                            onClick={() => setDuration(d => cycle(DURATIONS, d))}
-                        >
-                            <Clock size={14} strokeWidth={1.75} />
-                            {duration}
-                        </button>
-                        <button
-                            type="button"
-                            className="krea-dock-chip"
-                            title="Aspect ratio"
-                            onClick={() => setRatio(r => cycle(RATIOS, r))}
-                        >
-                            <RectangleHorizontal size={14} strokeWidth={1.75} />
-                            {ratio}
-                        </button>
+                        <ChipDropdown
+                            icon={<Clapperboard size={14} strokeWidth={1.75} />}
+                            value={style}
+                            options={STYLE_OPTIONS}
+                            onChange={setStyle}
+                        />
+                        <ChipDropdown
+                            icon={<Video size={14} strokeWidth={1.75} />}
+                            value={camera}
+                            options={CAMERA_OPTIONS}
+                            onChange={setCamera}
+                        />
+                        <ChipDropdown
+                            icon={<Clock size={14} strokeWidth={1.75} />}
+                            value={duration}
+                            options={DURATION_OPTIONS}
+                            onChange={setDuration}
+                        />
                         <button
                             type="button"
                             className="krea-dock-chip"
