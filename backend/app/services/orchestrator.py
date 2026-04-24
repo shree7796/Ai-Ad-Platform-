@@ -45,6 +45,10 @@ class OrchestrationService:
         story_scene_count: int = 5,
         story_narrator_voice: str = "alloy",
         story_video_model: Optional[str] = None,
+        # iGaming Asset Generator extras
+        igaming_template: str = "slot_icon",
+        igaming_style: str = "gold",
+        igaming_quality: str = "standard",
     ) -> str:
         """
         Dispatch a generation job to the appropriate worker queue.
@@ -61,6 +65,9 @@ class OrchestrationService:
         elif task_type == "text_to_story":
             target_task = "app.workers.story_worker.generate_story"
             queue = "video_generation"
+        elif task_type == "igaming_assets":
+            target_task = "app.workers.igaming_worker.generate_igaming_assets"
+            queue = "image_generation"
 
         task = celery_app.send_task(
             target_task,
@@ -91,6 +98,9 @@ class OrchestrationService:
                 "story_scene_count": story_scene_count,
                 "story_narrator_voice": story_narrator_voice,
                 "story_video_model": story_video_model,
+                "igaming_template": igaming_template,
+                "igaming_style": igaming_style,
+                "igaming_quality": igaming_quality,
             },
             queue=queue,
         )

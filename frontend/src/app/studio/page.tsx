@@ -14,6 +14,7 @@ import ImageToVideo from '@/components/studio/tabs/ImageToVideo';
 import TextToVideo from '@/components/studio/tabs/TextToVideo';
 import ImageTo3D from '@/components/studio/tabs/ImageTo3D';
 import TextToStory from '@/components/studio/tabs/TextToStory';
+import IgamingAssets from '@/components/studio/tabs/IgamingAssets';
 import { projectsAPI, generationAPI, uploadAPI, formatApiError, isUpgradePromptError } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { isFreeStudioPlan } from '@/lib/studioPlan';
@@ -27,7 +28,8 @@ function isStudioTab(v: string | null): v is StudioTab {
     v === 'image-to-video' ||
     v === 'text-to-video' ||
     v === 'image-to-3d' ||
-    v === 'text-to-story'
+    v === 'text-to-story' ||
+    v === 'igaming-assets'
   );
 }
 
@@ -109,10 +111,11 @@ export default function HomePage() {
     const videoTab = activeTab === 'image-to-video' || activeTab === 'text-to-video';
     const threeDTab = activeTab === 'image-to-3d';
     const storyTab = activeTab === 'text-to-story';
-    const paidOnlyStudioTab = videoTab || threeDTab || storyTab;
+    const igamingTab = activeTab === 'igaming-assets';
+    const paidOnlyStudioTab = videoTab || threeDTab || storyTab || igamingTab;
 
     if (isFreeStudioPlan(user?.plan) && paidOnlyStudioTab) {
-      openUpgradeModal(threeDTab ? 'three_d_free' : storyTab ? 'story_free' : 'video_free');
+      openUpgradeModal(threeDTab ? 'three_d_free' : storyTab ? 'story_free' : igamingTab ? 'igaming_free' : 'video_free');
       return;
     }
 
@@ -214,6 +217,14 @@ export default function HomePage() {
           audio_prompt: payload.musicPrompt || undefined,
           audio_type: 'music',
         }),
+        // iGaming Asset Generator fields
+        ...(task_type === 'igaming_assets' && {
+          igaming_template: payload.igaming_template ?? 'slot_icon',
+          igaming_style: payload.igaming_style ?? 'gold',
+          igaming_quality: payload.igaming_quality ?? 'standard',
+          image_model: payload.image_model ?? 'igaming_standard',
+          enhance_prompt: false,
+        }),
       });
       idempotencyKeyRef.current = crypto.randomUUID();
 
@@ -251,6 +262,7 @@ export default function HomePage() {
 
   const isVideoTab = activeTab === 'image-to-video' || activeTab === 'text-to-video' || activeTab === 'text-to-story';
   const isModelTab = activeTab === 'image-to-3d';
+  const isIgamingTab = activeTab === 'igaming-assets';
 
   const tabMeta: Record<StudioTab, { title: string; subtitle: string; accent: CanvasAccent }> = {
     'text-to-image': {
@@ -283,6 +295,11 @@ export default function HomePage() {
       subtitle: 'Your story video renders here when complete. Write a script below, pick your scenes and voice, then generate.',
       accent: 'video',
     },
+    'igaming-assets': {
+      title: 'iGaming Assets',
+      subtitle: 'Your 4-asset pack (front, left angle, right angle, promo) appears here. Describe your game asset below.',
+      accent: 'igaming',
+    },
   };
 
   return (
@@ -300,7 +317,7 @@ export default function HomePage() {
         <div className="studio-workspace-stack">
           <div className="studio-main-canvas studio-workspace-canvas">
             <OutputPanel
-              type={loading ? (isVideoTab ? 'video' : isModelTab ? 'model' : 'image') : outputType}
+              type={loading ? (isVideoTab ? 'video' : isModelTab ? 'model' : isIgamingTab ? 'igaming' : 'image') : outputType}
               src={outputSrc}
               loading={loading}
               onRegenerate={handleRegenerate}
@@ -337,6 +354,9 @@ export default function HomePage() {
                   )}
                   {activeTab === 'text-to-story' && (
                     <TextToStory onGenerate={p => handleGenerate(p, 'video')} loading={loading} />
+                  )}
+                  {activeTab === 'igaming-assets' && (
+                    <IgamingAssets onGenerate={p => handleGenerate(p, 'igaming')} loading={loading} />
                   )}
                 </motion.div>
               </AnimatePresence>

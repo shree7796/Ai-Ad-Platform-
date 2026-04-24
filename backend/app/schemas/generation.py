@@ -52,6 +52,11 @@ class GenerationRequest(BaseModel):
     story_narrator_voice: str = Field(default="alloy")
     story_video_model: Optional[str] = None
 
+    # ── iGaming Asset Generator (igaming_assets) ─────────────────────────────
+    igaming_template: str = Field(default="slot_icon")   # slot_icon|bonus_item|promo_banner|card|symbol|custom
+    igaming_style: str = Field(default="gold")            # gold|silver|gem|neon|classic
+    igaming_quality: str = Field(default="standard")      # standard|premium
+
 
 class GenerationStatusResponse(BaseModel):
     """Response for generation job status polling."""

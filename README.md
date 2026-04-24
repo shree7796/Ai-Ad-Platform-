@@ -1,4 +1,4 @@
-# 🚀 AdGen AI — AI-Powered Video Ad Generator
+# 🚀 AdGen AI - AI-Powered Video Ad Generator
 
 > Transform product images into stunning cinematic marketing videos in seconds.
 
@@ -112,10 +112,10 @@ To enable a real model:
 See `.env.example` for all configuration options.
 
 Key variables:
-- `VIDEO_MODEL_PROVIDER` — `mock` | `pika` | `runway`
-- `LLM_PROVIDER` — `openai` | `mock`
-- `LLM_MODEL` — `gpt-4o` | `gpt-4`
-- `OPENAI_API_KEY` — Your OpenAI key (for prompt enhancement)
+- `VIDEO_MODEL_PROVIDER`- `mock` | `pika` | `runway`
+- `LLM_PROVIDER`- `openai` | `mock`
+- `LLM_MODEL`- `gpt-4o` | `gpt-4`
+- `OPENAI_API_KEY`- Your OpenAI key (for prompt enhancement)
 
 ## Development
 
@@ -133,7 +133,7 @@ docker-compose up --build
 
 ## License
 
-Private — All rights reserved.
+Private- All rights reserved.
 
 
 

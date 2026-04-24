@@ -13,11 +13,12 @@ import {
     Video,
     Box,
     ExternalLink,
+    Gamepad2,
 } from 'lucide-react';
 
-export type OutputType = 'image' | 'video' | 'model' | 'none';
+export type OutputType = 'image' | 'video' | 'model' | 'igaming' | 'none';
 
-export type CanvasAccent = 'image' | 'video' | 'model';
+export type CanvasAccent = 'image' | 'video' | 'model' | 'igaming';
 
 interface Props {
     type: OutputType;
@@ -42,11 +43,14 @@ function KreaEmptyHero({
 }) {
     const isVideo = accent === 'video';
     const isModel = accent === 'model';
+    const isIgaming = accent === 'igaming';
     const gradient = isVideo
         ? 'linear-gradient(145deg, #fbbf24 0%, #f59e0b 38%, #ea580c 100%)'
         : isModel
           ? 'linear-gradient(155deg, #a855f7 0%, #7c3aed 45%, #5b21b6 100%)'
-          : 'linear-gradient(165deg, #1a9bff 0%, #0a84ff 45%, #0071e3 100%)';
+          : isIgaming
+            ? 'linear-gradient(145deg, #064e3b 0%, #059669 45%, #10b981 100%)'
+            : 'linear-gradient(165deg, #1a9bff 0%, #0a84ff 45%, #0071e3 100%)';
     const Icon = isVideo ? Video : isModel ? Box : Sparkles;
 
     return (
@@ -155,7 +159,7 @@ function LoadingState({ type }: { type: OutputType }) {
                 </motion.div>
                 <div>
                     <div style={{ fontSize: 16, fontWeight: 600, color: '#ffffff', marginBottom: 6 }}>
-                        {isVideo ? 'Generating video…' : isModel ? 'Building 3D model…' : 'Generating image…'}
+                        {type === 'video' ? 'Generating video…' : type === 'model' ? 'Building 3D model…' : type === 'igaming' ? 'Generating 4 game assets…' : 'Generating image…'}
                     </div>
                     <div style={{ fontSize: 14, color: '#888888', lineHeight: 1.6, maxWidth: 260 }}>
                         This may take a moment. Your result will appear here.
@@ -199,16 +203,32 @@ export default function OutputPanel({
     const [playing, setPlaying] = useState(false);
     const [zoom, setZoom] = useState(false);
 
-    const handleDownload = () => {
-        if (!src) return;
+    const handleDownload = (url?: string | null) => {
+        const target = url ?? src;
+        if (!target) return;
         const filename =
             type === 'video' ? 'lumina-output.mp4' : type === 'model' ? 'lumina-output.glb' : 'lumina-output.png';
-        const proxyUrl = `/api/media-download?url=${encodeURIComponent(src)}&filename=${encodeURIComponent(filename)}`;
+        const proxyUrl = `/api/media-download?url=${encodeURIComponent(target)}&filename=${encodeURIComponent(filename)}`;
         const a = document.createElement('a');
         a.href = proxyUrl;
         a.download = filename;
         a.click();
     };
+
+    // Parse iGaming multi-asset JSON payload
+    type IgamingPkg = {
+        primary: string;
+        angle_left: string;
+        angle_right: string;
+        promo: string;
+        template?: string;
+        style?: string;
+        views_generated?: number;
+    };
+    let igamingPkg: IgamingPkg | null = null;
+    if (type === 'igaming' && src) {
+        try { igamingPkg = JSON.parse(src) as IgamingPkg; } catch { /* raw url fallback */ }
+    }
 
     const showChrome = loading || !!src;
 
@@ -293,7 +313,7 @@ export default function OutputPanel({
                                 <RefreshCw size={13} />
                                 Redo
                             </button>
-                            <button className="btn-primary" onClick={handleDownload} style={{ padding: '7px 16px', fontSize: 12 }}>
+                            <button className="btn-primary" onClick={() => handleDownload()} style={{ padding: '7px 16px', fontSize: 12 }}>
                                 <Download size={13} />
                                 Download
                             </button>
@@ -368,7 +388,75 @@ export default function OutputPanel({
                                 background: '#000',
                             }}
                         >
-                            {type === 'model' ? (
+                            {type === 'igaming' && igamingPkg ? (
+                                <div style={{
+                                    padding: 16,
+                                    background: 'rgba(6,78,59,0.12)',
+                                    border: '1px solid rgba(5,150,105,0.25)',
+                                    borderRadius: 12,
+                                    maxWidth: zoom ? '90vw' : 640,
+                                }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: '#10b981', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <Gamepad2 size={15} />
+                                        {igamingPkg.views_generated ?? 4} assets generated
+                                        {igamingPkg.template && (
+                                            <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>
+                                                · {igamingPkg.template.replace(/_/g, ' ')} · {igamingPkg.style}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                        {[
+                                            { key: 'primary' as const,     label: 'Primary (Front)' },
+                                            { key: 'angle_left' as const,  label: 'Left Angle'      },
+                                            { key: 'angle_right' as const, label: 'Right Angle'     },
+                                            { key: 'promo' as const,       label: 'Promo Scene'     },
+                                        ].map(({ key, label }) => {
+                                            const url = igamingPkg![key];
+                                            return (
+                                                <div key={key} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', background: '#111', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                                    <img
+                                                        src={url}
+                                                        alt={label}
+                                                        style={{ display: 'block', width: '100%', aspectRatio: '1/1', objectFit: 'cover' }}
+                                                    />
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        bottom: 0,
+                                                        left: 0,
+                                                        right: 0,
+                                                        padding: '16px 8px 6px',
+                                                        background: 'linear-gradient(transparent, rgba(0,0,0,0.75))',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between',
+                                                    }}>
+                                                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{label}</span>
+                                                        <button
+                                                            onClick={() => handleDownload(url)}
+                                                            style={{
+                                                                background: 'rgba(255,255,255,0.15)',
+                                                                border: '1px solid rgba(255,255,255,0.2)',
+                                                                borderRadius: 5,
+                                                                padding: '3px 7px',
+                                                                cursor: 'pointer',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: 3,
+                                                                fontSize: 10,
+                                                                color: '#fff',
+                                                            }}
+                                                        >
+                                                            <Download size={9} />
+                                                            Save
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : type === 'model' ? (
                                 <div
                                     style={{
                                         padding: '36px 28px',
@@ -493,7 +581,9 @@ export default function OutputPanel({
                             ? '1024 × 1024 px · AI Generated'
                             : type === 'model'
                               ? 'GLB / mesh · AI Generated'
-                              : '5s · 16:9 · AI Generated'}
+                              : type === 'igaming'
+                                ? '4 assets · Multi-angle · AI Generated'
+                                : '5s · 16:9 · AI Generated'}
                     </span>
                     <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
                         Each generation uses credits- download before regenerating.

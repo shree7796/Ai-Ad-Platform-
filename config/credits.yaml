@@ -60,6 +60,15 @@ image_credit_costs:
   text_to_story_3:   340
   text_to_story_5:   540
   text_to_story_8:   830
+  # ── iGaming Asset Generator (igaming_assets, 4 parallel img2img calls) ─────────
+  # Flat per-pack rate covering all 4 views (front + 2 angles + promo scene).
+  # Keys match what the frontend sends as image_model for credit lookup.
+  igaming_flux_schnell:  30    # 4×Flux Schnell  → provider ~$0.012 → margin ~58%
+  igaming_flux_dev:      40    # 4×Flux Dev      → provider ~$0.160 → margin ~57%
+  igaming_flux_pro:      44    # 4×Flux Pro      → provider ~$0.220 → margin ~56%
+  igaming_flux_2_pro:    50    # 4×Flux 2 Pro    → provider ~$0.320 → margin ~55%
+  igaming_standard:      30    # alias (legacy/fallback)
+  igaming_premium:       50    # alias (legacy/fallback)
   default:           8     # fallback
 
 # ── Subscription monthly credit grants ───────────────────────────────────────

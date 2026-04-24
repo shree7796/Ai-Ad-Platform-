@@ -17,7 +17,7 @@ import {
 const UPGRADE_SIDE_IMAGE =
   'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=720&h=1100&q=88';
 
-export type UpgradeModalReason = 'video_free' | 'three_d_free' | 'story_free' | 'quota' | 'credits' | 'generic';
+export type UpgradeModalReason = 'video_free' | 'three_d_free' | 'story_free' | 'igaming_free' | 'quota' | 'credits' | 'generic';
 
 interface Props {
   open: boolean;
@@ -35,6 +35,8 @@ function reasonEyebrow(reason: UpgradeModalReason, detail?: string): string {
       return 'Image to 3D is included with a paid plan. Upgrade to generate 3D models.';
     case 'story_free':
       return 'Story Studio is a premium feature. Upgrade to create full narrated story videos.';
+    case 'igaming_free':
+      return 'iGaming Asset Generator is a premium feature. Upgrade to generate multi-angle game assets.';
     case 'quota':
       return "You've hit your monthly generation limit. Upgrade for more capacity.";
     case 'credits':

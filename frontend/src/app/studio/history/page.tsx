@@ -10,7 +10,7 @@ import {
   Search, Download, ExternalLink,
   Image as ImageIcon, Film, Loader2,
   AlertCircle, Trash2, RefreshCw,
-  Wand2, Repeat2, Clapperboard, Type, Box,
+  Wand2, Repeat2, Clapperboard, Type, Box, Gamepad2,
 } from 'lucide-react';
 
 interface Project {
@@ -25,7 +25,7 @@ interface Project {
 }
 
 // ── Tab config ──────────────────────────────────────────────────────────────
-type TabKey = 'all' | 'text_to_image' | 'image_to_image' | 'image_to_video' | 'text_to_video' | 'image_to_3d' | 'text_to_story';
+type TabKey = 'all' | 'text_to_image' | 'image_to_image' | 'image_to_video' | 'text_to_video' | 'image_to_3d' | 'text_to_story' | 'igaming_assets';
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType; color: string; accentBg: string }[] = [
   { key: 'all',            label: 'All',            icon: Film,        color: 'var(--accent)',  accentBg: 'var(--accent)' },
@@ -35,6 +35,7 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType; color: string
   { key: 'text_to_video',  label: 'Text to Video',   icon: Type,        color: '#ef4444',        accentBg: '#ef4444' },
   { key: 'image_to_3d',    label: 'Image to 3D',     icon: Box,         color: '#a855f7',        accentBg: '#a855f7' },
   { key: 'text_to_story',  label: 'Story Studio',    icon: Film,        color: '#dc2626',        accentBg: '#dc2626' },
+  { key: 'igaming_assets', label: 'iGaming Assets',  icon: Gamepad2,    color: '#059669',        accentBg: '#059669' },
 ];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

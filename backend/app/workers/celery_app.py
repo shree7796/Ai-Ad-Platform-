@@ -15,6 +15,7 @@ celery_app = Celery(
         "app.workers.video_worker",
         "app.workers.image_worker",
         "app.workers.story_worker",
+        "app.workers.igaming_worker",
     ]
 )
 
@@ -32,6 +33,7 @@ celery_app.conf.update(
         "app.workers.video_worker.*": {"queue": "video_generation"},
         "app.workers.image_worker.*": {"queue": "image_generation"},
         "app.workers.story_worker.*": {"queue": "video_generation"},
+        "app.workers.igaming_worker.*": {"queue": "image_generation"},
         "app.workers.processing_worker.*": {"queue": "post_processing"},
     },
 

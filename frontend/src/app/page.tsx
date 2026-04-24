@@ -217,6 +217,7 @@ const PLANS = [
             'Basic AI models only',
             'Image to 3D- not included',
             'Story Studio- not included',
+            'iGaming Assets- not included',
             'Lumina watermark on output',
         ],
         cta: 'Start for Free',
@@ -236,6 +237,7 @@ const PLANS = [
             '12 video units (15s each)',
             'Image to 3D  ·  28–40 ⚡ per run',
             'Story Studio  ·  340–540 ⚡ per story',
+            'iGaming Assets  ·  30–50 ⚡ per pack',
             'No watermark',
         ],
         cta: 'Get Basic',
@@ -255,6 +257,7 @@ const PLANS = [
             '20 video units (15s each)',
             'Image to 3D  ·  28–40 ⚡ per run',
             'Story Studio  ·  340–540 ⚡ per story',
+            'iGaming Assets  ·  30–50 ⚡ per pack',
             'Pro & Basic AI models',
             'Priority generation queue',
         ],
@@ -275,6 +278,7 @@ const PLANS = [
             '40 video units (15s each)',
             'Image to 3D  ·  28–40 ⚡ per run',
             'Story Studio  ·  340–830 ⚡ per story',
+            'iGaming Assets  ·  30–50 ⚡ per pack',
             'All AI models unlocked',
             'Up to 60s video length',
         ],
@@ -1520,6 +1524,7 @@ export default function HomePage() {
                                 { label: 'Text to Video', cost: '10–55 ⚡' },
                                 { label: 'Image to 3D', cost: '28–40 ⚡' },
                                 { label: 'Story Studio', cost: '340–830 ⚡' },
+                                { label: 'iGaming Assets', cost: '30–50 ⚡' },
                             ].map((item) => (
                                 <span key={item.label} style={{ fontSize: 12, color: '#6b7280' }}>
                                     {item.label} <span style={{ color: '#0a0a0a', fontWeight: 600 }}>· {item.cost}</span>

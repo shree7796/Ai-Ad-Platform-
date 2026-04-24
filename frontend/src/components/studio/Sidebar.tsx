@@ -95,7 +95,8 @@ export default function Sidebar() {
         activeTab === 'image-to-video' ||
         activeTab === 'text-to-video' ||
         activeTab === 'image-to-3d' ||
-        activeTab === 'text-to-story'
+        activeTab === 'text-to-story' ||
+        activeTab === 'igaming-assets'
             ? activeTab
             : 'text-to-image';
 

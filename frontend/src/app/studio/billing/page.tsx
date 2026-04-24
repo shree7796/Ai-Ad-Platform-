@@ -32,7 +32,7 @@ const PLANS: Record<string, PlanConfig> = {
     groups: [
       {
         icon: Wand2, label: 'What you can create',
-        items: ['Text to Image', 'Image to Image', 'Image to Video', 'Text to Video', 'Image to 3D (paid plan only)', 'Story Studio (paid plan only)'],
+        items: ['Text to Image', 'Image to Image', 'Image to Video', 'Text to Video', 'Image to 3D (paid plan only)', 'Story Studio (paid plan only)', 'iGaming Assets (paid plan only)'],
       },
       {
         icon: Lock, label: 'Limitations',
@@ -47,7 +47,7 @@ const PLANS: Record<string, PlanConfig> = {
     groups: [
       {
         icon: Wand2, label: 'All generation types',
-        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–55 ⚡', 'Image to 3D  ·  28–40 ⚡', 'Story Studio  ·  340–830 ⚡'],
+        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–55 ⚡', 'Image to 3D  ·  28–40 ⚡', 'Story Studio  ·  340–830 ⚡', 'iGaming Assets  ·  30–50 ⚡'],
       },
       {
         icon: Zap, label: 'Included perks',
@@ -62,7 +62,7 @@ const PLANS: Record<string, PlanConfig> = {
     groups: [
       {
         icon: Wand2, label: 'All generation types',
-        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–55 ⚡', 'Image to 3D  ·  28–40 ⚡', 'Story Studio  ·  340–830 ⚡'],
+        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–55 ⚡', 'Image to 3D  ·  28–40 ⚡', 'Story Studio  ·  340–830 ⚡', 'iGaming Assets  ·  30–50 ⚡'],
       },
       {
         icon: Zap, label: 'Pro perks',
@@ -77,7 +77,7 @@ const PLANS: Record<string, PlanConfig> = {
     groups: [
       {
         icon: Wand2, label: 'All generation types',
-        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–110 ⚡', 'Image to 3D  ·  28–40 ⚡', 'Story Studio  ·  340–830 ⚡'],
+        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–110 ⚡', 'Image to 3D  ·  28–40 ⚡', 'Story Studio  ·  340–830 ⚡', 'iGaming Assets  ·  30–50 ⚡'],
       },
       {
         icon: Zap, label: 'Studio perks',

@@ -1,4 +1,4 @@
-import { Wand2, Paintbrush, Clapperboard, MonitorPlay, Boxes, Film } from 'lucide-react';
+import { Wand2, Paintbrush, Clapperboard, MonitorPlay, Boxes, Film, Gamepad2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export type StudioTab =
@@ -7,10 +7,11 @@ export type StudioTab =
     | 'image-to-video'
     | 'text-to-video'
     | 'image-to-3d'
-    | 'text-to-story';
+    | 'text-to-story'
+    | 'igaming-assets';
 
 /** Group key for sidebar subsection dividers. */
-export type StudioTabGroup = 'image' | 'video' | '3d' | 'story';
+export type StudioTabGroup = 'image' | 'video' | '3d' | 'story' | 'igaming';
 
 export interface StudioModeItem {
     id: StudioTab;
@@ -83,6 +84,16 @@ export const STUDIO_MODE_ITEMS: StudioModeItem[] = [
         isNew: true,
         requiresPaidPlan: true,
     },
+    {
+        id: 'igaming-assets',
+        label: 'iGaming Assets',
+        description: 'Slot icons · promo banners · multi-angle',
+        icon: Gamepad2,
+        sidebarTileBg: 'linear-gradient(145deg,#064e3b,#059669)',
+        group: 'igaming',
+        isNew: true,
+        requiresPaidPlan: true,
+    },
 ];
 
 /** Group metadata used to render subsection dividers in the sidebar. */
@@ -91,4 +102,5 @@ export const STUDIO_TAB_GROUPS: Record<StudioTabGroup, { label: string }> = {
     video: { label: 'Video' },
     '3d': { label: '3D' },
     story: { label: 'Story' },
+    igaming: { label: 'iGaming' },
 };

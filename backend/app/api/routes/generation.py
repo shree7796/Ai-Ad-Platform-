@@ -94,7 +94,7 @@ async def trigger_generation(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    if payload.task_type in ["image_to_video", "image_to_image", "video_to_video", "image_to_3d"]:
+    if payload.task_type in ["image_to_video", "image_to_image", "video_to_video", "image_to_3d", "igaming_assets"]:
         if not project.input_media_url:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -113,6 +113,12 @@ async def trigger_generation(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Story Studio requires a paid plan. Subscribe in Billing to unlock.",
+        )
+
+    if task_norm_early == "igaming_assets" and plan_key == "free":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="iGaming Asset Generator requires a paid plan. Subscribe in Billing to unlock.",
         )
 
     if is_video_task(payload.task_type):
@@ -209,6 +215,9 @@ async def trigger_generation(
         story_scene_count=payload.story_scene_count,
         story_narrator_voice=payload.story_narrator_voice,
         story_video_model=payload.story_video_model,
+        igaming_template=payload.igaming_template,
+        igaming_style=payload.igaming_style,
+        igaming_quality=payload.igaming_quality,
     )
 
     scene.celery_task_id = job_id
