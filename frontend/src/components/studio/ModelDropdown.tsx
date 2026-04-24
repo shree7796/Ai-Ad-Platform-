@@ -215,7 +215,7 @@ export default function ModelDropdown({ models, value, onChange, label = 'AI Mod
                         type="button"
                         title={
                             locked
-                                ? 'Included on paid plans — open Billing to upgrade and unlock this model.'
+                                ? 'Included on paid plans- open Billing to upgrade and unlock this model.'
                                 : undefined
                         }
                         aria-disabled={locked}

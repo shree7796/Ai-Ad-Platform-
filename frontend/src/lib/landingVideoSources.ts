@@ -36,7 +36,7 @@ export const AI_CREATIVE_REMOTE_CLIPS = [
 ] as const;
 
 /**
- * Movie-style fighting — fencing / blades / period combat (Mixkit). **No boxing / ring footage.**
+ * Movie-style fighting- fencing / blades / period combat (Mixkit). **No boxing / ring footage.**
  */
 export const MOVIE_FIGHT_REMOTE_CLIPS = [
     mixkitMp4(48783),
@@ -44,10 +44,10 @@ export const MOVIE_FIGHT_REMOTE_CLIPS = [
     mixkitMp4(36754),
 ] as const;
 
-/** @deprecated alias — slider “fight” tile uses movie combat, not boxing. */
+/** @deprecated alias- slider “fight” tile uses movie combat, not boxing. */
 export const CINEMATIC_FIGHT_REMOTE_CLIPS = MOVIE_FIGHT_REMOTE_CLIPS;
 
-/** Slider / nature beat — aerial + landscape (no overlap with deep-ocean clips). */
+/** Slider / nature beat- aerial + landscape (no overlap with deep-ocean clips). */
 export const CINEMATIC_NATURE_REMOTE_CLIPS = [mixkitMp4(43120), mixkitMp4(39714)] as const;
 
 /** Bunny + cartoon-style B-roll (720p on Mixkit). */
@@ -57,7 +57,7 @@ export const DEEP_OCEAN_REMOTE_CLIPS = [mixkitMp4(26312), mixkitMp4(9668)] as co
 
 export const GAMING_SHORT_REMOTE_CLIPS = [mixkitMp4(51612), mixkitMp4(43535)] as const;
 
-/** Car / racing only — no fire VFX. */
+/** Car / racing only- no fire VFX. */
 export const CAR_ONLY_REMOTE_CLIPS = [mixkitMp4(35164), mixkitMp4(65), mixkitMp4(3175)] as const;
 
 /** @deprecated use `CAR_ONLY_REMOTE_CLIPS` */
@@ -78,7 +78,7 @@ export const STUDIO_UI_PREVIEW_POSTER =
     `https://images.unsplash.com/photo-1490750967868-88aa4486c946?${u1920}`;
 
 /**
- * Toy / retail‑style B‑roll (studio product motion — **not** pet footage).
+ * Toy / retail‑style B‑roll (studio product motion- **not** pet footage).
  * Single placement on the homepage: promo strip lead. File: `toy-shelf-broll.mp4`.
  */
 export const LOCAL_KIDS_TOY_CLIP = '/videos/toy-shelf-broll.mp4';
@@ -86,10 +86,10 @@ export const LOCAL_KIDS_TOY_CLIP = '/videos/toy-shelf-broll.mp4';
 export const LOCAL_HERO_CLIP = '/videos/hero-city-uhd.mp4';
 export const LOCAL_PROMO_CLIP = '/videos/promo-ocean-uhd.mp4';
 
-/** Abstract particles / premium filler — distinct from toy and nature shots. */
+/** Abstract particles / premium filler- distinct from toy and nature shots. */
 export const LOCAL_CLIP_ABSTRACT = '/videos/abstract-dust.mp4';
 
-/** Forest / aerial green B‑roll — distinct from city + ocean. */
+/** Forest / aerial green B‑roll- distinct from city + ocean. */
 export const LOCAL_CLIP_FOREST = '/videos/forest-aerial.mp4';
 
 /**
@@ -106,25 +106,25 @@ export const HERO_AMBIENT_CLIPS = [
 /** Last-resort HTTPS clip when every other URL fails. */
 export const REMOTE_VIDEO_FALLBACKS: string[] = ['https://samplelib.com/preview/mp4/sample-5s.mp4'];
 
-/** Hero clip + on-screen label (movie fight → nature → bunny/cartoon → ocean → game → car — **no boxing, no fire**). */
+/** Hero clip + on-screen label (movie fight → nature → bunny/cartoon → ocean → game → car- **no boxing, no fire**). */
 export type HeroBackdropClip = { readonly src: string; readonly label: string };
 
 export const LUMINA_HERO_PLAYABLE: readonly HeroBackdropClip[] = [
-    { src: mixkitMp4(48783), label: 'Movie fight — fencing duel (stock)' },
-    { src: mixkitMp4(13029), label: 'Movie fight — sword combat (stock)' },
-    { src: mixkitMp4(36754), label: 'Movie fight — fencer training (stock)' },
-    { src: mixkitMp4(43120), label: 'Nature — aerial mountains' },
-    { src: mixkitMp4(39714), label: 'Nature — aerial landscape' },
-    { src: mixkitMp4(25187), label: 'Bunny — playful (stock, not licensed anime)' },
-    { src: mixkitMp4(14371), label: 'Bunny — meadow (stock)' },
-    { src: mixkitMp4(24323), label: 'Cartoon animation — desk (stock)' },
-    { src: mixkitMp4(26312), label: 'Deep ocean — open water' },
-    { src: mixkitMp4(9668), label: 'Deep ocean — underwater' },
-    { src: mixkitMp4(51612), label: 'Gaming — victory moment' },
-    { src: mixkitMp4(43535), label: 'Gaming — squad session' },
-    { src: mixkitMp4(35164), label: 'Car — race vs plane' },
-    { src: mixkitMp4(65), label: 'Car — engine detail' },
-    { src: mixkitMp4(3175), label: 'Car — on the road' },
+    { src: mixkitMp4(48783), label: 'Movie fight- fencing duel (stock)' },
+    { src: mixkitMp4(13029), label: 'Movie fight- sword combat (stock)' },
+    { src: mixkitMp4(36754), label: 'Movie fight- fencer training (stock)' },
+    { src: mixkitMp4(43120), label: 'Nature- aerial mountains' },
+    { src: mixkitMp4(39714), label: 'Nature- aerial landscape' },
+    { src: mixkitMp4(25187), label: 'Bunny- playful (stock, not licensed anime)' },
+    { src: mixkitMp4(14371), label: 'Bunny- meadow (stock)' },
+    { src: mixkitMp4(24323), label: 'Cartoon animation- desk (stock)' },
+    { src: mixkitMp4(26312), label: 'Deep ocean- open water' },
+    { src: mixkitMp4(9668), label: 'Deep ocean- underwater' },
+    { src: mixkitMp4(51612), label: 'Gaming- victory moment' },
+    { src: mixkitMp4(43535), label: 'Gaming- squad session' },
+    { src: mixkitMp4(35164), label: 'Car- race vs plane' },
+    { src: mixkitMp4(65), label: 'Car- engine detail' },
+    { src: mixkitMp4(3175), label: 'Car- on the road' },
     ...REMOTE_VIDEO_FALLBACKS.map((src) => ({ src, label: 'Fallback clip' })),
 ];
 
@@ -151,7 +151,7 @@ export const LUMINA_SLIDER_FIGHT_VIDEO_CHAIN = [...CINEMATIC_FIGHT_REMOTE_CLIPS,
 /** @deprecated Prefer `LUMINA_SLIDER_SHOWCASE_VIDEO_CHAIN` on the homepage. */
 export const LUMINA_SLIDER_NATURE_VIDEO_CHAIN = [...CINEMATIC_NATURE_REMOTE_CLIPS, ...REMOTE_VIDEO_FALLBACKS];
 
-/** Hero poster — neutral cinematic (not boxing gym, not bright park foliage). */
+/** Hero poster- neutral cinematic (not boxing gym, not bright park foliage). */
 export const AI_HERO_VIDEO_POSTER =
     `https://images.unsplash.com/photo-1536440136628-849c177e76a1?${u1920}`;
 
@@ -179,7 +179,7 @@ export const FULL_HERO_VIDEO_CHAIN = [...HERO_AMBIENT_CLIPS, ...REMOTE_VIDEO_FAL
 
 /**
  * Mid-page strip: **only surface** that opens on the kids/toy clip, then other locals.
- * (One “catalog / toy aisle” moment — not duplicated in dark showcase.)
+ * (One “catalog / toy aisle” moment- not duplicated in dark showcase.)
  */
 export const PROMO_STRIP_VIDEO_CHAIN = [
     LOCAL_KIDS_TOY_CLIP,
@@ -193,7 +193,7 @@ export const PROMO_STRIP_VIDEO_CHAIN = [
 
 /**
  * Top-left “Flux” card: **city night first** (clearly different from forest/ocean opens).
- * Top-right “Depth” card: **forest first** — never the same opening frame as Flux.
+ * Top-right “Depth” card: **forest first**- never the same opening frame as Flux.
  */
 export const DARK_SHOWCASE_LEFT_CHAIN = [
     LOCAL_HERO_CLIP,
@@ -231,7 +231,7 @@ export const AI_ADS_VIDEO_CAMPAIGN_POSTER =
     `https://images.unsplash.com/photo-1578662996442-48f60103fc96?${u1920}`;
 
 /**
- * AI ecommerce ads section — **three different video stacks** (product spots, social motion, brand hero).
+ * AI ecommerce ads section- **three different video stacks** (product spots, social motion, brand hero).
  */
 /** Lead with city + abstract so the first tile is not the same clip as `PROMO_STRIP_VIDEO_CHAIN` (toy B-roll). */
 export const AI_ADS_PRODUCT_FILM_CHAIN = [
@@ -266,7 +266,7 @@ export const AI_ADS_CAMPAIGN_HERO_CHAIN = [
 ];
 
 /**
- * ─── Marketing homepage only (/) — Mixkit clips, disjoint slices ────────────
+ * ─── Marketing homepage only (/)- Mixkit clips, disjoint slices ────────────
  * Video: `assets.mixkit.co` (Mixkit License). Hero/carousel/use-case use gradient SVG posters; browse grid uses Unsplash stills so tiles read as real thumbnails.
  * @see https://mixkit.co/license/
  */
@@ -339,7 +339,7 @@ const HOME_MIX_POOL: readonly HomeMixClip[] = [
     homeMixClip(30499, 'Nature beat', 140, 168),
 ];
 
-/** Hero crossfade — first ten pool clips only (no overlap with carousel / grid). */
+/** Hero crossfade- first ten pool clips only (no overlap with carousel / grid). */
 export const HOMEPAGE_HERO_PLAYABLE: readonly HeroBackdropClip[] = HOME_MIX_POOL.slice(0, 10).map((c) => ({
     src: c.mp4,
     label: `Free clip · ${c.slugTitle} (Mixkit #${c.mixkitId})`,
@@ -351,13 +351,13 @@ export const HOMEPAGE_HERO_CLIPS: string[] = HOMEPAGE_HERO_PLAYABLE.map((c) => c
 export const HOMEPAGE_HERO_POSTER =
     `https://images.unsplash.com/photo-1534438327276-14e5300c3a48?${u1920}`;
 
-/** Carousel — eight clips from pool slots 10–17 (disjoint from hero). */
+/** Carousel- eight clips from pool slots 10–17 (disjoint from hero). */
 export const HOMEPAGE_SLIDER_VIDEO_CHAIN: readonly string[] = HOME_MIX_POOL.slice(10, 18).map((c) => c.mp4);
 
 /** Gradient posters until each Mixkit MP4 is ready (instant paint, no external stills). */
 export const HOMEPAGE_SLIDER_VIDEO_POSTERS: readonly string[] = HOME_MIX_POOL.slice(10, 18).map((c) => c.poster);
 
-/** Use-case panel — six clips from pool slots 18–23. */
+/** Use-case panel- six clips from pool slots 18–23. */
 export const HOMEPAGE_USE_CASE_VIDEO_CHAIN: readonly string[] = HOME_MIX_POOL.slice(18, 24).map((c) => c.mp4);
 
 export const HOMEPAGE_USE_CASE_VIDEO_POSTERS: readonly string[] = HOME_MIX_POOL.slice(18, 24).map((c) => c.poster);
@@ -376,7 +376,7 @@ export const STOCK_FOOTAGE_LICENSE = {
     unsplash: 'https://unsplash.com/license',
 } as const;
 
-/** Hover grid — six clips from pool slots 24–29 (disjoint from hero, carousel, and use-case). */
+/** Hover grid- six clips from pool slots 24–29 (disjoint from hero, carousel, and use-case). */
 export const STOCK_FOOTAGE_BROWSE_TILES: readonly StockBrowseTile[] = HOME_MIX_POOL.slice(24, 30).map((c, i) => ({
     title: c.slugTitle,
     tag: 'Mixkit · HD',

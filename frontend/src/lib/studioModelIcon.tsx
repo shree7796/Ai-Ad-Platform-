@@ -20,7 +20,7 @@ import {
 
 const DEFAULT: LucideIcon = Sparkles;
 
-/** Lucide icon per backend `model` / registry value — extend when new models ship. */
+/** Lucide icon per backend `model` / registry value- extend when new models ship. */
 const BY_VALUE: Record<string, LucideIcon> = {
     'flux-schnell': Gauge,
     'flux-dev': Sparkles,

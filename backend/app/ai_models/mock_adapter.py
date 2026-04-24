@@ -1,5 +1,5 @@
 """
-Mock AI Provider — Generates placeholder images and videos for development.
+Mock AI Provider- Generates placeholder images and videos for development.
 Used when provider=mock or during testing.
 """
 
@@ -124,6 +124,23 @@ class MockProvider(BaseAIProvider):
 
     async def video_to_video(self, video_url: str, prompt: str, duration_seconds: int = 12, **kwargs) -> GenerationResult:
         return await self._generate_media(prompt, duration_seconds, True, "Video-to-Video")
+
+    async def image_to_3d(self, image_url: str, prompt: str = "", **kwargs) -> GenerationResult:
+        """Return a small public sample GLB so the pipeline can run without Fal."""
+        _ = image_url
+        start = time.time()
+        await asyncio.sleep(self.delay_seconds)
+        sample = (
+            "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@2.0/"
+            "2.0/Box/glTF-Binary/Box.glb"
+        )
+        return GenerationResult(
+            success=True,
+            media_url=sample,
+            model_name=f"{self.name}/image-to-3d",
+            generation_time_seconds=time.time() - start,
+            metadata={"mock": True},
+        )
 
     async def check_status(self, job_id: str) -> Dict[str, Any]:
         return {"status": "completed", "job_id": job_id}

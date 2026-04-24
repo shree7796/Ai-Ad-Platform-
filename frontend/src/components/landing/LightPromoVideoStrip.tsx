@@ -5,7 +5,7 @@ import { PROMO_STRIP_VIDEO_CHAIN, PROMO_STRIP_POSTER } from '@/lib/landingVideoS
 import CinematicReferenceVideo from '@/components/landing/CinematicReferenceVideo';
 
 /**
- * Full-bleed-style clip in a framed card — reference-quality motion, lighter scrim than before.
+ * Full-bleed-style clip in a framed card- reference-quality motion, lighter scrim than before.
  */
 export default function LightPromoVideoStrip() {
     return (
@@ -45,7 +45,7 @@ export default function LightPromoVideoStrip() {
                         className="absolute inset-0"
                         videoClassName="absolute inset-0 h-full w-full object-cover"
                     />
-                    {/* Light edge blend only — keep footage visible like premium marketing sites */}
+                    {/* Light edge blend only- keep footage visible like premium marketing sites */}
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-[#f5f5f4]/35" />
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-[#ececea]/90 to-transparent" />
                 </div>

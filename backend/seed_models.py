@@ -13,7 +13,15 @@ MODELS_SEED = [
     {
         "name": "Mock Fast",
         "provider": "mock",
-        "supported_tasks": ["text_to_image", "image_to_image", "image_to_video", "text_to_video", "video_to_video"],
+        "supported_tasks": [
+            "text_to_image",
+            "image_to_image",
+            "image_to_video",
+            "text_to_video",
+            "video_to_video",
+            "image_to_3d",
+            "text_to_story",
+        ],
         "cost_per_unit": 0.00,
         "quality_score": 5,
         "minimum_tier": "free",
@@ -40,7 +48,15 @@ MODELS_SEED = [
     {
         "name": "Fal AI",
         "provider": "fal",
-        "supported_tasks": ["text_to_image", "image_to_image", "text_to_video", "image_to_video", "video_to_video"],
+        "supported_tasks": [
+            "text_to_image",
+            "image_to_image",
+            "text_to_video",
+            "image_to_video",
+            "video_to_video",
+            "image_to_3d",
+            "text_to_story",
+        ],
         "cost_per_unit": 0.20,
         "quality_score": 9,
         "minimum_tier": "free",

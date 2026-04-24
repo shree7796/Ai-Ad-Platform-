@@ -17,7 +17,7 @@ import {
 const UPGRADE_SIDE_IMAGE =
   'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=720&h=1100&q=88';
 
-export type UpgradeModalReason = 'video_free' | 'quota' | 'credits' | 'generic';
+export type UpgradeModalReason = 'video_free' | 'three_d_free' | 'story_free' | 'quota' | 'credits' | 'generic';
 
 interface Props {
   open: boolean;
@@ -31,6 +31,10 @@ function reasonEyebrow(reason: UpgradeModalReason, detail?: string): string {
   switch (reason) {
     case 'video_free':
       return 'Video is included with a paid plan. Upgrade to generate clips.';
+    case 'three_d_free':
+      return 'Image to 3D is included with a paid plan. Upgrade to generate 3D models.';
+    case 'story_free':
+      return 'Story Studio is a premium feature. Upgrade to create full narrated story videos.';
     case 'quota':
       return "You've hit your monthly generation limit. Upgrade for more capacity.";
     case 'credits':
@@ -160,7 +164,7 @@ export default function UpgradePlanModal({ open, onClose, reason, detailMessage 
 
   const startCheckout = async () => {
     if (billing === 'yearly') {
-      toast('Annual billing is not available yet — continuing with monthly checkout.', {
+      toast('Annual billing is not available yet- continuing with monthly checkout.', {
         icon: 'ℹ️',
         duration: 3500,
       });
@@ -539,7 +543,7 @@ export default function UpgradePlanModal({ open, onClose, reason, detailMessage 
                         </span>
                         −20%
                       </div>
-                      <div style={{ fontSize: 12, color: '#737373', marginTop: 6 }}>Annual — coming soon</div>
+                      <div style={{ fontSize: 12, color: '#737373', marginTop: 6 }}>Annual- coming soon</div>
                     </button>
                   </div>
 

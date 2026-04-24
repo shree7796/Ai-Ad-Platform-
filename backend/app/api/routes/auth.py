@@ -1,5 +1,5 @@
 """
-Auth API Routes — Register, Login, Profile.
+Auth API Routes- Register, Login, Profile.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status

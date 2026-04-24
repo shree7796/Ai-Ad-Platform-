@@ -205,7 +205,7 @@ export const generationAPI = {
     aspect_ratio?: string;
     /** Second image URL for reference/transition models (e.g. end frame for PixVerse Transition). */
     reference_image_url?: string;
-    /** Client-generated UUID — prevents double-reserve on network retries or double-clicks. */
+    /** Client-generated UUID- prevents double-reserve on network retries or double-clicks. */
     idempotency_key?: string;
   }) => api.post('generate/', data),
 

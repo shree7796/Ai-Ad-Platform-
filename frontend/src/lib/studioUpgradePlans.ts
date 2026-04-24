@@ -21,10 +21,11 @@ export const UPGRADE_PLANS: Record<UpgradePlanKey, UpgradePlanInfo> = {
     tagline: 'For individuals',
     features: [
       '1,200 credits every month',
-      'Text & image generation plus video tools',
-      'Commercial-friendly use on your outputs',
+      'Text & Image generation',
+      'Image to Video  ·  Text to Video',
+      'Image to 3D  ·  28–40 ⚡ per run',
+      'Story Studio  ·  340–540 ⚡ per story',
       'No Lumina watermark',
-      'Higher monthly caps than Free',
     ],
   },
   pro: {
@@ -36,7 +37,8 @@ export const UPGRADE_PLANS: Record<UpgradePlanKey, UpgradePlanInfo> = {
     features: [
       '3,200 credits every month',
       'Pro & premium model tiers',
-      'Longer videos and higher monthly caps',
+      'Image to 3D  ·  longer videos',
+      'Story Studio  ·  up to 8 scenes per story',
       '20% bonus credits on top-up packs',
       'Priority generation queue',
     ],
@@ -50,7 +52,8 @@ export const UPGRADE_PLANS: Record<UpgradePlanKey, UpgradePlanInfo> = {
     features: [
       '7,000 credits every month',
       'All models including premium tier',
-      'Up to 60s video length',
+      'Image to 3D  ·  up to 60s video',
+      'Story Studio  ·  all voices & models',
       'Highest priority queue',
       '20% bonus credits on top-up packs',
     ],

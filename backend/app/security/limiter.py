@@ -1,4 +1,4 @@
-"""Rate limiting (SlowAPI) — per-IP keys, proxy-aware when enabled."""
+"""Rate limiting (SlowAPI)- per-IP keys, proxy-aware when enabled."""
 
 from __future__ import annotations
 

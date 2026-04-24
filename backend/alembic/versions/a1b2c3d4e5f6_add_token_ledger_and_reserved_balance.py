@@ -60,7 +60,7 @@ def upgrade() -> None:
         "ON credit_transactions(job_id)"
     ))
 
-    # ── 3. users — credit ledger columns (idempotent) ───────────────────────
+    # ── 3. users- credit ledger columns (idempotent) ───────────────────────
     op.execute(sa.text(
         "ALTER TABLE users "
         "ADD COLUMN IF NOT EXISTS credit_balance  INTEGER NOT NULL DEFAULT 0"

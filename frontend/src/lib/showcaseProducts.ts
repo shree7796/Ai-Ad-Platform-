@@ -1,5 +1,5 @@
 /**
- * Curated Unsplash product shots — varied categories for e‑commerce showcase UI.
+ * Curated Unsplash product shots- varied categories for e‑commerce showcase UI.
  * Params keep files reasonably sized for Next/Image.
  */
 const q = 'auto=format&fit=crop&q=85';

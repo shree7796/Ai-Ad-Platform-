@@ -1,5 +1,5 @@
 """
-Generation circuit breaker — Redis-backed.
+Generation circuit breaker- Redis-backed.
 
 Policy (from credits.yaml):
   • Track consecutive failures per user in a rolling 15-minute window.
@@ -67,7 +67,7 @@ async def assert_not_in_cooldown(user_id: str) -> None:
     except HTTPException:
         raise
     except Exception as exc:
-        # Redis unavailable — fail open (do not block user)
+        # Redis unavailable- fail open (do not block user)
         logger.warning("[circuit_breaker] Redis check failed (fail-open): %s", exc)
 
 
@@ -91,7 +91,7 @@ async def record_failure(user_id: str) -> None:
             await r.set(cooldown_key, "1", ex=cooldown_seconds)
             await r.delete(fail_key)
             logger.warning(
-                "[circuit_breaker] User %s hit %d failures — %d-minute cooldown activated",
+                "[circuit_breaker] User %s hit %d failures- %d-minute cooldown activated",
                 user_id, count, cooldown_seconds // 60,
             )
     except Exception as exc:

@@ -211,7 +211,7 @@ def generate_video(
         scene.status = "completed"
         scene.completed_at = datetime.utcnow()
 
-        # Finalize credit deduction — only active when the credit gate is enabled
+        # Finalize credit deduction- only active when the credit gate is enabled
         if settings.enforce_credit_balance:
             async def _finalize():
                 from app.services.billing_quota import finalize_deduction, compute_credit_cost

@@ -1,5 +1,5 @@
 /**
- * Procedural “AI / cinematic” look without stock-photo CDNs — SVG data-URIs only.
+ * Procedural “AI / cinematic” look without stock-photo CDNs- SVG data-URIs only.
  */
 
 /** Full-bleed poster frames for `<video poster>` (works as data: URL in browsers). */
@@ -8,7 +8,7 @@ export function gradientPoster(hueA: number, hueB: number): string {
     return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
-/** Small thumbs for studio slider — distinct hues per slot. */
+/** Small thumbs for studio slider- distinct hues per slot. */
 export function studioThumbDataUri(slot: number): string {
     const hues = [268, 198, 328, 158];
     const h = hues[slot % hues.length];

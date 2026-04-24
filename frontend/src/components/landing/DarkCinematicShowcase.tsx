@@ -143,7 +143,7 @@ export default function DarkCinematicShowcase() {
                     </h2>
                     <p className="mt-4 max-w-[640px] text-[15px] leading-relaxed text-neutral-400 md:text-[17px]">
                         Kids’ toys, plush, blocks, and catalog stills in the grids; center and side videos rotate
-                        ocean, forest, abstract, and city — the toy‑aisle reel plays only in the strip above.
+                        ocean, forest, abstract, and city- the toy‑aisle reel plays only in the strip above.
                     </p>
                 </motion.div>
 

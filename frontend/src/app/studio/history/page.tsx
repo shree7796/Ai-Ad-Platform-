@@ -10,7 +10,7 @@ import {
   Search, Download, ExternalLink,
   Image as ImageIcon, Film, Loader2,
   AlertCircle, Trash2, RefreshCw,
-  Wand2, Repeat2, Clapperboard, Type,
+  Wand2, Repeat2, Clapperboard, Type, Box,
 } from 'lucide-react';
 
 interface Project {
@@ -25,7 +25,7 @@ interface Project {
 }
 
 // ── Tab config ──────────────────────────────────────────────────────────────
-type TabKey = 'all' | 'text_to_image' | 'image_to_image' | 'image_to_video' | 'text_to_video';
+type TabKey = 'all' | 'text_to_image' | 'image_to_image' | 'image_to_video' | 'text_to_video' | 'image_to_3d' | 'text_to_story';
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType; color: string; accentBg: string }[] = [
   { key: 'all',            label: 'All',            icon: Film,        color: 'var(--accent)',  accentBg: 'var(--accent)' },
@@ -33,11 +33,24 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType; color: string
   { key: 'image_to_image', label: 'Image to Image',  icon: Repeat2,     color: '#0a84ff',        accentBg: '#0a84ff' },
   { key: 'image_to_video', label: 'Image to Video',  icon: Clapperboard, color: '#f59e0b',       accentBg: '#f59e0b' },
   { key: 'text_to_video',  label: 'Text to Video',   icon: Type,        color: '#ef4444',        accentBg: '#ef4444' },
+  { key: 'image_to_3d',    label: 'Image to 3D',     icon: Box,         color: '#a855f7',        accentBg: '#a855f7' },
+  { key: 'text_to_story',  label: 'Story Studio',    icon: Film,        color: '#dc2626',        accentBg: '#dc2626' },
 ];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function isVideoTask(t: string | null) {
-  return ['text_to_video', 'image_to_video', 'video_to_video'].includes(t ?? '');
+  return ['text_to_video', 'image_to_video', 'video_to_video', 'text_to_story'].includes(t ?? '');
+}
+
+function is3dTask(t: string | null) {
+  return t === 'image_to_3d';
+}
+
+function downloadExtension(taskType: string | null, url: string) {
+  if (is3dTask(taskType)) {
+    return url.toLowerCase().includes('.obj') ? 'obj' : 'glb';
+  }
+  return isVideoTask(taskType) ? 'mp4' : 'png';
 }
 
 function timeAgo(dateStr: string) {
@@ -123,7 +136,7 @@ export default function HistoryPage() {
     const url = project.output_video_url;
     if (!url) { toast.error('Output file not ready yet.'); return; }
     setDownloading(project.id);
-    const ext = isVideoTask(project.task_type) ? 'mp4' : 'png';
+    const ext = downloadExtension(project.task_type, url);
     await downloadMedia(url, `lumina-${project.id.slice(0, 8)}.${ext}`);
     setDownloading(null);
   };
@@ -320,7 +333,10 @@ export default function HistoryPage() {
             >
               {displayed.map(project => {
                 const mediaUrl = project.output_video_url ?? null;
-                const previewUrl = project.thumbnail_url ?? (mediaUrl && !isVideoTask(project.task_type) ? mediaUrl : null);
+                const is3d = is3dTask(project.task_type);
+                const previewUrl =
+                  project.thumbnail_url ??
+                  (mediaUrl && !isVideoTask(project.task_type) && !is3d ? mediaUrl : null);
                 const isVideo = isVideoTask(project.task_type);
                 const isBeingDeleted = deleting === project.id;
                 const isBeingDownloaded = downloading === project.id;
@@ -348,6 +364,23 @@ export default function HistoryPage() {
                             v.pause(); v.currentTime = 0;
                           }}
                         />
+                      ) : mediaUrl && is3d ? (
+                        <div
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            background: 'linear-gradient(160deg, rgba(139,92,246,0.2) 0%, var(--bg-muted) 100%)',
+                            color: 'var(--text-muted)',
+                          }}
+                        >
+                          <Box size={32} style={{ opacity: 0.85, color: tabCfg.color }} />
+                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>3D model</span>
+                        </div>
                       ) : previewUrl ? (
                         <img src={previewUrl} alt={project.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (

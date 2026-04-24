@@ -37,7 +37,7 @@ export default function CinematicPromoHero() {
 
     return (
         <section className="relative min-h-[100svh] w-full overflow-hidden bg-[#f5f5f4] text-neutral-900">
-            {/* Ambient background video — very soft so light UI stays dominant */}
+            {/* Ambient background video- very soft so light UI stays dominant */}
             <div className="pointer-events-none absolute inset-0 z-0">
                 <CinematicReferenceVideo
                     sources={FULL_HERO_VIDEO_CHAIN}
@@ -86,7 +86,7 @@ export default function CinematicPromoHero() {
                     transition={{ delay: 0.8, duration: 1 }}
                     className="mx-auto mt-10 max-w-lg text-center text-[13px] text-neutral-500"
                 >
-                    AI-powered creative for commerce — ~{CYCLE_MS / 1000}s loop ·{' '}
+                    AI-powered creative for commerce- ~{CYCLE_MS / 1000}s loop ·{' '}
                     <Link
                         href="/vstudio"
                         className="font-medium text-neutral-800 underline decoration-neutral-300 underline-offset-4 hover:decoration-neutral-600"

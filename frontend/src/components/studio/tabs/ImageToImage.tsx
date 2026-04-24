@@ -169,7 +169,7 @@ export default function ImageToImage({ onGenerate, loading }: Props) {
                     rows={3}
                     value={prompt}
                     onChange={e => setPrompt(e.target.value)}
-                    placeholder="Guide the edit (optional) — e.g. BMW M4 with flames, dark asphalt…"
+                    placeholder="Guide the edit (optional)- e.g. BMW M4 with flames, dark asphalt…"
                     onKeyDown={e => {
                         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                             e.preventDefault();

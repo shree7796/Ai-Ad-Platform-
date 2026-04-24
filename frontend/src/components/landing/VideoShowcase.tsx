@@ -16,7 +16,7 @@ import Link from 'next/link';
  */
 
 const VIDEOS = {
-    // Cinematic band — aerial city / downtown night
+    // Cinematic band- aerial city / downtown night
     main: {
         primary: 'https://videos.pexels.com/video-files/3827282/3827282-uhd_2560_1440_30fps.mp4',
         fallback: 'https://assets.mixkit.co/videos/preview/mixkit-flying-over-a-large-city-at-night-1191-large.mp4',
@@ -43,7 +43,7 @@ const VIDEOS = {
     ],
 };
 
-// Ecommerce product ad clips — portrait 9:16 style (mobile ad format)
+// Ecommerce product ad clips- portrait 9:16 style (mobile ad format)
 const PRODUCT_ADS = [
     {
         product: 'Noir Élite',
@@ -84,7 +84,7 @@ const PRODUCT_ADS = [
 ];
 
 // ────────────────────────────────────────────────────────────────
-// Product Ad Card  — portrait 9:16, mimics a mobile/reel ad
+// Product Ad Card - portrait 9:16, mimics a mobile/reel ad
 // ────────────────────────────────────────────────────────────────
 function ProductAdCard({
     product, category, cta, accent, primary, fallback, index,
@@ -325,7 +325,7 @@ export default function VideoShowcase() {
                     boxShadow: '0 48px 100px rgba(0,0,0,0.55)',
                     background: '#0a0c10',
                 }}>
-                    {/* Autoplay video — full bleed, no slider */}
+                    {/* Autoplay video- full bleed, no slider */}
                     <video
                         autoPlay loop muted playsInline
                         crossOrigin="anonymous"
@@ -405,7 +405,7 @@ export default function VideoShowcase() {
                         color: 'rgba(230,230,230,0.25)', fontSize: 10, fontWeight: 700,
                         letterSpacing: '0.18em', textTransform: 'uppercase',
                     }}>
-                        Lumina AI Studio — 2026
+                        Lumina AI Studio- 2026
                     </div>
                 </div>
             </motion.div>

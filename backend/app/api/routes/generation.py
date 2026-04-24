@@ -1,5 +1,5 @@
 """
-Generation API Routes — Trigger generation jobs, poll status.
+Generation API Routes- Trigger generation jobs, poll status.
 """
 
 import uuid
@@ -94,7 +94,7 @@ async def trigger_generation(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    if payload.task_type in ["image_to_video", "image_to_image", "video_to_video"]:
+    if payload.task_type in ["image_to_video", "image_to_image", "video_to_video", "image_to_3d"]:
         if not project.input_media_url:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -102,6 +102,19 @@ async def trigger_generation(
             )
 
     plan_key = (current_user.plan or "free").lower()
+    task_norm_early = (payload.task_type or "").strip().lower()
+    if task_norm_early == "image_to_3d" and plan_key == "free":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Image to 3D requires a paid plan. Subscribe in Billing to unlock.",
+        )
+
+    if task_norm_early == "text_to_story" and plan_key == "free":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Story Studio requires a paid plan. Subscribe in Billing to unlock.",
+        )
+
     if is_video_task(payload.task_type):
         max_vid_len = max_video_duration_for_plan(plan_key)
         if payload.duration_seconds > max_vid_len:
@@ -129,7 +142,8 @@ async def trigger_generation(
     # ── Plan tier access (model tier: basic / pro / premium) ──
     enforce_plan_access(current_user, payload.tier)
 
-    # ── Credit cost — prefer model-specific lookup, fall back to provider cost ──
+    # ── Credit cost- prefer model-specific lookup, fall back to provider cost ──
+    # For text_to_story, image_model carries "text_to_story_3/5/8" for cost lookup
     model_key = payload.video_model if is_video_task(payload.task_type) else payload.image_model
     credit_cost = get_model_credit_cost(model_key, payload.task_type)
     if credit_cost <= 1 and not model_key:
@@ -159,7 +173,7 @@ async def trigger_generation(
     db.add(scene)
     await db.flush()
 
-    # ── Reserve credits before dispatching — prevents concurrent over-spend ──
+    # ── Reserve credits before dispatching- prevents concurrent over-spend ──
     if get_settings().enforce_credit_balance:
         await reserve_credits(db, current_user, credit_cost, str(scene.id), reason="generation_reserve")
 
@@ -192,6 +206,9 @@ async def trigger_generation(
         reference_image_url=payload.reference_image_url,
         add_lumina_watermark=add_lumina_watermark,
         aspect_ratio=payload.aspect_ratio,
+        story_scene_count=payload.story_scene_count,
+        story_narrator_voice=payload.story_narrator_voice,
+        story_video_model=payload.story_video_model,
     )
 
     scene.celery_task_id = job_id

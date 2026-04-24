@@ -1,5 +1,5 @@
 """
-AI Model API Routes — List available models.
+AI Model API Routes- List available models.
 """
 
 from typing import List

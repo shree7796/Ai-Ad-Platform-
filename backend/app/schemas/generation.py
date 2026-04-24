@@ -35,7 +35,7 @@ class GenerationRequest(BaseModel):
     # text_to_image / image_to_image: e.g. "1:1", "16:9", "9:16", "4:3"
     aspect_ratio: Optional[str] = None
     # auto-generate audio via Beatoven AI and attach to video (wan only, $0.10 extra)
-    # set generate_audio=True and describe the sound — e.g. "engine roar with dramatic music"
+    # set generate_audio=True and describe the sound- e.g. "engine roar with dramatic music"
     generate_audio: bool = False
     audio_prompt: Optional[str] = None   # e.g. "epic cinematic music with deep bass and engine revving"
     audio_type: str = "sfx"              # "sfx" (sound effects) | "music" (background music)
@@ -46,6 +46,11 @@ class GenerationRequest(BaseModel):
     # Client-generated UUID to prevent double-reserve on retries / double-clicks.
     # The backend returns the existing job immediately if the key is already in-flight.
     idempotency_key: Optional[str] = Field(default=None, max_length=100)
+
+    # ── Story Studio (text_to_story) ─────────────────────────────────────────
+    story_scene_count: int = Field(default=5, ge=3, le=8)
+    story_narrator_voice: str = Field(default="alloy")
+    story_video_model: Optional[str] = None
 
 
 class GenerationStatusResponse(BaseModel):

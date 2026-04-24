@@ -16,12 +16,14 @@ import {
     ChevronDown,
     ChevronUp,
     Settings,
+    Lock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useUsageSummary } from '@/hooks/useUsageSummary';
 import Cookies from 'js-cookie';
 import { useAuth } from '@/context/AuthContext';
-import { STUDIO_MODE_ITEMS, type StudioTab } from '@/lib/studioTabs';
+import { STUDIO_MODE_ITEMS, STUDIO_TAB_GROUPS, type StudioTab, type StudioTabGroup } from '@/lib/studioTabs';
+import { isFreeStudioPlan } from '@/lib/studioPlan';
 
 /** Floating menu: bottom-left of panel meets top-right of trigger (Krea-style). */
 const WORKSPACE_POPOVER_WIDTH = 292;
@@ -91,7 +93,9 @@ export default function Sidebar() {
         activeTab === 'text-to-image' ||
         activeTab === 'image-to-image' ||
         activeTab === 'image-to-video' ||
-        activeTab === 'text-to-video'
+        activeTab === 'text-to-video' ||
+        activeTab === 'image-to-3d' ||
+        activeTab === 'text-to-story'
             ? activeTab
             : 'text-to-image';
 
@@ -289,18 +293,118 @@ export default function Sidebar() {
             )}
 
             <div className="studio-side-section-label">TOOLS</div>
-            <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
-                {STUDIO_MODE_ITEMS.map(({ id, label, icon: Icon, sidebarTileBg }) => {
-                    const isActive = pathname === '/studio' && validTab === id;
-                    return (
-                        <Link key={id} href={toolHref(id)} className={`studio-sidebar-nav-link ${isActive ? 'active' : ''}`}>
-                            <SidebarIconTile bg={sidebarTileBg}>
-                                <Icon size={15} strokeWidth={isActive ? 2.2 : 1.85} />
-                            </SidebarIconTile>
-                            {label}
-                        </Link>
-                    );
-                })}
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: 1, flexShrink: 0 }}>
+                {(() => {
+                    const rendered: React.ReactNode[] = [];
+                    let lastGroup: StudioTabGroup | null = null;
+                    STUDIO_MODE_ITEMS.forEach(({ id, label, description, icon: Icon, sidebarTileBg, group, isNew, requiresPaidPlan }) => {
+                        const isActive = pathname === '/studio' && validTab === id;
+                        const planLocked = Boolean(requiresPaidPlan && isFreeStudioPlan(sessionUser?.plan));
+
+                        if (group !== lastGroup) {
+                            rendered.push(
+                                <div
+                                    key={`group-${group}`}
+                                    style={{
+                                        fontSize: 9,
+                                        fontWeight: 700,
+                                        letterSpacing: '0.12em',
+                                        textTransform: 'uppercase',
+                                        color: 'rgba(255,255,255,0.28)',
+                                        padding: lastGroup === null ? '2px 10px 4px' : '10px 10px 4px',
+                                    }}
+                                >
+                                    {STUDIO_TAB_GROUPS[group].label}
+                                </div>
+                            );
+                            lastGroup = group;
+                        }
+
+                        rendered.push(
+                            <Link
+                                key={id}
+                                href={toolHref(id)}
+                                className={`studio-sidebar-nav-link ${isActive ? 'active' : ''}`}
+                                style={{
+                                    ...(planLocked ? { opacity: 0.68 } : {}),
+                                    alignItems: 'flex-start',
+                                    paddingTop: 7,
+                                    paddingBottom: 7,
+                                    gap: 10,
+                                }}
+                                title={planLocked ? 'Subscribe to unlock' : undefined}
+                            >
+                                {/* Gradient tile */}
+                                <span
+                                    aria-hidden
+                                    style={{
+                                        width: 30,
+                                        height: 30,
+                                        borderRadius: 9,
+                                        flexShrink: 0,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        background: sidebarTileBg,
+                                        boxShadow: isActive
+                                            ? '0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.18)'
+                                            : '0 1px 4px rgba(0,0,0,0.35)',
+                                        marginTop: 1,
+                                        transition: 'box-shadow 0.15s',
+                                    }}
+                                >
+                                    <Icon size={15} strokeWidth={isActive ? 2.3 : 1.8} color="#ffffff" />
+                                </span>
+
+                                {/* Label + description */}
+                                <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                        <span style={{
+                                            fontSize: 13,
+                                            fontWeight: isActive ? 650 : 500,
+                                            color: isActive ? '#ffffff' : '#d4d4d4',
+                                            lineHeight: 1.3,
+                                            letterSpacing: '-0.01em',
+                                        }}>
+                                            {label}
+                                        </span>
+                                        {isNew && (
+                                            <span style={{
+                                                fontSize: 8,
+                                                fontWeight: 800,
+                                                background: 'linear-gradient(90deg,#0a84ff,#6d28d9)',
+                                                color: '#fff',
+                                                padding: '1px 5px',
+                                                borderRadius: 4,
+                                                letterSpacing: '0.06em',
+                                                textTransform: 'uppercase',
+                                                flexShrink: 0,
+                                            }}>
+                                                NEW
+                                            </span>
+                                        )}
+                                    </span>
+                                    <span style={{
+                                        fontSize: 10.5,
+                                        color: isActive ? 'rgba(255,255,255,0.52)' : 'rgba(255,255,255,0.3)',
+                                        lineHeight: 1.35,
+                                        fontWeight: 400,
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                    }}>
+                                        {description}
+                                    </span>
+                                </span>
+
+                                {planLocked && (
+                                    <Lock size={11} strokeWidth={2.2} style={{ opacity: 0.45, flexShrink: 0, marginTop: 3 }} aria-hidden />
+                                )}
+                            </Link>
+                        );
+                    });
+                    return rendered;
+                })()}
             </nav>
 
             <div className="studio-side-section-label">SESSIONS</div>
@@ -319,7 +423,7 @@ export default function Sidebar() {
                 New Session
             </button>
 
-            {/* Account row + floating workspace menu (portal — opens above & to the right of the rail) */}
+            {/* Account row + floating workspace menu (portal- opens above & to the right of the rail) */}
             <div
                 ref={workspaceRef}
                 style={{ position: 'relative', flexShrink: 0, paddingTop: 4, marginTop: 'auto' }}

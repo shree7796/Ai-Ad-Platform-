@@ -1,5 +1,5 @@
 """
-Usage API — quota summary and activity (matches frontend usageAPI).
+Usage API- quota summary and activity (matches frontend usageAPI).
 """
 
 from __future__ import annotations

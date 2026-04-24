@@ -476,7 +476,7 @@ async def finalize_deduction(
     On successful job completion: permanently deduct `amount` from credit_balance
     and release the matching reservation.
 
-    Idempotent — safe to call even if the reservation was partially consumed.
+    Idempotent- safe to call even if the reservation was partially consumed.
     """
     from app.models.user import User as UserModel
     from app.models.credit_transaction import CreditTransaction, TransactionStatus

@@ -1,4 +1,4 @@
-# Credit Economics — single source of truth for frontend AND backend.
+# Credit Economics- single source of truth for frontend AND backend.
 # Change pricing here; no code changes required.
 #
 # Revenue model:  1 credit ≈ $0.01 platform price
@@ -11,8 +11,8 @@ model_credit_costs:
   kling_pro:         98    # provider ~$0.490/5s  →  margin ~60%
   kling_21_pro:      98    # provider ~$0.490/5s  →  margin ~60%
   kling_21_master:   60    # provider ~$0.280/5s  →  margin ~63%  ✅
-  kling_26_pro:      98    # provider ~$0.490/5s  →  margin ~60%  (v2.6 — native audio)
-  kling_30_pro:      140   # provider ~$0.700/5s  →  margin ~60%  (v3.0 — newest, audio)
+  kling_26_pro:      98    # provider ~$0.490/5s  →  margin ~60%  (v2.6- native audio)
+  kling_30_pro:      140   # provider ~$0.700/5s  →  margin ~60%  (v3.0- newest, audio)
   # ── Seedance series ─────────────────────────────────────────────────────────
   seedance_fast:         242   # provider ~$1.209/5s  →  margin ~60%  (fast tier)
   seedance_standard:     160   # provider ~$0.800/5s  →  margin ~60%  (standard quality, audio)
@@ -49,20 +49,31 @@ image_credit_costs:
   seedream_45_edit:  8     # provider ~$0.040/img →  margin ~60%  (Seedream edit)
   # ── Ideogram ─────────────────────────────────────────────────────────────────
   ideogram_v3:       10    # provider ~$0.050/img →  margin ~60%  (known for text quality)
+  # ── Fal 3D (image → mesh / GLB, per generation) ─────────────────────────────
+  trellis:           28    # Trellis v1- image to 3D
+  trellis_2:         36    # Trellis 2- higher quality
+  reconviagen:       40    # ReconViaGen 0.5- multi-view friendly GLB
+  # ── Story Studio (text_to_story pipeline, flat per-story rate) ───────────────
+  # 3 scenes: 3×kling_21_pro(98) + 30 TTS + 14 music ≈ 340   provider ~$1.55 → margin ~55%
+  # 5 scenes: 5×kling_21_pro(98) + 30 TTS + 20 music ≈ 540   provider ~$2.55 → margin ~53%
+  # 8 scenes: 8×kling_21_pro(98) + 30 TTS + 14 music ≈ 830   provider ~$4.00 → margin ~52%
+  text_to_story_3:   340
+  text_to_story_5:   540
+  text_to_story_8:   830
   default:           8     # fallback
 
 # ── Subscription monthly credit grants ───────────────────────────────────────
 # Credits are granted on first successful payment and on each renewal invoice.
 subscription_credits:
-  free:     0        # Zero-free policy — no free generations
+  free:     0        # Zero-free policy- no free generations
   basic:    1200     # $15/mo  →  $0.0125/credit avg
   pro:      3200     # $30/mo  →  $0.0094/credit avg
   premium:  7000     # $59/mo  →  $0.0084/credit avg
 
 # ── Top-up packs ─────────────────────────────────────────────────────────────
 topup_credits:
-  standard:   800    # $10  — available to all plans
-  pro_bonus:  960    # $10  — Pro subscribers get 20% more credits
+  standard:   800    # $10 - available to all plans
+  pro_bonus:  960    # $10 - Pro subscribers get 20% more credits
 
 # ── Safety policies ──────────────────────────────────────────────────────────
 velocity_limits:

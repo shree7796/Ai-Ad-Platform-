@@ -26,7 +26,7 @@ export function ProductPlatformSection() {
                         Product &amp; Platform
                     </h2>
                     <p className="mt-5 max-w-[720px] text-[17px] leading-relaxed text-neutral-500 md:text-lg">
-                        Foundations for a new era of creativity and human expression — built for e‑commerce teams.
+                        Foundations for a new era of creativity and human expression- built for e‑commerce teams.
                     </p>
 
                     <div className={`mt-14 ${cardClass}`}>
@@ -67,7 +67,7 @@ const researchItems = [
     {
         title: 'Lumina Core',
         badge: 'new',
-        copy: 'Our first unified understanding and generation stack — a step toward multimodal intelligence for ads and creative.',
+        copy: 'Our first unified understanding and generation stack- a step toward multimodal intelligence for ads and creative.',
         cta: 'Learn more',
         href: '/vstudio',
         productIdx: 2,
@@ -92,7 +92,7 @@ const researchItems = [
 
 const engineering = [
     { date: 'Nov 26, 2025', title: 'Pushing the Limit of Efficient Inference-Time Scaling' },
-    { date: 'Oct 14, 2025', title: 'Evaluation Report — Pro Video Generation' },
+    { date: 'Oct 14, 2025', title: 'Evaluation Report- Pro Video Generation' },
     { date: 'Mar 11, 2025', title: 'Breaking the Algorithmic Ceiling in Pre-Training' },
 ];
 

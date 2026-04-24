@@ -1,5 +1,5 @@
 /**
- * Side grids: **e‑commerce + kids & toys** stills (Unsplash), 12 + 8 unique URLs — no Picsum repeats.
+ * Side grids: **e‑commerce + kids & toys** stills (Unsplash), 12 + 8 unique URLs- no Picsum repeats.
  */
 const q = 'auto=format&fit=crop&q=85&w=640';
 

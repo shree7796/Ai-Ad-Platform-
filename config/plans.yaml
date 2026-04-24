@@ -1,10 +1,10 @@
-# Subscription plans — image vs video monthly caps; video quota is in **units** (video_billing_unit_seconds each).
+# Subscription plans- image vs video monthly caps; video quota is in **units** (video_billing_unit_seconds each).
 # Longer videos consume more units (see billing_quota.video_units_for_duration).
 #
 # Actual fal.ai API costs (per 5-second video):
 #   basic tier  → Kling v1 Standard  → $0.225
 #   pro tier    → Kling v1.6 Pro     → ~$0.70
-#   premium tier→ Kling v1 Standard  → $0.225  (Master was $2.80 — loss-making)
+#   premium tier→ Kling v1 Standard  → $0.225  (Master was $2.80- loss-making)
 
 video_billing_unit_seconds: 15
 
@@ -16,7 +16,7 @@ plans:
     credit_grant: 0          # Zero-free: no credits on signup; first payment required
     features:
       max_image_generations_per_month: 2
-      max_video_generations_per_month: 0   # no video on free — upgrade required
+      max_video_generations_per_month: 0   # no video on free- upgrade required
       max_upload_size_mb: 10
       available_tiers:
         - basic

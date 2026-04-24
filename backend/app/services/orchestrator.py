@@ -41,19 +41,26 @@ class OrchestrationService:
         reference_image_url: Optional[str] = None,
         add_lumina_watermark: bool = False,
         aspect_ratio: Optional[str] = None,
+        # Story Studio extras
+        story_scene_count: int = 5,
+        story_narrator_voice: str = "alloy",
+        story_video_model: Optional[str] = None,
     ) -> str:
         """
         Dispatch a generation job to the appropriate worker queue.
         """
         # Determine target task based on type
-        image_tasks = ["text_to_image", "image_to_image"]
-        
+        image_tasks = ["text_to_image", "image_to_image", "image_to_3d"]
+
         target_task = "app.workers.video_worker.generate_video"
         queue = "video_generation"
-        
+
         if task_type in image_tasks:
             target_task = "app.workers.image_worker.generate_image"
             queue = "image_generation"
+        elif task_type == "text_to_story":
+            target_task = "app.workers.story_worker.generate_story"
+            queue = "video_generation"
 
         task = celery_app.send_task(
             target_task,
@@ -81,6 +88,9 @@ class OrchestrationService:
                 "reference_image_url": reference_image_url,
                 "add_lumina_watermark": add_lumina_watermark,
                 "aspect_ratio": aspect_ratio,
+                "story_scene_count": story_scene_count,
+                "story_narrator_voice": story_narrator_voice,
+                "story_video_model": story_video_model,
             },
             queue=queue,
         )

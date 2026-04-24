@@ -32,7 +32,7 @@ const PLANS: Record<string, PlanConfig> = {
     groups: [
       {
         icon: Wand2, label: 'What you can create',
-        items: ['Text to Image', 'Image to Image', 'Image to Video', 'Text to Video'],
+        items: ['Text to Image', 'Image to Image', 'Image to Video', 'Text to Video', 'Image to 3D (paid plan only)', 'Story Studio (paid plan only)'],
       },
       {
         icon: Lock, label: 'Limitations',
@@ -47,7 +47,7 @@ const PLANS: Record<string, PlanConfig> = {
     groups: [
       {
         icon: Wand2, label: 'All generation types',
-        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–55 ⚡'],
+        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–55 ⚡', 'Image to 3D  ·  28–40 ⚡', 'Story Studio  ·  340–830 ⚡'],
       },
       {
         icon: Zap, label: 'Included perks',
@@ -62,7 +62,7 @@ const PLANS: Record<string, PlanConfig> = {
     groups: [
       {
         icon: Wand2, label: 'All generation types',
-        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–55 ⚡'],
+        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–55 ⚡', 'Image to 3D  ·  28–40 ⚡', 'Story Studio  ·  340–830 ⚡'],
       },
       {
         icon: Zap, label: 'Pro perks',
@@ -77,7 +77,7 @@ const PLANS: Record<string, PlanConfig> = {
     groups: [
       {
         icon: Wand2, label: 'All generation types',
-        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–110 ⚡'],
+        items: ['Text to Image  ·  1–2 ⚡ each', 'Image to Image  ·  1–2 ⚡ each', 'Image to Video  ·  10–55 ⚡', 'Text to Video  ·  10–110 ⚡', 'Image to 3D  ·  28–40 ⚡', 'Story Studio  ·  340–830 ⚡'],
       },
       {
         icon: Zap, label: 'Studio perks',
@@ -247,7 +247,7 @@ export default function BillingPage() {
             )}
             {availableCredits < 100 && (
               <div style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', marginTop: 2 }}>
-                Low balance — upgrade to refill
+                Low balance- upgrade to refill
               </div>
             )}
           </div>
@@ -276,7 +276,7 @@ export default function BillingPage() {
           }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, lineHeight: 1.3 }}>
-                {usageLoading ? 'Loading…' : `Current Usage — ${PLANS[currentPlan]?.display || currentPlan} Plan`}
+                {usageLoading ? 'Loading…' : `Current Usage- ${PLANS[currentPlan]?.display || currentPlan} Plan`}
               </div>
               {usage && (
                 <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, lineHeight: 1.45 }}>
@@ -325,12 +325,12 @@ export default function BillingPage() {
                     fontWeight: 500,
                   }}
                 >
-                  Live quota could not be loaded (check login + API). Showing placeholder caps — refresh or fix{' '}
+                  Live quota could not be loaded (check login + API). Showing placeholder caps- refresh or fix{' '}
                   <code style={{ fontSize: 12 }}>/api/v1/usage/summary</code>.
                 </div>
               )}
               <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 22, lineHeight: 1.55 }}>
-                Monthly generation history — your ⚡ credit balance is shown in the wallet above and the sidebar.
+                Monthly generation history- your ⚡ credit balance is shown in the wallet above and the sidebar.
               </div>
               <div style={{ marginBottom: 8 }}>
                 <div style={{
@@ -632,7 +632,7 @@ export default function BillingPage() {
                       ) : isCurrent ? (
                         '✓ Current Plan'
                       ) : key === 'free' ? (
-                        'Free — no action needed'
+                        'Free- no action needed'
                       ) : (
                         <>Upgrade to {plan.display} <ArrowRight size={13} /></>
                       )}

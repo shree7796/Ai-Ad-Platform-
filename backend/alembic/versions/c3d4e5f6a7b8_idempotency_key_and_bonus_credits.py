@@ -27,7 +27,7 @@ def upgrade() -> None:
         ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100);
     """))
 
-    # Unique index (idempotent — skip if exists)
+    # Unique index (idempotent- skip if exists)
     op.execute(sa.text("""
         DO $$ BEGIN
             IF NOT EXISTS (

@@ -1,5 +1,5 @@
 """
-API Dependencies — Auth, DB session, plan enforcement.
+API Dependencies- Auth, DB session, plan enforcement.
 """
 
 from datetime import datetime, timedelta

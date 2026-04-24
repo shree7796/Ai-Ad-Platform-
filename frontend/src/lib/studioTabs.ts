@@ -1,21 +1,94 @@
-import { Image as ImageIcon, Images, Video, Film } from 'lucide-react';
+import { Wand2, Paintbrush, Clapperboard, MonitorPlay, Boxes, Film } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-export type StudioTab = 'text-to-image' | 'image-to-image' | 'image-to-video' | 'text-to-video';
+export type StudioTab =
+    | 'text-to-image'
+    | 'image-to-image'
+    | 'image-to-video'
+    | 'text-to-video'
+    | 'image-to-3d'
+    | 'text-to-story';
+
+/** Group key for sidebar subsection dividers. */
+export type StudioTabGroup = 'image' | 'video' | '3d' | 'story';
 
 export interface StudioModeItem {
     id: StudioTab;
     label: string;
+    /** One-line description shown under the label in the sidebar. */
+    description: string;
     icon: LucideIcon;
-    /** Rounded tile behind the tool icon in the sidebar (Krea-style). */
+    /** Gradient for the rounded tile in the sidebar (Krea-style). */
     sidebarTileBg: string;
+    group: StudioTabGroup;
     isNew?: boolean;
+    /** When true, free-plan users see a lock in the sidebar; generation is blocked until they subscribe. */
+    requiresPaidPlan?: boolean;
 }
 
-/** Single source of truth — matches the studio TabSwitcher labels and icons. */
+/** Single source of truth- matches the studio TabSwitcher labels and icons. */
 export const STUDIO_MODE_ITEMS: StudioModeItem[] = [
-    { id: 'text-to-image', label: 'Text to Image', icon: ImageIcon, sidebarTileBg: '#2563eb' },
-    { id: 'image-to-image', label: 'Image to Image', icon: Images, sidebarTileBg: '#7c3aed' },
-    { id: 'image-to-video', label: 'Image to Video', icon: Video, sidebarTileBg: '#ea580c' },
-    { id: 'text-to-video', label: 'Text to Video', icon: Film, sidebarTileBg: '#0891b2', isNew: true },
+    {
+        id: 'text-to-image',
+        label: 'Text to Image',
+        description: 'Generate from a prompt',
+        icon: Wand2,
+        sidebarTileBg: 'linear-gradient(145deg,#1e60d5,#0a84ff)',
+        group: 'image',
+    },
+    {
+        id: 'image-to-image',
+        label: 'Image Edit',
+        description: 'Restyle or redraw a photo',
+        icon: Paintbrush,
+        sidebarTileBg: 'linear-gradient(145deg,#5b21b6,#7c3aed)',
+        group: 'image',
+    },
+    {
+        id: 'image-to-video',
+        label: 'Animate',
+        description: 'Bring a photo to life',
+        icon: Clapperboard,
+        sidebarTileBg: 'linear-gradient(145deg,#b45309,#ea580c)',
+        group: 'video',
+        requiresPaidPlan: true,
+    },
+    {
+        id: 'text-to-video',
+        label: 'Text to Video',
+        description: 'Describe a scene, get a clip',
+        icon: MonitorPlay,
+        sidebarTileBg: 'linear-gradient(145deg,#065f7c,#0891b2)',
+        group: 'video',
+        isNew: true,
+        requiresPaidPlan: true,
+    },
+    {
+        id: 'image-to-3d',
+        label: 'Image to 3D',
+        description: 'Turn a photo into a mesh',
+        icon: Boxes,
+        sidebarTileBg: 'linear-gradient(145deg,#6b21a8,#9333ea)',
+        group: '3d',
+        isNew: true,
+        requiresPaidPlan: true,
+    },
+    {
+        id: 'text-to-story',
+        label: 'Story Studio',
+        description: 'Script → narrated YouTube video',
+        icon: Film,
+        sidebarTileBg: 'linear-gradient(145deg,#7c2d12,#dc2626)',
+        group: 'story',
+        isNew: true,
+        requiresPaidPlan: true,
+    },
 ];
+
+/** Group metadata used to render subsection dividers in the sidebar. */
+export const STUDIO_TAB_GROUPS: Record<StudioTabGroup, { label: string }> = {
+    image: { label: 'Images' },
+    video: { label: 'Video' },
+    '3d': { label: '3D' },
+    story: { label: 'Story' },
+};

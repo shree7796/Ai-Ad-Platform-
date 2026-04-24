@@ -12,6 +12,8 @@ import TextToImage from '@/components/studio/tabs/TextToImage';
 import ImageToImage from '@/components/studio/tabs/ImageToImage';
 import ImageToVideo from '@/components/studio/tabs/ImageToVideo';
 import TextToVideo from '@/components/studio/tabs/TextToVideo';
+import ImageTo3D from '@/components/studio/tabs/ImageTo3D';
+import TextToStory from '@/components/studio/tabs/TextToStory';
 import { projectsAPI, generationAPI, uploadAPI, formatApiError, isUpgradePromptError } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { isFreeStudioPlan } from '@/lib/studioPlan';
@@ -23,7 +25,9 @@ function isStudioTab(v: string | null): v is StudioTab {
     v === 'text-to-image' ||
     v === 'image-to-image' ||
     v === 'image-to-video' ||
-    v === 'text-to-video'
+    v === 'text-to-video' ||
+    v === 'image-to-3d' ||
+    v === 'text-to-story'
   );
 }
 
@@ -82,7 +86,9 @@ export default function HomePage() {
           clearInterval(interval);
           setOutputSrc(output_video_url ?? null);
           setLoading(false);
-          toast.success(type === 'video' ? 'Video generated!' : 'Image generated!');
+          toast.success(
+            type === 'video' ? 'Video generated!' : type === 'model' ? '3D model ready!' : 'Image generated!',
+          );
         } else if (status === 'failed') {
           clearInterval(interval);
           setLoading(false);
@@ -101,9 +107,12 @@ export default function HomePage() {
     setOutputType(type);
 
     const videoTab = activeTab === 'image-to-video' || activeTab === 'text-to-video';
+    const threeDTab = activeTab === 'image-to-3d';
+    const storyTab = activeTab === 'text-to-story';
+    const paidOnlyStudioTab = videoTab || threeDTab || storyTab;
 
-    if (isFreeStudioPlan(user?.plan) && videoTab) {
-      openUpgradeModal('video_free');
+    if (isFreeStudioPlan(user?.plan) && paidOnlyStudioTab) {
+      openUpgradeModal(threeDTab ? 'three_d_free' : storyTab ? 'story_free' : 'video_free');
       return;
     }
 
@@ -166,14 +175,24 @@ export default function HomePage() {
         project_id,
         prompt: payload.prompt,
         task_type,
-        duration_seconds,
-        enhance_prompt: 'enhance' in payload ? payload.enhance : true,
+        duration_seconds: task_type === 'text_to_story' ? 5 : duration_seconds,
+        enhance_prompt:
+          task_type === 'image_to_3d' || task_type === 'text_to_story'
+            ? false
+            : 'enhance' in payload
+              ? payload.enhance
+              : true,
         preserve_subject: task_type === 'image_to_image' ? true : undefined,
         cinematic_redraw: false,
         hero_cinematic_reframe:
           task_type === 'image_to_image' && 'heroCinematic' in payload ? !!payload.heroCinematic : undefined,
         image_model:
-          (task_type === 'image_to_image' || task_type === 'text_to_image') && payload.model
+          task_type === 'text_to_story'
+            ? `text_to_story_${payload.sceneCount ?? 5}`
+            : (task_type === 'image_to_image' ||
+                task_type === 'text_to_image' ||
+                task_type === 'image_to_3d') &&
+              payload.model
             ? payload.model
             : undefined,
         video_model:
@@ -186,6 +205,15 @@ export default function HomePage() {
             ? String(payload.ratio)
             : undefined,
         idempotency_key: idempotencyKeyRef.current,
+        // Story Studio fields
+        ...(task_type === 'text_to_story' && {
+          story_scene_count: payload.sceneCount ?? 5,
+          story_narrator_voice: payload.voice ?? 'fable',
+          story_video_model: payload.videoModel ?? 'kling_21_pro',
+          generate_audio: payload.generateMusic ?? true,
+          audio_prompt: payload.musicPrompt || undefined,
+          audio_type: 'music',
+        }),
       });
       idempotencyKeyRef.current = crypto.randomUUID();
 
@@ -221,7 +249,8 @@ export default function HomePage() {
     if (lastPayload && outputType !== 'none') handleGenerate(lastPayload, outputType);
   };
 
-  const isVideoTab = activeTab === 'image-to-video' || activeTab === 'text-to-video';
+  const isVideoTab = activeTab === 'image-to-video' || activeTab === 'text-to-video' || activeTab === 'text-to-story';
+  const isModelTab = activeTab === 'image-to-3d';
 
   const tabMeta: Record<StudioTab, { title: string; subtitle: string; accent: CanvasAccent }> = {
     'text-to-image': {
@@ -230,18 +259,28 @@ export default function HomePage() {
       accent: 'image',
     },
     'image-to-image': {
-      title: 'Image to Image',
-      subtitle: 'Your edited image shows here after generate. Use the pill bar below for prompts and settings.',
+      title: 'Image Edit',
+      subtitle: 'Your restyled image shows here. Upload a photo below, describe the change, then generate.',
       accent: 'image',
     },
     'image-to-video': {
-      title: 'Image to Video',
-      subtitle: 'Your video plays in this preview when it is ready. Settings stay in the bottom bar.',
+      title: 'Animate',
+      subtitle: 'Your animated clip plays here when ready. Drop an image below and pick a motion model.',
       accent: 'video',
     },
     'text-to-video': {
       title: 'Text to Video',
       subtitle: 'Your clip appears in this canvas. Describe the scene below, then use the + button.',
+      accent: 'video',
+    },
+    'image-to-3d': {
+      title: 'Image to 3D',
+      subtitle: 'Upload a clear photo - your GLB or mesh downloads from here when generation finishes.',
+      accent: 'model',
+    },
+    'text-to-story': {
+      title: 'Story Studio',
+      subtitle: 'Your story video renders here when complete. Write a script below, pick your scenes and voice, then generate.',
       accent: 'video',
     },
   };
@@ -261,7 +300,7 @@ export default function HomePage() {
         <div className="studio-workspace-stack">
           <div className="studio-main-canvas studio-workspace-canvas">
             <OutputPanel
-              type={loading ? (isVideoTab ? 'video' : 'image') : outputType}
+              type={loading ? (isVideoTab ? 'video' : isModelTab ? 'model' : 'image') : outputType}
               src={outputSrc}
               loading={loading}
               onRegenerate={handleRegenerate}
@@ -292,6 +331,12 @@ export default function HomePage() {
                   )}
                   {activeTab === 'text-to-video' && (
                     <TextToVideo onGenerate={p => handleGenerate(p, 'video')} loading={loading} />
+                  )}
+                  {activeTab === 'image-to-3d' && (
+                    <ImageTo3D onGenerate={p => handleGenerate(p, 'model')} loading={loading} />
+                  )}
+                  {activeTab === 'text-to-story' && (
+                    <TextToStory onGenerate={p => handleGenerate(p, 'video')} loading={loading} />
                   )}
                 </motion.div>
               </AnimatePresence>

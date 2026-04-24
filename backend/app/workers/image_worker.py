@@ -69,10 +69,10 @@ def generate_image(
 
     async def async_pipeline():
         try:
-            # Step 1: Enhance prompt
+            # Step 1: Enhance prompt (skip for 3D- models are image-conditioned only)
             raw_user_prompt = prompt
             enhanced_prompt = prompt
-            if enhance_prompt:
+            if enhance_prompt and task_type != "image_to_3d":
                 logger.info(f"[Worker] Enhancing prompt: {prompt[:50]}...")
                 from app.services.prompt_engine import PromptEngine
                 engine = PromptEngine()
@@ -124,6 +124,8 @@ def generate_image(
                     result = await adapter.text_to_image(enhanced_prompt, **kwargs)
                 elif task_type == "image_to_image":
                     result = await adapter.image_to_image(input_media_url, enhanced_prompt, **kwargs)
+                elif task_type == "image_to_3d":
+                    result = await adapter.image_to_3d(input_media_url, raw_user_prompt, **kwargs)
                 else:
                     raise Exception(f"Task type {task_type} is not supported by Image Worker")
 
@@ -132,27 +134,46 @@ def generate_image(
                 raise Exception(f"Image generation failed: {result.error_message}")
 
             # Step 3: Upload to Storage
-            logger.info(f"[Worker] Uploading generated image to storage...")
             from app.services.storage import StorageService
             storage = StorageService()
-            
-            image_bytes = result.media_data
-            if not image_bytes and result.media_url and result.media_url.startswith("http"):
-                logger.info(f"[Worker] Downloading image from external URL: {result.media_url}")
-                import httpx
-                async with httpx.AsyncClient(timeout=60.0) as client:
-                    resp = await client.get(result.media_url)
-                    resp.raise_for_status()
-                    image_bytes = resp.content
-            
-            if not image_bytes:
-                raise Exception("No image data available for upload")
 
-            media_url = await storage.upload_image(
-                image_data=image_bytes,
-                project_id=project_id,
-                content_type="image/png"
-            )
+            if task_type == "image_to_3d":
+                logger.info("[Worker] Uploading generated 3D model to storage...")
+                model_bytes = result.media_data
+                if not model_bytes and result.media_url and result.media_url.startswith("http"):
+                    logger.info(f"[Worker] Downloading 3D asset from: {result.media_url[:80]}…")
+                    import httpx
+                    async with httpx.AsyncClient(timeout=300.0) as client:
+                        resp = await client.get(result.media_url)
+                        resp.raise_for_status()
+                        model_bytes = resp.content
+                if not model_bytes:
+                    raise Exception("No 3D model data available for upload")
+                ext = "glb"
+                if result.media_url and ".obj" in result.media_url.lower():
+                    ext = "obj"
+                content_type = "model/gltf-binary" if ext == "glb" else "model/obj"
+                key = f"models/{project_id}/{uuid.uuid4()}.{ext}"
+                media_url = await storage.upload_file(key, model_bytes, content_type=content_type)
+            else:
+                logger.info(f"[Worker] Uploading generated image to storage...")
+                image_bytes = result.media_data
+                if not image_bytes and result.media_url and result.media_url.startswith("http"):
+                    logger.info(f"[Worker] Downloading image from external URL: {result.media_url}")
+                    import httpx
+                    async with httpx.AsyncClient(timeout=60.0) as client:
+                        resp = await client.get(result.media_url)
+                        resp.raise_for_status()
+                        image_bytes = resp.content
+
+                if not image_bytes:
+                    raise Exception("No image data available for upload")
+
+                media_url = await storage.upload_image(
+                    image_data=image_bytes,
+                    project_id=project_id,
+                    content_type="image/png"
+                )
             logger.info(f"[Worker] Upload successful: {media_url}")
 
             return {
@@ -196,7 +217,7 @@ def generate_image(
         scene.status = "completed"
         scene.completed_at = datetime.utcnow()
 
-        # Finalize credit deduction — only active when the credit gate is enabled
+        # Finalize credit deduction- only active when the credit gate is enabled
         if settings.enforce_credit_balance:
             async def _finalize():
                 from app.services.billing_quota import finalize_deduction, compute_credit_cost

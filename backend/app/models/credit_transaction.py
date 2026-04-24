@@ -1,4 +1,4 @@
-"""Credit Transaction ORM model — immutable ledger of all credit deltas."""
+"""Credit Transaction ORM model- immutable ledger of all credit deltas."""
 
 import uuid
 from datetime import datetime

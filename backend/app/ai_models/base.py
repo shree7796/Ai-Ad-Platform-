@@ -44,6 +44,9 @@ class BaseAIProvider(ABC):
     async def video_to_video(self, video_url: str, prompt: str, duration_seconds: int = 12, **kwargs) -> GenerationResult:
         raise NotImplementedError(f"{self.name} does not support video_to_video")
 
+    async def image_to_3d(self, image_url: str, prompt: str = "", **kwargs) -> GenerationResult:
+        raise NotImplementedError(f"{self.name} does not support image_to_3d")
+
     @abstractmethod
     async def check_status(self, job_id: str) -> Dict[str, Any]:
         """Check the status of an async generation job."""

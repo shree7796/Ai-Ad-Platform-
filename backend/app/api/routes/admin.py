@@ -1,5 +1,5 @@
 """
-Admin API Routes — Overview, user management.
+Admin API Routes- Overview, user management.
 All routes require is_admin=True.
 Endpoint contract must match frontend/src/lib/api.ts adminAPI.
 """

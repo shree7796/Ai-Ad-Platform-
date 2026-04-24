@@ -4,7 +4,7 @@ import { Providers } from '@/components/Providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Lumina — AI Creative Studio',
+  title: 'Lumina- AI Creative Studio',
   description: 'Generate stunning images and videos from text or images using AI.',
   keywords: ['AI', 'image generation', 'video generation', 'text to image', 'text to video'],
 };

@@ -7,7 +7,7 @@ import { LOCAL_COMPARE_CLIP, REMOTE_VIDEO_FALLBACKS } from '@/lib/landingVideoSo
 const COMPARE_SOURCES = [LOCAL_COMPARE_CLIP, ...REMOTE_VIDEO_FALLBACKS];
 
 /**
- * Drag compare — both sides use the same clip (color vs graded) so one local file is enough.
+ * Drag compare- both sides use the same clip (color vs graded) so one local file is enough.
  */
 export default function LandingVideoCompare() {
     const sliderRef = useRef<HTMLDivElement>(null);
@@ -90,7 +90,7 @@ export default function LandingVideoCompare() {
         <section className="relative border-y border-white/[0.06] bg-[#030303] py-16 md:py-24">
             <div className="mx-auto max-w-[1100px] px-6">
                 <p className="text-center text-[11px] font-medium uppercase tracking-[0.25em] text-white/35">
-                    Live footage — drag to compare
+                    Live footage- drag to compare
                 </p>
                 <h2 className="mt-3 text-center text-xl font-semibold tracking-tight text-white md:text-2xl">
                     Raw clip vs AI-enhanced ad

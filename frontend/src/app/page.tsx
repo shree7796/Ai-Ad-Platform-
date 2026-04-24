@@ -29,14 +29,14 @@ const PROMPT_CARDS = [
     {
         type: 'image' as const,
         modelTag: 'Lumina 1',
-        prompt: 'Cold open — city lost in slate fog, anamorphic haze',
+        prompt: 'Cold open- city lost in slate fog, anamorphic haze',
         src: US('photo-1534438327276-14e5300c3a48', 960, 1080),
         href: '/studio?tab=text-to-image',
     },
     {
         type: 'video' as const,
         modelTag: 'Lumina Vid 2',
-        prompt: 'Cinematic motion from your prompts — carousel uses eight Mixkit clips not used in the hero (Mixkit License)',
+        prompt: 'Cinematic motion from your prompts- carousel uses eight Mixkit clips not used in the hero (Mixkit License)',
         srcs: HOMEPAGE_SLIDER_VIDEO_CHAIN,
         posters: HOMEPAGE_SLIDER_VIDEO_POSTERS,
         href: '/studio?tab=text-to-video',
@@ -44,63 +44,63 @@ const PROMPT_CARDS = [
     {
         type: 'image' as const,
         modelTag: 'FLUX Pro',
-        prompt: 'Wide glass — pine forest, volumetric sun, 2.39:1 still',
+        prompt: 'Wide glass- pine forest, volumetric sun, 2.39:1 still',
         src: US('photo-1441974231531-c6227db76b6e', 960, 1080),
         href: '/studio?tab=text-to-image',
     },
     {
         type: 'upscale' as const,
         modelTag: 'Topaz Upscaler',
-        prompt: 'Film grain resolve — 16mm scan to clean 8K plate',
+        prompt: 'Film grain resolve- 16mm scan to clean 8K plate',
         src: US('photo-1620712943543-bcc4688e7485', 960, 1080),
         href: '/studio',
     },
     {
         type: 'image' as const,
         modelTag: 'Hailuo',
-        prompt: 'Macro product splash — citrus burst, studio strobes',
+        prompt: 'Macro product splash- citrus burst, studio strobes',
         src: US('photo-1620916566398-39f1143ab7be', 960, 1080),
         href: '/studio?tab=text-to-image',
     },
     {
         type: 'image' as const,
         modelTag: 'Runway Gen-4',
-        prompt: 'Alpine ridge silhouette — teal shadows, storm light',
+        prompt: 'Alpine ridge silhouette- teal shadows, storm light',
         src: US('photo-1464822759023-fed622ff2c3b', 960, 1080),
         href: '/studio?tab=text-to-image',
     },
     {
         type: 'image' as const,
         modelTag: 'Ideogram v3',
-        prompt: 'Sprint silhouette — sodium flare, motion blur trail',
+        prompt: 'Sprint silhouette- sodium flare, motion blur trail',
         src: US('photo-1544367567-0f2fcb009e0b', 960, 1080),
         href: '/studio?tab=text-to-image',
     },
     {
         type: 'image' as const,
         modelTag: 'Gemini 2.0',
-        prompt: 'Glass atrium at blue hour — reflections, long exposure',
+        prompt: 'Glass atrium at blue hour- reflections, long exposure',
         src: US('photo-1480714378408-67cf0d13bc1b', 960, 1080),
         href: '/studio?tab=text-to-image',
     },
     {
         type: 'image' as const,
         modelTag: 'Lumina 1',
-        prompt: 'Mist river valley — dawn palette, ultra-wide composition',
+        prompt: 'Mist river valley- dawn palette, ultra-wide composition',
         src: US('photo-1469474968028-56623f02e42e', 960, 1080),
         href: '/studio?tab=text-to-image',
     },
     {
         type: 'image' as const,
         modelTag: 'Stable Diffusion 3',
-        prompt: 'Golden-hour meadow — long lens compression, film halation',
+        prompt: 'Golden-hour meadow- long lens compression, film halation',
         src: US('photo-1472214103451-9374bd1c798e', 960, 1080),
         href: '/studio?tab=text-to-image',
     },
     {
         type: 'image' as const,
         modelTag: 'Sora',
-        prompt: 'Summit push — last light on snow, IMAX-scale scope',
+        prompt: 'Summit push- last light on snow, IMAX-scale scope',
         src: US('photo-1506905925346-21bda4d32df4', 960, 1080),
         href: '/studio?tab=text-to-image',
     },
@@ -126,7 +126,7 @@ const FEATURE_BADGES = [
     { text: 'Full-fledged asset manager', icon: '📁' },
     { text: 'Bleeding Edge models', icon: '🔬' },
     { text: '64+ Models', icon: '🌐' },
-    { text: 'Do not train — safe for brands', icon: '🛡' },
+    { text: 'Do not train- safe for brands', icon: '🛡' },
     { text: '1,000+ styles', icon: '🎨' },
     { text: 'Realtime Canvas', icon: '⚡' },
     { text: 'Text to 3D', icon: '🧊' },
@@ -165,7 +165,7 @@ const USE_CASES = [
     },
     {
         title: 'Real-time Rendering',
-        desc: 'See your ad take shape as you type. Sub-50ms realtime generation lets you iterate instantly — the fastest creative feedback loop in the industry.',
+        desc: 'See your ad take shape as you type. Sub-50ms realtime generation lets you iterate instantly- the fastest creative feedback loop in the industry.',
         cta: 'Try Real-time Rendering',
         href: '/vstudio',
         src: US('photo-1460925895917-afdab827c52f', 900, 600),
@@ -180,7 +180,7 @@ const USE_CASES = [
     },
     {
         title: 'Brand Fine-tuning',
-        desc: 'Train your own model on your brand assets. Upload a few images of your logo, product, or visual style and generate it on demand — every time, perfectly on-brand.',
+        desc: 'Train your own model on your brand assets. Upload a few images of your logo, product, or visual style and generate it on demand- every time, perfectly on-brand.',
         cta: 'Try Brand Fine-tuning',
         href: '/studio',
         src: US('photo-1612817288484-6f916006741a', 900, 600),
@@ -195,7 +195,7 @@ const USE_CASES = [
     },
     {
         title: 'Generative Editing',
-        desc: 'Edit images with AI — inpaint, outpaint, change backgrounds, swap products, or adjust lighting. 10+ editing models in an exceptionally simple interface.',
+        desc: 'Edit images with AI- inpaint, outpaint, change backgrounds, swap products, or adjust lighting. 10+ editing models in an exceptionally simple interface.',
         cta: 'Try Generative Editing',
         href: '/studio',
         src: US('photo-1584917865442-de89df76afd3', 900, 600),
@@ -215,6 +215,8 @@ const PLANS = [
             '8 image generations / month',
             '2 video generations / month',
             'Basic AI models only',
+            'Image to 3D- not included',
+            'Story Studio- not included',
             'Lumina watermark on output',
         ],
         cta: 'Start for Free',
@@ -232,8 +234,9 @@ const PLANS = [
             '1,200 credits / month',
             '90 image generations',
             '12 video units (15s each)',
+            'Image to 3D  ·  28–40 ⚡ per run',
+            'Story Studio  ·  340–540 ⚡ per story',
             'No watermark',
-            'Basic AI models',
         ],
         cta: 'Get Basic',
         href: '/studio/billing',
@@ -250,9 +253,10 @@ const PLANS = [
             '3,200 credits / month',
             '240 image generations',
             '20 video units (15s each)',
+            'Image to 3D  ·  28–40 ⚡ per run',
+            'Story Studio  ·  340–540 ⚡ per story',
             'Pro & Basic AI models',
             'Priority generation queue',
-            'Up to 30s video length',
         ],
         cta: 'Get Pro',
         href: '/studio/billing',
@@ -269,8 +273,9 @@ const PLANS = [
             '7,000 credits / month',
             '520 image generations',
             '40 video units (15s each)',
+            'Image to 3D  ·  28–40 ⚡ per run',
+            'Story Studio  ·  340–830 ⚡ per story',
             'All AI models unlocked',
-            'Highest priority queue',
             'Up to 60s video length',
         ],
         cta: 'Get Studio',
@@ -299,7 +304,7 @@ function FadeIn({ children, delay = 0, className = '' }: { children: React.React
 
 /** Long enough to read each beat (incl. labeled fight / bunny / ocean / game / car / fire). */
 const HERO_CLIP_HOLD_MS = 5200;
-/** Film-style dissolve — both layers keep decoding through the blend. */
+/** Film-style dissolve- both layers keep decoding through the blend. */
 const HERO_CROSSFADE_MS = 1500;
 const HERO_CROSSFADE_EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
 /** Let the incoming clip render a frame before opacity rises (reduces “pop”). */
@@ -307,7 +312,7 @@ const HERO_FADE_PREROLL_MS = 320;
 /** If `canplay` never fires (same-URL reload quirk), unstick the crossfade. */
 const HERO_VIDEO_READY_FALLBACK_MS = 2200;
 
-/* Use % of the clipped hero box — `100vw` overflows horizontally on mobile (scrollbar / rounding). */
+/* Use % of the clipped hero box- `100vw` overflows horizontally on mobile (scrollbar / rounding). */
 const heroVideoFrame: React.CSSProperties = {
     position: 'absolute',
     left: '50%',
@@ -325,14 +330,14 @@ const heroVideoFrame: React.CSSProperties = {
     WebkitBackfaceVisibility: 'hidden',
 };
 
-/** Muted loop; stable element — `onLoadedData` + `useEffect` so clip 2+ always kicks `play()` after src change. */
+/** Muted loop; stable element- `onLoadedData` + `useEffect` so clip 2+ always kicks `play()` after src change. */
 function AutoVideo({
     srcs,
     posters,
     style,
 }: {
     srcs: readonly string[];
-    /** Optional still per `srcs` slot (e.g. gradient poster) — avoids empty grey until MP4 decodes. */
+    /** Optional still per `srcs` slot (e.g. gradient poster)- avoids empty grey until MP4 decodes. */
     posters?: readonly string[];
     style?: React.CSSProperties;
 }) {
@@ -370,7 +375,7 @@ function AutoVideo({
 }
 
 /**
- * Two stacked videos + opacity crossfade — Mixkit on homepage (see HOMEPAGE_* in landingVideoSources).
+ * Two stacked videos + opacity crossfade- Mixkit on homepage (see HOMEPAGE_* in landingVideoSources).
  */
 function HeroVideoBackdrop() {
     const clips = HOMEPAGE_HERO_CLIPS;
@@ -619,7 +624,7 @@ function HeroVideoBackdrop() {
     );
 }
 
-/** Hover-to-preview tile — Mixkit MP4 + poster; opens Mixkit free-video browse. */
+/** Hover-to-preview tile- Mixkit MP4 + poster; opens Mixkit free-video browse. */
 function StockBrowseTileCard({ tile }: { tile: StockBrowseTile }) {
     const vRef = useRef<HTMLVideoElement>(null);
     const [hover, setHover] = useState(false);
@@ -650,7 +655,7 @@ function StockBrowseTileCard({ tile }: { tile: StockBrowseTile }) {
             href={tile.moreUrl}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={`${tile.title} — browse royalty-free stock video (${tile.tag})`}
+            aria-label={`${tile.title}- browse royalty-free stock video (${tile.tag})`}
             onMouseEnter={onEnter}
             onMouseLeave={onLeave}
             style={{
@@ -1064,7 +1069,7 @@ export default function HomePage() {
                 </motion.div>
             </section>
 
-            {/* Free stock video — Mixkit hover grid (disjoint from hero / carousel / use-case) */}
+            {/* Free stock video- Mixkit hover grid (disjoint from hero / carousel / use-case) */}
             <section
                 style={{
                     background: 'linear-gradient(180deg, #ffffff 0%, #f4f4f5 100%)',
@@ -1133,7 +1138,7 @@ export default function HomePage() {
                             lineHeight: 1.55,
                         }}
                     >
-                        These six files are only used here — the hero, carousel, and use-case blocks each use their own clips so nothing repeats across the page.
+                        These six files are only used here- the hero, carousel, and use-case blocks each use their own clips so nothing repeats across the page.
                     </p>
                     <div
                         style={{
@@ -1185,7 +1190,7 @@ export default function HomePage() {
             </section>
 
             {/* ════════════════════════════════════
-                MODELS — cycling headline + ticker
+                MODELS- cycling headline + ticker
             ════════════════════════════════════ */}
             <section style={{ padding: '88px 24px 64px', textAlign: 'center', borderTop: '1px solid rgba(0,0,0,0.06)', background: '#ffffff' }}>
                 <div style={{ maxWidth: 920, margin: '0 auto 44px' }}>
@@ -1319,7 +1324,7 @@ export default function HomePage() {
             </section>
 
             {/* ════════════════════════════════════
-                USE CASES — accordion + preview
+                USE CASES- accordion + preview
             ════════════════════════════════════ */}
             <section style={{ borderTop: '1px solid rgba(0,0,0,0.06)', padding: '80px 24px 100px', background: '#fafaf9' }}>
                 <div style={{ maxWidth: 1100, margin: '0 auto' }}>
@@ -1427,7 +1432,7 @@ export default function HomePage() {
                                 We&apos;ve got a plan for everybody.
                             </h2>
                             <p style={{ fontSize: 14, color: '#6b7280', margin: 0 }}>
-                                Credits work across all generation types — images, video, 3D, and upscaling.
+                                Credits work across all generation types- images, video, 3D, and upscaling.
                             </p>
                         </div>
                     </FadeIn>
@@ -1513,6 +1518,8 @@ export default function HomePage() {
                                 { label: 'Image to Image', cost: '1–2 ⚡' },
                                 { label: 'Image to Video', cost: '10–55 ⚡' },
                                 { label: 'Text to Video', cost: '10–55 ⚡' },
+                                { label: 'Image to 3D', cost: '28–40 ⚡' },
+                                { label: 'Story Studio', cost: '340–830 ⚡' },
                             ].map((item) => (
                                 <span key={item.label} style={{ fontSize: 12, color: '#6b7280' }}>
                                     {item.label} <span style={{ color: '#0a0a0a', fontWeight: 600 }}>· {item.cost}</span>
@@ -1535,7 +1542,7 @@ export default function HomePage() {
                             <span style={{ color: '#9ca3af' }}>No tutorials needed.</span>
                         </h2>
                         <p style={{ fontSize: 15, color: '#6b7280', margin: '0 auto 44px', maxWidth: 520, lineHeight: 1.65 }}>
-                            Lumina offers the simplest interfaces for ad creation. Skip the learning curve and get straight into your creative flow — even if you&apos;ve never used AI tools before.
+                            Lumina offers the simplest interfaces for ad creation. Skip the learning curve and get straight into your creative flow- even if you&apos;ve never used AI tools before.
                         </p>
 
                         <div style={{ border: '1px solid rgba(0,0,0,0.08)', borderRadius: 28, background: '#e8e8ea', padding: '24px 24px 20px', textAlign: 'left', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.9)' }}>

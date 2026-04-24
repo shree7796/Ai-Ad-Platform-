@@ -36,11 +36,11 @@ class User(Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     stripe_customer_id: Mapped[str] = mapped_column(String(100), nullable=True)
 
-    # Paid credits (subscription/top-up) — never expire while account is active
+    # Paid credits (subscription/top-up)- never expire while account is active
     credit_balance: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     # Credits ring-fenced for in-flight jobs; not yet permanently deducted
     reserved_balance: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    # Bonus/promotional credits — expire after bonus_credits_expire_at
+    # Bonus/promotional credits- expire after bonus_credits_expire_at
     bonus_credit_balance: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     bonus_credits_expire_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 

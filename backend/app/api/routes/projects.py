@@ -1,5 +1,5 @@
 """
-Project API Routes — CRUD + file upload.
+Project API Routes- CRUD + file upload.
 """
 
 import uuid

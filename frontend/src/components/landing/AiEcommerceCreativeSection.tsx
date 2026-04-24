@@ -67,7 +67,7 @@ export default function AiEcommerceCreativeSection() {
                         More AI ads: video and image creation for products
                     </h2>
                     <p className="mt-4 text-[15px] leading-relaxed text-neutral-600 md:text-[17px]">
-                        Generate ecommerce films from briefs, stills, or catalogs — plus packshots and variant grids for
+                        Generate ecommerce films from briefs, stills, or catalogs- plus packshots and variant grids for
                         the same campaign. Everything below runs on your self-hosted clips with distinct stacks per
                         placement.
                     </p>
@@ -132,7 +132,7 @@ export default function AiEcommerceCreativeSection() {
                         <div className="p-5 md:p-6">
                             <h3 className="text-lg font-semibold tracking-tight text-neutral-900">Packshots & variants</h3>
                             <p className="mt-2 text-[13px] leading-relaxed text-neutral-600 md:text-[14px]">
-                                New angles, backgrounds, and colorways from one master shot — ready for PDP and paid
+                                New angles, backgrounds, and colorways from one master shot- ready for PDP and paid
                                 social statics.
                             </p>
                         </div>
@@ -154,7 +154,7 @@ export default function AiEcommerceCreativeSection() {
                         <div className="p-5 md:p-6">
                             <h3 className="text-lg font-semibold tracking-tight text-neutral-900">Lifestyle and context</h3>
                             <p className="mt-2 text-[13px] leading-relaxed text-neutral-600 md:text-[14px]">
-                                Scene-built stills for lookbooks, email, and storefront heroes — matched to your video
+                                Scene-built stills for lookbooks, email, and storefront heroes- matched to your video
                                 look and feel.
                             </p>
                         </div>

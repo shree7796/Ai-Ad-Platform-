@@ -1,26 +1,26 @@
 """
-Fal Adapter — Universal Product Identity Lock for fire/action/rich-env composite scenes.
+Fal Adapter- Universal Product Identity Lock for fire/action/rich-env composite scenes.
 
 ROOT CAUSE FIXES FOR BLACK BAND + GHOST CAR ISSUES:
   GHOST-FIX-1  _blend_composite_with_flux strength raised to 0.72 for fire scenes.
-               0.52 was too low — it made the car semi-transparent/ghost-like.
+               0.52 was too low- it made the car semi-transparent/ghost-like.
                0.72 is the sweet spot: solid car + blended fire lighting.
   GHOST-FIX-2  guidance_scale raised to 3.2 for fire scenes.
-               2.5 was too low — the prompt wasn't being followed, causing ghost artifacts.
+               2.5 was too low- the prompt wasn't being followed, causing ghost artifacts.
   BAND-FIX-1   Background plate generation: fire scene now uses a focused prompt that
-               guarantees full-frame fire from bottom to top — no dark sky/black band.
+               guarantees full-frame fire from bottom to top- no dark sky/black band.
                Uses flux/dev with 28 steps for quality fire generation.
   BAND-FIX-2   _fire_scene_bg_prompt(): dedicated function for fire BG, completely
                rewrites the prompt to force full-bleed fire, NO dark sky at top.
   BAND-FIX-3   _PREMIUM_FIRE_PLATE_SUFFIX: rewritten to explicitly forbid dark bands.
   SOLID-FIX-1  _enhance_preserved_cutout: contrast/shadow boost for dark black products
                so they don't look washed out or transparent after fire light blending.
-  SOLID-FIX-2  fire_uplight_strength reduced to 0.18 (was 0.34) — prevents over-brightening
+  SOLID-FIX-2  fire_uplight_strength reduced to 0.18 (was 0.34)- prevents over-brightening
                dark black surfaces into orange wash.
   SOLID-FIX-3  warm_bounce_strength reduced to 0.06 (was 0.11) for same reason.
   SEAM-FIX-1   neutralize_bg_under_subject: increased blur radius for fire scenes.
   ALL-FIX      Universal product support: cars, sneakers, bottles, watches, phones,
-               bags, perfume, toys — ALL product types covered.
+               bags, perfume, toys- ALL product types covered.
 """
 
 import asyncio
@@ -66,7 +66,7 @@ _PREMIUM_FIRE_PLATE_SUFFIX = (
     "Thick smoke filling the upper half. "
     "Dark gritty asphalt foreground glowing orange from firelight. "
     "Hollywood VFX quality, IMAX HDR, 8K. "
-    "Pure environment plate — NO products, vehicles, people, or props."
+    "Pure environment plate- NO products, vehicles, people, or props."
 )
 
 _WM_PATTERNS = [
@@ -241,13 +241,13 @@ def _build_subject_lock_clause(desc: Dict[str, str], is_fire: bool = False) -> s
     subject_str = " ".join(parts) if parts else "the exact product shown in the input image"
 
     positive = (
-        f"[SUBJECT IDENTITY LOCK — HIGHEST PRIORITY] "
+        f"[SUBJECT IDENTITY LOCK- HIGHEST PRIORITY] "
         f"The subject is: {subject_str}. "
         f"PRESERVE EXACTLY: (1) silhouette and 3D shape, "
         f"(2) color {color or 'original'}{' and ' + secondary_color if secondary_color else ''}, "
         f"(3) surface finish and materials, (4) all logos/text/badges, "
         f"(5) proportions and every design detail. "
-        f"The subject MUST appear SOLID, OPAQUE, and FULLY VISIBLE — never transparent or ghost-like. "
+        f"The subject MUST appear SOLID, OPAQUE, and FULLY VISIBLE- never transparent or ghost-like. "
     )
 
     neg_parts = [
@@ -381,11 +381,11 @@ def _scene_fragment_from_prompt(user_prompt: str) -> str:
 def _fire_scene_bg_prompt() -> str:
     """
     BAND-FIX-2: Dedicated full-frame fire BG prompt.
-    Guarantees NO black band at top — entire frame is fire.
+    Guarantees NO black band at top- entire frame is fire.
     """
     return (
         "A massive roaring wall of organic fire filling the ENTIRE image frame from bottom to top. "
-        "Tall dramatic flames REACHING the very top edge of the image — absolutely NO dark sky, "
+        "Tall dramatic flames REACHING the very top edge of the image- absolutely NO dark sky, "
         "NO black areas at top, NO empty space. "
         "Dense billowing smoke in the upper half of the frame. "
         "Thousands of glowing orange and red embers floating upward through the smoke. "
@@ -508,7 +508,7 @@ def _coerce_bool_opt(value: Any, default: bool) -> bool:
 
 _DIRECT_SUBJECT_IDENTITY_GUARD = (
     "Keep the exact same product as the source image: identical silhouette, proportions, "
-    "materials, surface colors, logos, and geometry — do not substitute a different item."
+    "materials, surface colors, logos, and geometry- do not substitute a different item."
 )
 _TEXT_INTEGRITY_GUARD = (
     "Do not add, replace, or hallucinate any text, license plate, sticker, decal, or badge. "
@@ -533,13 +533,13 @@ def _miniature_subject_style_lock(prompt: str) -> str:
     if not _wants_preserve_exact_product(prompt):
         return ""
     if _is_action_fx_scene(prompt) or _has_fire_or_burning(prompt):
-        # Fire/action used to skip this — caused wrong wheels/spoiler vs user's photo.
+        # Fire/action used to skip this- caused wrong wheels/spoiler vs user's photo.
         return (
-            "Diecast / scale model: keep the EXACT same vehicle as the source photo — same wheels, "
+            "Diecast / scale model: keep the EXACT same vehicle as the source photo- same wheels, "
             "same rear wing, same stance and body kit; do not swap for a generic showroom BMW."
         )
     return (
-        "This is a small-scale collectible or product — preserve its exact proportions, "
+        "This is a small-scale collectible or product- preserve its exact proportions, "
         "molded detail, surface finish, and scale. Only add scene lighting around it."
     )
 
@@ -568,16 +568,16 @@ def _fire_direct_scene_constraints(creative: str) -> str:
     """Tighten environment so runs don't drift to light grey studio (same prompt, wild variance)."""
     low = creative.lower()
     parts = [
-        "Environment must match the brief — NOT a white or light-grey seamless studio backdrop.",
+        "Environment must match the brief- NOT a white or light-grey seamless studio backdrop.",
         "NOT a bright cyclorama; NOT soft flat catalog lighting unless the brief asks for it.",
         # Avoid flat empty gradient voids (common failure mode vs reference “street fire” shots).
         "Foreground MUST be a real ground plane: wet dark asphalt or road with visible texture "
-        "(grain, cracks, tire sheen, pebbles) and a believable contact shadow — NOT a uniform "
+        "(grain, cracks, tire sheen, pebbles) and a believable contact shadow- NOT a uniform "
         "empty color field or blank gradient backdrop.",
         "Fire and smoke are practical light sources: warm orange-red rim light and bounce on the "
-        "product, hot highlights on edges, underbody glow on the ground, faint reflections — "
+        "product, hot highlights on edges, underbody glow on the ground, faint reflections- "
         "NOT thin sticker flames with zero illumination interaction.",
-        "Atmospheric depth: volumetric smoke/haze, embers, layers receding into darker haze — "
+        "Atmospheric depth: volumetric smoke/haze, embers, layers receding into darker haze- "
         "NOT a single flat wall of color behind the subject.",
     ]
     if "dark" in low or "night" in low or "moody" in low:
@@ -589,14 +589,14 @@ def _fire_direct_scene_constraints(creative: str) -> str:
     if "high contrast" in low or "contrast" in low:
         parts.append("High-contrast cinematic lighting: strong key, deep blacks, hot highlights.")
     if "action" in low or "sporty" in low or "aggressive" in low:
-        parts.append("Aggressive action photography — energy and motion, not a static packshot.")
+        parts.append("Aggressive action photography- energy and motion, not a static packshot.")
     return " ".join(parts)
 
 
 _FIRE_DIRECT_INTEGRATED_ENV = (
     "Night burnout / street-fire scene: lower frame is wet gritty asphalt with road texture; "
     "mid and upper frame filled with roaring flames, thick smoke, and floating embers. "
-    "Single coherent camera; fire lights the scene — orange spill on paint, ground glow, heat shimmer. "
+    "Single coherent camera; fire lights the scene- orange spill on paint, ground glow, heat shimmer. "
     "Hollywood practical VFX look, not a collage."
 )
 
@@ -638,7 +638,7 @@ def _build_dark_fire_plate_rgba(w: int, h: int) -> Image.Image:
 def _build_garage_env_plate_rgba(w: int, h: int) -> Image.Image:
     """
     Neutral dark garage / showroom floor plate for img2img when the user brief is garage/road/cyberpunk
-    but the upload is a bright white catalog shot — gives Flux a non-white starting frame.
+    but the upload is a bright white catalog shot- gives Flux a non-white starting frame.
     """
     rng = np.random.default_rng(43)
     t = np.linspace(0.0, 1.0, h, dtype=np.float32)[:, np.newaxis]
@@ -690,15 +690,15 @@ def _wants_luxury_garage_scene(creative: str) -> bool:
 
 
 _LUXURY_GARAGE_HERO_LOCK = (
-    "[HERO PRODUCT — MUST MATCH INPUT IMAGE] Foreground vehicle = the SAME diecast as the upload: same paint color, "
+    "[HERO PRODUCT- MUST MATCH INPUT IMAGE] Foreground vehicle = the SAME diecast as the upload: same paint color, "
     "wheels, wing/spoiler, bumpers, stance, and proportions. Do NOT replace with a different car, real full-size "
     "vehicle, or another trim/generation. You may change ONLY lighting, reflections, and the garage around it."
 )
 
 _LUXURY_GARAGE_DIRECT = (
-    "ENVIRONMENT (required): luxury automotive garage / showroom interior — NOT a plain product sweep. "
+    "ENVIRONMENT (required): luxury automotive garage / showroom interior- NOT a plain product sweep. "
     "Visible architecture: ceiling, beams or panels, side walls with depth; polished floor with reflections. "
-    "BACKGROUND: multiple heavily blurred exotic sports-car shapes (bokeh) deeper in the space — NOT empty void, "
+    "BACKGROUND: multiple heavily blurred exotic sports-car shapes (bokeh) deeper in the space- NOT empty void, "
     "NOT flat grey card, NOT seamless white. "
     "FORBIDDEN: empty black backdrop, featureless wall, solo table with no architecture. "
     "Lighting: mixed garage ambient + rim + practical LEDs; avoid single frontal catalog softbox. "
@@ -715,7 +715,7 @@ def _stable_seed_from_prompt(creative: str) -> int:
 def _rich_env_direct_scene_constraints(creative: str) -> str:
     """Rich-environment unified img2img: stop white-studio inputs from winning over garage/road/neon briefs."""
     base = (
-        "Environmental scene must match the user's brief — NOT a white seamless paper cyclorama or bright "
+        "Environmental scene must match the user's brief- NOT a white seamless paper cyclorama or bright "
         "ecommerce catalog backdrop unless the brief explicitly demands pure white. "
         "Replace the studio with the described location (garage interior, asphalt, city bokeh, neon, etc.). "
         "Unified lighting: environment must light the product with believable reflections, contact shadow, "
@@ -964,7 +964,7 @@ def _apply_fire_uplight_to_foreground(foreground: Image.Image, strength: float) 
     row = np.arange(h, dtype=np.float32)[:, np.newaxis]
     y_norm = np.clip((row - y_min) / span, 0.0, 1.0)
     lum = 0.299 * arr[..., 0] + 0.587 * arr[..., 1] + 0.114 * arr[..., 2]
-    # Weight by luminance — black areas get minimal uplight
+    # Weight by luminance- black areas get minimal uplight
     lum_weight = np.clip((lum - 20.0) / 80.0, 0.0, 1.0)
     uplight = np.clip((y_norm - 0.32) / 0.68, 0.0, 1.0) ** 1.75 * opaque.astype(np.float32) * lum_weight
     rim = np.clip((y_norm - 0.5) / 0.5, 0.0, 1.0) * 0.25 * opaque.astype(np.float32) * lum_weight
@@ -1241,7 +1241,7 @@ class FalAdapter(BaseAIProvider):
                 "Cinematic fire foreground VFX plate: tall flames rising from bottom, "
                 "dense rolling smoke, flying orange embers and sparks, "
                 "dramatic orange-red glow, dark background. "
-                "No product visible — pure fire, smoke, embers only. VFX plate, 8K."
+                "No product visible- pure fire, smoke, embers only. VFX plate, 8K."
             )
             handler = await asyncio.to_thread(
                 fal_client.submit, "fal-ai/flux/schnell",
@@ -1449,7 +1449,7 @@ class FalAdapter(BaseAIProvider):
                         error_message="nano-banana img2img returned no result",
                         model_name=self.name,
                     )
-                # Apply watermark (same logic as Flux path — must run BEFORE returning)
+                # Apply watermark (same logic as Flux path- must run BEFORE returning)
                 nb_image = Image.open(io.BytesIO(nb_bytes)).convert("RGB")
                 wm_source = (kwargs.get("user_prompt") or prompt) or ""
                 _, wm_text, wm_metallic = _build_full_background_prompt(wm_source)
@@ -1522,7 +1522,7 @@ class FalAdapter(BaseAIProvider):
                 if kwargs.get("composite_flux_blend") is None:
                     kwargs["composite_flux_blend"] = bool(dramatic or rich_env)
 
-                # GHOST-FIX-1: 0.72 for fire — solid car, blended fire lighting
+                # GHOST-FIX-1: 0.72 for fire- solid car, blended fire lighting
                 if kwargs.get("composite_blend_strength") is None:
                     if dramatic:
                         kwargs["composite_blend_strength"] = 0.72
@@ -1621,7 +1621,7 @@ class FalAdapter(BaseAIProvider):
                 raw = (await client.get(image_url)).content
             rgb = np.array(Image.open(io.BytesIO(raw)).convert("RGB"), dtype=np.float32)
             mean_lum = float(np.mean(rgb))
-            # Dark grey "tabletop" (mean ~90–115) still reads as studio — luxury garage needs plate too.
+            # Dark grey "tabletop" (mean ~90–115) still reads as studio- luxury garage needs plate too.
             _lux_g = _wants_luxury_garage_scene(creative)
             if mean_lum < 88.0:
                 return image_url, "none"
@@ -1715,7 +1715,7 @@ class FalAdapter(BaseAIProvider):
                     steps = int(kwargs.get("img2img_steps", 44))
                     scene_must = _fire_direct_scene_constraints(creative)
                     unified = (
-                        "ONE single photograph — not a collage. Same camera, same ground plane, coherent "
+                        "ONE single photograph- not a collage. Same camera, same ground plane, coherent "
                         "fire/smoke/lighting and contact shadows; product naturally in the environment."
                     )
                     full_prompt = (
@@ -1723,7 +1723,7 @@ class FalAdapter(BaseAIProvider):
                         f"Photorealistic, HDR, 8K."
                     )
                 elif is_rich_env_scene:
-                    # Luxury garage: lower strength + subject before scene — high strength was swapping the car.
+                    # Luxury garage: lower strength + subject before scene- high strength was swapping the car.
                     if lux_garage:
                         base_rich = 0.72 if _wants_preserve_exact_product(creative) else 0.78
                     else:
@@ -1734,7 +1734,7 @@ class FalAdapter(BaseAIProvider):
                     steps = int(kwargs.get("img2img_steps", 48 if lux_garage else 44))
                     scene_rm = _rich_env_direct_scene_constraints(creative)
                     unified = (
-                        "ONE single photograph — not a collage. Same environment and camera; depth of field, "
+                        "ONE single photograph- not a collage. Same environment and camera; depth of field, "
                         "realistic reflections on paint and glass, natural contact shadow; product integrated in scene."
                     )
                     if lux_garage:
@@ -1803,7 +1803,7 @@ class FalAdapter(BaseAIProvider):
         """
         Image-to-image using Google's Nano Banana (Imagen) via fal.ai.
         Supports both fal-ai/nano-banana/edit (v1) and fal-ai/nano-banana-2/edit (v2).
-        Unlike Flux, this is a pure instruction-based edit model — no strength/steps/guidance params.
+        Unlike Flux, this is a pure instruction-based edit model- no strength/steps/guidance params.
         Pass model="nano-banana-2" in kwargs to use the newer v2 model.
         """
         try:
@@ -1818,7 +1818,7 @@ class FalAdapter(BaseAIProvider):
             else:
                 endpoint = "fal-ai/nano-banana/edit"
 
-            # Build a focused edit prompt (no negative prompt needed — model is instruction-tuned)
+            # Build a focused edit prompt (no negative prompt needed- model is instruction-tuned)
             is_fire_scene = _has_fire_or_burning(creative) or _is_action_fx_scene(creative)
             is_rich_env = _is_rich_environment_scene(creative)
             subj_desc = _extract_subject_visual_description(creative)
@@ -1904,7 +1904,7 @@ class FalAdapter(BaseAIProvider):
                     "Cinematic fire poster: intense orange firelight illuminating the product, "
                     "coherent specular highlights from fire, dark wet ground with fire reflections, "
                     "background fire and smoke in soft bokeh, scattered embers. "
-                    "The product MUST appear SOLID and FULLY OPAQUE — not transparent, not ghostly. "
+                    "The product MUST appear SOLID and FULLY OPAQUE- not transparent, not ghostly. "
                 )
                 light_line = (
                     "Orange/red fire color cast on product surfaces. Deep shadows at ground contact. "
@@ -1936,7 +1936,7 @@ class FalAdapter(BaseAIProvider):
             blend_prompt = (
                 f"{subject_lock} "
                 f"{routing_prompt_clean[:400]}. {hero_integrate}"
-                f"One seamless photoreal photograph — not a collage or cutout. "
+                f"One seamless photoreal photograph- not a collage or cutout. "
                 f"{light_line}{fire_permission}{_TEXT_INTEGRITY_GUARD}"
             )
             if mini_lock:
@@ -2163,7 +2163,7 @@ class FalAdapter(BaseAIProvider):
             return None
 
     # -----------------------------------------------------------------------
-    # Video generation — model registry
+    # Video generation- model registry
     # -----------------------------------------------------------------------
     #
     # Cost reference (fal.ai, per video):
@@ -2172,7 +2172,7 @@ class FalAdapter(BaseAIProvider):
     #   luma            ~$0.14/video fixed
     #   minimax         ~$0.50/video fixed
     #   kling_pro       ~$0.14/s   → 5 s ≈ $0.70  (v1.6)
-    #   kling_21_pro    ~$0.098/s  → 5 s ≈ $0.49  (v2.1 — newer & cheaper than v1.6)
+    #   kling_21_pro    ~$0.098/s  → 5 s ≈ $0.49  (v2.1- newer & cheaper than v1.6)
     #   kling_master    ~$0.28/s   → 5 s ≈ $1.40  (was wrongly the default → $2.80!)
     #   seedance_fast   ~$0.2419/s → 5 s ≈ $1.21  (ByteDance, native audio included)
     #
@@ -2208,7 +2208,7 @@ class FalAdapter(BaseAIProvider):
         "kling":             "fal-ai/kling-video/v1/standard/image-to-video",
     }
 
-    # Per-tier defaults — basic users get cheap standard, premium get master
+    # Per-tier defaults- basic users get cheap standard, premium get master
     _I2V_TIER_DEFAULT: Dict[str, str] = {
         "free":    "kling_standard",
         "basic":   "kling_standard",
@@ -2255,7 +2255,7 @@ class FalAdapter(BaseAIProvider):
         kwargs
         ------
         model        : "kling_standard"|"kling_pro"|"kling_master"|"wan"|"minimax"|"luma"
-        tier         : "free"|"basic"|"pro"|"premium"  — used to auto-pick model if model not set
+        tier         : "free"|"basic"|"pro"|"premium" - used to auto-pick model if model not set
         aspect_ratio : "16:9" | "9:16" | "1:1"               (default: 16:9)
         negative_prompt : str
         """
@@ -2266,7 +2266,7 @@ class FalAdapter(BaseAIProvider):
         aspect_ratio = kwargs.get("aspect_ratio", "16:9")
         negative_prompt = kwargs.get("negative_prompt", "blurry, low quality, distorted")
 
-        # Duration — each model has its own param name / allowed values
+        # Duration- each model has its own param name / allowed values
         duration_str = str(min(max(int(duration_seconds), 5), 10))  # clamp 5-10
 
         try:
@@ -2337,7 +2337,7 @@ class FalAdapter(BaseAIProvider):
             return GenerationResult(success=False, error_message=str(e), model_name=self.name)
 
     # -----------------------------------------------------------------------
-    # image_to_video  — full multi-model implementation
+    # image_to_video - full multi-model implementation
     # -----------------------------------------------------------------------
     async def image_to_video(
         self,
@@ -2352,11 +2352,11 @@ class FalAdapter(BaseAIProvider):
         kwargs
         ------
         model           : "kling_standard"|"kling_pro"|"kling_master"|"wan"|"minimax"|"luma"
-        tier            : "free"|"basic"|"pro"|"premium"  — auto-picks model if model not set
+        tier            : "free"|"basic"|"pro"|"premium" - auto-picks model if model not set
         aspect_ratio    : "16:9" | "9:16" | "1:1"               (default: 16:9)
         negative_prompt : str
         resolution      : "720p" | "1080p"                       (wan only)
-        end_image_url   : str                                    (kling only — end frame)
+        end_image_url   : str                                    (kling only- end frame)
         """
         tier = str(kwargs.get("tier", "basic")).lower()
         tier_default = self._I2V_TIER_DEFAULT.get(tier, self._I2V_DEFAULT)
@@ -2470,7 +2470,7 @@ class FalAdapter(BaseAIProvider):
                 if kwargs.get("audio_url"):
                     args["audio_url"] = kwargs["audio_url"]
 
-            else:  # luma — fast fallback
+            else:  # luma- fast fallback
                 args = {
                     "image_url": public_image_url,
                     "prompt": prompt,
@@ -2526,7 +2526,7 @@ class FalAdapter(BaseAIProvider):
             return GenerationResult(success=False, error_message=str(e), model_name=self.name)
 
     # -----------------------------------------------------------------------
-    # Audio generation — Beatoven AI (sound effects + music)
+    # Audio generation- Beatoven AI (sound effects + music)
     # -----------------------------------------------------------------------
 
     async def text_to_audio(
@@ -2541,7 +2541,7 @@ class FalAdapter(BaseAIProvider):
 
         Parameters
         ----------
-        prompt        : describe the sound — e.g. "engine roar, tire screech, dramatic bass"
+        prompt        : describe the sound- e.g. "engine roar, tire screech, dramatic bass"
         duration_seconds : 1–35 for sfx, 5–90 for music
         audio_type    : "sfx"   → beatoven/sound-effect-generation  ($0.10/req)
                         "music" → beatoven/music-generation          ($0.10/req)
@@ -2581,6 +2581,53 @@ class FalAdapter(BaseAIProvider):
 
         except Exception as e:
             logger.exception(f"[{self.name}] text_to_audio failed: {e}")
+            return GenerationResult(success=False, error_message=str(e), model_name=self.name)
+
+    async def image_to_3d(self, image_url: str, prompt: str = "", **kwargs) -> GenerationResult:
+        """Single-image → 3D asset via Fal (GLB or mesh URL from Trellis / ReconViaGen)."""
+        _ = prompt  # optional; Fal image-to-3D models are image-conditioned
+        model_hint = str(kwargs.get("model") or kwargs.get("image_model") or "trellis").strip().lower()
+        model_hint = model_hint.replace("-", "_").replace(".", "_")
+        routing = {
+            "trellis": "fal-ai/trellis",
+            "trellis_2": "fal-ai/trellis-2",
+            "trellis2": "fal-ai/trellis-2",
+            "reconviagen": "fal-ai/reconviagen-0.5",
+            "reconviagen_0_5": "fal-ai/reconviagen-0.5",
+        }
+        endpoint = routing.get(model_hint, "fal-ai/trellis")
+        try:
+            pub = await self._ensure_public_url(image_url)
+            if endpoint == "fal-ai/reconviagen-0.5":
+                args: Dict[str, Any] = {"image_urls": [pub]}
+            else:
+                args = {"image_url": pub}
+            logger.info(f"[{self.name}] image_to_3d → {endpoint} (model_hint={model_hint})")
+            handler = await asyncio.to_thread(fal_client.submit, endpoint, arguments=args)
+            result = await asyncio.to_thread(handler.get)
+            if not result:
+                return GenerationResult(success=False, error_message="Empty Fal result", model_name=self.name)
+
+            out_url: Optional[str] = None
+            for key in ("model_glb", "model_mesh", "mesh"):
+                block = result.get(key)
+                if isinstance(block, dict) and block.get("url"):
+                    out_url = str(block["url"])
+                    break
+            if not out_url:
+                return GenerationResult(
+                    success=False,
+                    error_message=f"No 3D file in Fal response (keys={list(result.keys())})",
+                    model_name=self.name,
+                )
+            return GenerationResult(
+                success=True,
+                media_url=out_url,
+                model_name=f"{self.name}/{model_hint}",
+                metadata={"fal_endpoint": endpoint},
+            )
+        except Exception as e:
+            logger.exception(f"[{self.name}] image_to_3d failed: {e}")
             return GenerationResult(success=False, error_message=str(e), model_name=self.name)
 
     async def check_status(self, job_id: str) -> Dict[str, Any]:

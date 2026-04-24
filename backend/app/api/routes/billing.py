@@ -1,5 +1,5 @@
 """
-Billing API Routes — Plan info, Stripe checkout, webhook.
+Billing API Routes- Plan info, Stripe checkout, webhook.
 Endpoint contract must match frontend/src/lib/api.ts billingAPI.
 """
 
@@ -270,7 +270,7 @@ async def sync_checkout_session(
 
 @router.post("/webhook")
 async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
-    """Stripe webhook — handles subscription lifecycle events."""
+    """Stripe webhook- handles subscription lifecycle events."""
     stripe = _stripe()
     settings = get_settings()
 

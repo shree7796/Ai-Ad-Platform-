@@ -1,4 +1,4 @@
-"""Simple media upload endpoint — returns a public URL for the uploaded file."""
+"""Simple media upload endpoint- returns a public URL for the uploaded file."""
 
 import uuid
 

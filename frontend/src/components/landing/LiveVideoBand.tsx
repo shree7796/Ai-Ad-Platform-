@@ -30,7 +30,7 @@ export default function LiveVideoBand() {
                     className="relative z-[1] h-full w-full object-cover"
                     onError={() => setIdx((i) => (i + 1 < BAND_SOURCES.length ? i + 1 : i))}
                 />
-                {/* Was too heavy — video was invisible */}
+                {/* Was too heavy- video was invisible */}
                 <div className="pointer-events-none absolute inset-0 z-[2] bg-gradient-to-b from-[#030303]/80 via-transparent to-[#030303]/80" />
                 <div className="pointer-events-none absolute inset-0 z-[2] bg-black/15" />
             </div>

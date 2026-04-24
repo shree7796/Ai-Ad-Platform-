@@ -11,11 +11,13 @@ import {
     Sparkles,
     ZoomIn,
     Video,
+    Box,
+    ExternalLink,
 } from 'lucide-react';
 
-export type OutputType = 'image' | 'video' | 'none';
+export type OutputType = 'image' | 'video' | 'model' | 'none';
 
-export type CanvasAccent = 'image' | 'video';
+export type CanvasAccent = 'image' | 'video' | 'model';
 
 interface Props {
     type: OutputType;
@@ -39,10 +41,13 @@ function KreaEmptyHero({
     accent: CanvasAccent;
 }) {
     const isVideo = accent === 'video';
+    const isModel = accent === 'model';
     const gradient = isVideo
         ? 'linear-gradient(145deg, #fbbf24 0%, #f59e0b 38%, #ea580c 100%)'
-        : 'linear-gradient(165deg, #1a9bff 0%, #0a84ff 45%, #0071e3 100%)';
-    const Icon = isVideo ? Video : Sparkles;
+        : isModel
+          ? 'linear-gradient(155deg, #a855f7 0%, #7c3aed 45%, #5b21b6 100%)'
+          : 'linear-gradient(165deg, #1a9bff 0%, #0a84ff 45%, #0071e3 100%)';
+    const Icon = isVideo ? Video : isModel ? Box : Sparkles;
 
     return (
         <div
@@ -118,6 +123,7 @@ function KreaEmptyHero({
 
 function LoadingState({ type }: { type: OutputType }) {
     const isVideo = type === 'video';
+    const isModel = type === 'model';
     return (
         <div
             style={{
@@ -149,7 +155,7 @@ function LoadingState({ type }: { type: OutputType }) {
                 </motion.div>
                 <div>
                     <div style={{ fontSize: 16, fontWeight: 600, color: '#ffffff', marginBottom: 6 }}>
-                        {isVideo ? 'Generating video…' : 'Generating image…'}
+                        {isVideo ? 'Generating video…' : isModel ? 'Building 3D model…' : 'Generating image…'}
                     </div>
                     <div style={{ fontSize: 14, color: '#888888', lineHeight: 1.6, maxWidth: 260 }}>
                         This may take a moment. Your result will appear here.
@@ -195,7 +201,8 @@ export default function OutputPanel({
 
     const handleDownload = () => {
         if (!src) return;
-        const filename = type === 'video' ? 'lumina-output.mp4' : 'lumina-output.png';
+        const filename =
+            type === 'video' ? 'lumina-output.mp4' : type === 'model' ? 'lumina-output.glb' : 'lumina-output.png';
         const proxyUrl = `/api/media-download?url=${encodeURIComponent(src)}&filename=${encodeURIComponent(filename)}`;
         const a = document.createElement('a');
         a.href = proxyUrl;
@@ -361,7 +368,42 @@ export default function OutputPanel({
                                 background: '#000',
                             }}
                         >
-                            {type === 'image' ? (
+                            {type === 'model' ? (
+                                <div
+                                    style={{
+                                        padding: '36px 28px',
+                                        textAlign: 'center',
+                                        maxWidth: zoom ? '90vw' : 440,
+                                        background: 'linear-gradient(180deg, rgba(139,92,246,0.12) 0%, rgba(26,26,26,0.95) 100%)',
+                                        border: '1px solid rgba(139,92,246,0.25)',
+                                    }}
+                                >
+                                    <Box size={48} color="#c4b5fd" style={{ margin: '0 auto 16px', opacity: 0.9 }} />
+                                    <div style={{ fontSize: 17, fontWeight: 700, color: '#fff', marginBottom: 8 }}>
+                                        3D asset ready
+                                    </div>
+                                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55, margin: '0 0 18px' }}>
+                                        GLB or mesh is stored at a signed URL. Download it, or open in an online glTF viewer.
+                                    </p>
+                                    <a
+                                        href={`https://gltf-viewer.donmccurdy.com/#model=${encodeURIComponent(src)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="btn-secondary"
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 8,
+                                            padding: '10px 16px',
+                                            fontSize: 13,
+                                            textDecoration: 'none',
+                                        }}
+                                    >
+                                        <ExternalLink size={14} />
+                                        Open in viewer
+                                    </a>
+                                </div>
+                            ) : type === 'image' ? (
                                 <img
                                     src={src}
                                     alt="Generated"
@@ -447,10 +489,14 @@ export default function OutputPanel({
                 >
                     <ImageIcon size={12} color="var(--text-muted)" />
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {type === 'image' ? '1024 × 1024 px · AI Generated' : '5s · 16:9 · AI Generated'}
+                        {type === 'image'
+                            ? '1024 × 1024 px · AI Generated'
+                            : type === 'model'
+                              ? 'GLB / mesh · AI Generated'
+                              : '5s · 16:9 · AI Generated'}
                     </span>
                     <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                        Each generation uses credits — download before regenerating.
+                        Each generation uses credits- download before regenerating.
                     </span>
                 </div>
             )}

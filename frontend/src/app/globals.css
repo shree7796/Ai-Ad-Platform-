@@ -1,4 +1,4 @@
-/* Inter via Google Fonts — avoids next/font + Turbopack resolution issues (see Next 14.2 + turbo). */
+/* Inter via Google Fonts- avoids next/font + Turbopack resolution issues (see Next 14.2 + turbo). */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
@@ -81,7 +81,7 @@ html {
   }
 }
 
-/* Auth pages — dark fields, Krea blue focus */
+/* Auth pages- dark fields, Krea blue focus */
 .auth-form-input {
   width: 100%;
   padding: 12px 14px;
@@ -148,7 +148,7 @@ body {
   grid-template-rows: 1fr;
 }
 
-/* Billing, settings, history, etc.: grow with content — window scrolls, nothing clipped below fold */
+/* Billing, settings, history, etc.: grow with content- window scrolls, nothing clipped below fold */
 .studio-layout.studio-layout--triple:not(.studio-layout--generator) {
   height: auto;
   min-height: 100svh;
@@ -234,7 +234,7 @@ body {
   background: transparent;
 }
 
-/* AI canvas backdrop for entire workspace column (canvas + dock gutter — avoids solid black under pill bar). */
+/* AI canvas backdrop for entire workspace column (canvas + dock gutter- avoids solid black under pill bar). */
 .studio-layout--generator .studio-main.studio-workspace-main::before {
   content: '';
   position: absolute;
@@ -645,7 +645,7 @@ body {
   overflow-y: visible;
 }
 
-/* Only grids need min-width:0 — avoid applying to every main child (can interact badly with motion/cards). */
+/* Only grids need min-width:0- avoid applying to every main child (can interact badly with motion/cards). */
 .studio-billing-plans-grid,
 .billing-usage-stats {
   min-width: 0;
@@ -784,7 +784,7 @@ body {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
-/* Output panel (right col — keep class for backward compat) */
+/* Output panel (right col- keep class for backward compat) */
 .studio-output {
   width: 360px;
   flex-shrink: 0;
